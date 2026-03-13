@@ -1,0 +1,69 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-0: #060b06;
+  --bg-1: #080d08;
+  --bg-2: #0a120a;
+  --bg-3: #0c160c;
+  --bg-4: #0f1f0f;
+  --bg-input: #050a05;
+  --green-100: #00ff41;
+  --green-200: #00cc33;
+  --green-300: #009922;
+  --green-400: #006611;
+  --text-100: #ccffcc;
+  --text-200: #88cc88;
+  --text-300: #446644;
+  --text-dim: #2a4a2a;
+  --red: #ff3333;
+  --yellow: #ffdd00;
+  --orange: #ff9900;
+  --cyan: #00ffff;
+  --purple: #cc44ff;
+  --border: rgba(0,255,65,0.12);
+  --border-mid: rgba(0,255,65,0.25);
+  --border-hi: rgba(0,255,65,0.5);
+  --glow-sm: 0 0 6px rgba(0,255,65,0.25);
+  --glow-md: 0 0 14px rgba(0,255,65,0.35);
+  --glow-lg: 0 0 24px rgba(0,255,65,0.45);
+  --font-mono: 'JetBrains Mono', 'Share Tech Mono', 'Courier New', monospace;
+  --radius: 3px;
+  --scrollbar-track: #050a05;
+  --scrollbar-thumb: #1a3a1a;
+  --scrollbar-thumb-hover: #2a5a2a;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--text-100);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* ─── Selections ─────────────────────────────────────────────────────────── */
+::selection { background: rgba(0,255,65,0.25); color: var(--green-100); }
+
+/* ─── Focus outline ──────────────────────────────────────────────────────── */
+:focus-visible { outline: 1px solid var(--green-100); outline-offset: 1px; }
+
+/* ─── Input reset ────────────────────────────────────────────────────────── */
+input, select, textarea, button { font-family: var(--font-mono); }

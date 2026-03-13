@@ -1,0 +1,39 @@
+{
+  "name": "nmap-command-builder",
+  "version": "1.0.0",
+  "description": "Nmap Command Builder — Electron Desktop App",
+  "private": true,
+  "homepage": "./",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "dev": "concurrently -k -s first -n REACT,ELECTRON -c cyan,green \"react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron": "electron .",
+    "test": "react-scripts test --watchAll=false"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "electron": "^32.0.0",
+    "react-scripts": "5.0.1",
+    "wait-on": "^7.2.0"
+  },
+  "eslintConfig": {
+    "extends": ["react-app"],
+    "rules": {
+      "no-unused-vars": "warn"
+    }
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
