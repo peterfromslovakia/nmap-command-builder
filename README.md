@@ -21,10 +21,10 @@ Built with **Electron + React** and designed for system administrators, security
 
 ### Command Builder
 
-- Visual flag selector organised into collapsible categories  
-- Live command preview — see the exact `nmap` command update instantly  
-- Safe / Advanced mode toggle  
-- 12 built-in scan presets  
+- Visual flag selector organised into collapsible categories
+- Live command preview — see the exact `nmap` command update instantly
+- Safe / Advanced mode toggle
+- 12 built-in scan presets
 - Searchable Nmap cheatsheet
 
 ### Scan Execution
@@ -37,17 +37,17 @@ Built with **Electron + React** and designed for system administrators, security
 
 ### Post-Scan Intelligence
 
-- **Open Ports Panel** with risk classification  
-- **Host Info Panel** (IP, hostname, MAC, vendor)  
-- **Host Discovery Panel**  
-- **Network Map visualisation**  
-- **Security Intel Panel**  
+- **Open Ports Panel** with risk classification
+- **Host Info Panel** (IP, hostname, MAC, vendor)
+- **Host Discovery Panel**
+- **Network Map visualisation**
+- **Security Intel Panel**
 - **Follow-Up Scan suggestions**
 
 ### Safety & Awareness
 
-- ⚠ ROOT badge for scans requiring elevated privileges  
-- ⚠ IDS/IPS warning when evasion techniques are used  
+- ⚠ ROOT badge for scans requiring elevated privileges
+- ⚠ IDS/IPS warning when evasion techniques are used
 - Built-in Ethics tab with legal notice and responsible use checklist
 
 ---
@@ -77,15 +77,15 @@ It helps:
 
 Install Nmap if needed:
 
-```bash
+\`\`\`bash
 brew install nmap
-```
+\`\`\`
 
 or
 
-```bash
+\`\`\`bash
 sudo apt install nmap
-```
+\`\`\`
 
 ---
 
@@ -93,59 +93,41 @@ sudo apt install nmap
 
 Clone repository:
 
-```bash
+\`\`\`bash
 git clone https://github.com/peterfromslovakia/nmap-command-builder.git
 cd nmap-command-builder
-```
+\`\`\`
 
 Install dependencies:
 
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
 Run development mode:
 
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 ---
 
 ## Production build
 
-```bash
+\`\`\`bash
 npm run build
 npm run electron
-```
-
----
-
-## Project Structure
-
-```
-electron/
-  main.js
-  preload.js
-
-src/
-  components/
-  utils/
-  data/
-
-assets/
-docs/images/
-```
+\`\`\`
 
 ---
 
 ## Security Model
 
-- `contextIsolation: true`
-- `nodeIntegration: false`
-- All Nmap execution goes through IPC in the main process
-- Arguments are validated before execution
-- `spawn` is used instead of `exec`
+- contextIsolation enabled
+- nodeIntegration disabled
+- Nmap execution handled only in Electron main process
+- arguments validated before execution
+- spawn used instead of exec
 
 ---
 
