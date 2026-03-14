@@ -16,20 +16,21 @@ Built with **Electron + React** and designed for system administrators, cybersec
 
 # Table of Contents
 
-- [Screenshot](#screenshot)
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Why This Project Exists](#why-this-project-exists)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Production Build](#production-build)
-- [Security Model](#security-model)
-- [Dependency Security Notes](#dependency-security-notes)
-- [Responsible Use](#responsible-use)
-- [Roadmap](#roadmap)
-- [Author](#author)
-- [License](#license)
+- Screenshot
+- Quick Start
+- Features
+- Why This Project Exists
+- Requirements
+- Installation
+- Usage
+- Root Privileges
+- Production Build
+- Security Model
+- Dependency Security Notes
+- Responsible Use
+- Roadmap
+- Author
+- License
 
 ---
 
@@ -41,12 +42,12 @@ Built with **Electron + React** and designed for system administrators, cybersec
 
 # Quick Start
 
-Clone repository and run the development version:
+Clone repository and run the development version.
 
-    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
-    cd nmap-command-builder
-    npm install
-    npm run dev
+git clone https://github.com/peterfromslovakia/nmap-command-builder.git  
+cd nmap-command-builder  
+npm install  
+npm run dev  
 
 The application will start as an Electron desktop app with the Nmap command builder interface.
 
@@ -59,7 +60,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Visual flag selector organised into collapsible categories
 - Live command preview
 - Safe / Advanced mode toggle
-- 12 built-in scan presets
+- Built-in scan presets
 - Searchable Nmap cheatsheet
 
 ## Scan Execution
@@ -81,8 +82,8 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 ## Safety & Awareness
 
-- ⚠ ROOT badge for privileged scans
-- ⚠ IDS/IPS warning for stealth techniques
+- ROOT badge for privileged scans
+- IDS/IPS warning for stealth techniques
 - Built-in ethics and legal notice panel
 
 ---
@@ -95,21 +96,21 @@ This project aims to make **Nmap accessible through a graphical interface while 
 
 It helps:
 
-- system administrators
-- cybersecurity students
-- penetration testers
-- network engineers
+- system administrators  
+- cybersecurity students  
+- penetration testers  
+- network engineers  
+
+learn and use Nmap effectively without memorising hundreds of flags.
 
 ---
 
 # Requirements
 
-| Requirement | Version |
-|---|---|
-| Node.js | 18+ |
-| Nmap | 7.x or newer |
-| OS | macOS · Linux |
-| Runtime | Electron |
+Node.js — 18+  
+Nmap — 7.x or newer  
+OS — macOS or Linux  
+Runtime — Electron
 
 ---
 
@@ -123,9 +124,9 @@ https://github.com/peterfromslovakia/nmap-command-builder/releases
 
 Available builds:
 
-- macOS → `.dmg`
-- Windows → `.exe`
-- Linux → `.AppImage`
+macOS → .dmg  
+Windows → .exe  
+Linux → .AppImage  
 
 No Node.js installation required.
 
@@ -135,22 +136,22 @@ No Node.js installation required.
 
 Clone repository
 
-    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
-    cd nmap-command-builder
+git clone https://github.com/peterfromslovakia/nmap-command-builder.git  
+cd nmap-command-builder  
 
 Install dependencies
 
-    npm install
+npm install  
 
 Install Nmap if needed
 
 macOS (Homebrew)
 
-    brew install nmap
+brew install nmap  
 
 Debian / Ubuntu
 
-    sudo apt install nmap
+sudo apt install nmap  
 
 ---
 
@@ -158,7 +159,7 @@ Debian / Ubuntu
 
 Run development mode
 
-    npm run dev
+npm run dev  
 
 This launches:
 
@@ -166,23 +167,50 @@ This launches:
 - Electron desktop window
 - Nmap command builder interface
 
+You can visually build commands and execute scans directly from the application.
+
+---
+
+# Root Privileges
+
+Some Nmap scan techniques require **root privileges (administrator rights)**.
+
+Examples include:
+
+- SYN scan (-sS)
+- OS detection (-O)
+- UDP scan (-sU)
+- advanced stealth techniques
+
+When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions.
+
+This means some advanced scan techniques may not work correctly.
+
+To enable full functionality, launch the application from Terminal using sudo:
+
+sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
+
+This allows Nmap to perform raw packet operations required for advanced scan techniques.
+
+Basic scans such as `-sT` (TCP Connect Scan) work without root privileges.
+
 ---
 
 # Production Build
 
 Create optimized build
 
-    npm run build
+npm run build  
 
 Create distributable application
 
-    npm run dist
+npm run dist  
 
 This generates installers such as:
 
-- macOS `.dmg`
-- Windows `.exe`
-- Linux `.AppImage`
+macOS → .dmg  
+Windows → .exe  
+Linux → .AppImage  
 
 inside the `dist` directory.
 
@@ -192,12 +220,14 @@ inside the `dist` directory.
 
 Security design decisions used in the application:
 
-- `contextIsolation` enabled
-- `nodeIntegration` disabled
-- Nmap execution only from Electron **main process**
+- contextIsolation enabled
+- nodeIntegration disabled
+- Nmap execution only from Electron main process
 - user input validated before execution
-- `spawn` used instead of `exec`
+- spawn used instead of exec
 - no shell interpolation allowed
+
+These measures help prevent command injection and improve runtime security.
 
 ---
 
@@ -205,16 +235,16 @@ Security design decisions used in the application:
 
 Running `npm audit` may report vulnerabilities in development dependencies such as:
 
-- `react-scripts`
-- `webpack-dev-server`
+- react-scripts
+- webpack-dev-server
 - Electron build tooling
 - packaging libraries
 
-These warnings primarily affect the **development and build toolchain**, not the runtime behaviour of the packaged Electron application.
+These warnings primarily affect the development and build toolchain, not the runtime behaviour of the packaged Electron application.
 
 To maintain build stability, dependencies are updated cautiously rather than automatically applying breaking changes with:
 
-    npm audit fix --force
+npm audit fix --force
 
 ---
 
@@ -226,7 +256,9 @@ Unauthorised port scanning may be illegal in many jurisdictions.
 
 ### Slovakia
 
-Skenovanie sietí bez povolenia je v SR trestným činom podľa § 247 Trestného zákona.
+Skenovanie sietí bez povolenia je v Slovenskej republike trestným činom podľa § 247 Trestného zákona.
+
+Always follow responsible disclosure and legal guidelines when performing security testing.
 
 ---
 
@@ -234,21 +266,19 @@ Skenovanie sietí bez povolenia je v SR trestným činom podľa § 247 Trestnéh
 
 Future improvements planned:
 
-- Windows desktop release (.exe)
-- macOS DMG installer
-- Linux AppImage build
+- improved scan presets
 - integrated Nmap script library
 - vulnerability hints based on detected services
 - export reports to Markdown / PDF
 - improved network topology visualisation
 - automated GitHub release builds
+- optional root privilege helper for advanced scans
 
 ---
 
 # Author
 
-**Peter Obala**
-
+Peter Obala  
 Cybersecurity enthusiast · Network administrator
 
 GitHub  
