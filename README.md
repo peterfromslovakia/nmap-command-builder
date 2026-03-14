@@ -16,18 +16,19 @@ Built with **Electron + React** and designed for system administrators, cybersec
 
 # Table of Contents
 
-- [Screenshot](#screenshot)
-- [Features](#features)
-- [Why This Project Exists](#why-this-project-exists)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Production Build](#production-build)
-- [Security Model](#security-model)
-- [Responsible Use](#responsible-use)
-- [Roadmap](#roadmap)
-- [Author](#author)
-- [License](#license)
+- Screenshot
+- Features
+- Why This Project Exists
+- Requirements
+- Installation
+- Usage
+- Production Build
+- Security Model
+- Dependency Security Notes
+- Responsible Use
+- Roadmap
+- Author
+- License
 
 ---
 
@@ -100,25 +101,42 @@ It helps:
 
 # Installation
 
+## Option 1 — Download prebuilt release (recommended)
+
+Download the latest release from:
+
+https://github.com/peterfromslovakia/nmap-command-builder/releases
+
+Available builds:
+
+- macOS → `.dmg`
+- Windows → `.exe`
+- Linux → `.AppImage`
+
+No Node.js installation required.
+
+---
+
+## Option 2 — Run from source
+
 Clone repository
 
-`git clone https://github.com/peterfromslovakia/nmap-command-builder.git`
-
-`cd nmap-command-builder`
+    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
+    cd nmap-command-builder
 
 Install dependencies
 
-`npm install`
+    npm install
 
 Install Nmap if needed
 
 macOS (Homebrew)
 
-`brew install nmap`
+    brew install nmap
 
 Debian / Ubuntu
 
-`sudo apt install nmap`
+    sudo apt install nmap
 
 ---
 
@@ -126,7 +144,7 @@ Debian / Ubuntu
 
 Run development mode
 
-`npm run dev`
+    npm run dev
 
 This launches:
 
@@ -140,11 +158,19 @@ This launches:
 
 Create optimized build
 
-`npm run build`
+    npm run build
 
-Launch Electron production app
+Create distributable application
 
-`npm run electron`
+    npm run dist
+
+This generates installers such as:
+
+- macOS `.dmg`
+- Windows `.exe`
+- Linux `.AppImage`
+
+inside the `dist` directory.
 
 ---
 
@@ -161,13 +187,30 @@ Security design decisions used in the application:
 
 ---
 
+# Dependency Security Notes
+
+Running `npm audit` may report vulnerabilities in development dependencies such as:
+
+- `react-scripts`
+- `webpack-dev-server`
+- Electron build tooling
+- packaging libraries
+
+These warnings primarily affect the **development and build toolchain**, not the runtime behaviour of the packaged Electron application.
+
+To maintain build stability, dependencies are updated cautiously rather than automatically applying breaking changes with:
+
+    npm audit fix --force
+
+---
+
 # Responsible Use
 
 Only scan networks and systems **you own or have explicit authorisation to test**.
 
 Unauthorised port scanning may be illegal in many jurisdictions.
 
-**Slovakia**
+### Slovakia
 
 Skenovanie sietí bez povolenia je v SR trestným činom podľa § 247 Trestného zákona.
 
@@ -184,6 +227,7 @@ Future improvements planned:
 - vulnerability hints based on detected services
 - export reports to Markdown / PDF
 - improved network topology visualisation
+- automated GitHub release builds
 
 ---
 
