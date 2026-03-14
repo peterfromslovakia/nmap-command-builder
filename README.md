@@ -7,6 +7,8 @@
 ![Electron](https://img.shields.io/badge/built%20with-Electron-47848F)
 ![Last commit](https://img.shields.io/github/last-commit/peterfromslovakia/nmap-command-builder)
 ![Repo size](https://img.shields.io/github/repo-size/peterfromslovakia/nmap-command-builder)
+![Release](https://img.shields.io/github/v/release/peterfromslovakia/nmap-command-builder)
+![Downloads](https://img.shields.io/github/downloads/peterfromslovakia/nmap-command-builder/total)
 
 A desktop cybersecurity tool for building, executing, and analysing **Nmap scans** through a graphical interface — no command-line experience required.
 
