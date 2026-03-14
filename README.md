@@ -77,15 +77,17 @@ It helps:
 
 Install Nmap if needed:
 
-\`\`\`bash
+Install Nmap if needed:
+
+```bash
 brew install nmap
-\`\`\`
+```
 
 or
 
-\`\`\`bash
+```bash
 sudo apt install nmap
-\`\`\`
+```
 
 ---
 
@@ -93,32 +95,31 @@ sudo apt install nmap
 
 Clone repository:
 
-\`\`\`bash
+```bash
 git clone https://github.com/peterfromslovakia/nmap-command-builder.git
 cd nmap-command-builder
-\`\`\`
+```
 
 Install dependencies:
 
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 Run development mode:
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 ---
 
 ## Production build
 
-\`\`\`bash
+```bash
 npm run build
 npm run electron
-\`\`\`
-
+```
 ---
 
 ## Security Model
