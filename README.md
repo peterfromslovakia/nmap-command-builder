@@ -16,21 +16,21 @@ Built with **Electron + React** and designed for system administrators, cybersec
 
 # Table of Contents
 
-- Screenshot
-- Quick Start
-- Features
-- Why This Project Exists
-- Requirements
-- Installation
-- Usage
-- Root Privileges
-- Production Build
-- Security Model
-- Dependency Security Notes
-- Responsible Use
-- Roadmap
-- Author
-- License
+- [Screenshot](#screenshot)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Why This Project Exists](#why-this-project-exists)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Root Privileges](#root-privileges)
+- [Production Build](#production-build)
+- [Security Model](#security-model)
+- [Dependency Security Notes](#dependency-security-notes)
+- [Responsible Use](#responsible-use)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License](#license)
 
 ---
 
