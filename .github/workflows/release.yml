@@ -16,7 +16,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: release-linux
+          - os: macos-latest
+            artifact_name: release-macos
+          - os: windows-latest
+            artifact_name: release-windows
 
     steps:
       - name: Checkout repository
@@ -39,23 +45,41 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts
+      - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}
-          path: dist
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.blockmap
+            dist/latest*.yml
+          if-no-files-found: ignore
 
   release:
+    name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+
+      - name: Show downloaded files
+        run: find release-artifacts -type f
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-artifacts/**/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.exe
+            release-artifacts/**/*.AppImage
+            release-artifacts/**/*.blockmap
+            release-artifacts/**/latest*.yml
           generate_release_notes: true
+          overwrite_files: true
