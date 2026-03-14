@@ -2,6 +2,7 @@
   "name": "nmap-command-builder",
   "version": "1.0.0",
   "description": "Nmap Command Builder — Electron Desktop App",
+  "author": "Peter Obala",
   "private": true,
   "homepage": "./",
   "main": "electron/main.js",
@@ -10,6 +11,7 @@
     "build": "react-scripts build",
     "dev": "concurrently -k -s first -n REACT,ELECTRON -c cyan,green \"react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
     "electron": "electron .",
+    "dist": "electron-builder",
     "test": "react-scripts test --watchAll=false"
   },
   "dependencies": {
@@ -19,17 +21,56 @@
   "devDependencies": {
     "concurrently": "^8.2.0",
     "electron": "^32.0.0",
+    "electron-builder": "^24.13.3",
     "react-scripts": "5.0.1",
     "wait-on": "^7.2.0"
   },
+  "build": {
+    "extends": null,
+    "appId": "com.peterobala.nmapbuilder",
+    "productName": "Nmap Command Builder",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "asar": true,
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  },
   "eslintConfig": {
-    "extends": ["react-app"],
+    "extends": [
+      "react-app"
+    ],
     "rules": {
       "no-unused-vars": "warn"
     }
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",

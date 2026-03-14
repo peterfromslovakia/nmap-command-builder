@@ -3,6 +3,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
+process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
+
 // ─── Suppress GPU / EGL log spam ─────────────────────────────────────────────
 // Disables hardware acceleration to suppress EGL driver messages that appear
 // on Linux/Kali systems (e.g. "eglQueryDeviceAttribEXT: Bad attribute").
