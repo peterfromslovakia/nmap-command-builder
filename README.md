@@ -16,25 +16,39 @@ Built with **Electron + React** and designed for system administrators, cybersec
 
 # Table of Contents
 
-- Screenshot
-- Features
-- Why This Project Exists
-- Requirements
-- Installation
-- Usage
-- Production Build
-- Security Model
-- Dependency Security Notes
-- Responsible Use
-- Roadmap
-- Author
-- License
+- [Screenshot](#screenshot)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Why This Project Exists](#why-this-project-exists)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Production Build](#production-build)
+- [Security Model](#security-model)
+- [Dependency Security Notes](#dependency-security-notes)
+- [Responsible Use](#responsible-use)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License](#license)
 
 ---
 
 # Screenshot
 
 ![Nmap Command Builder](docs/images/nmap_screenshot.png)
+
+---
+
+# Quick Start
+
+Clone repository and run the development version:
+
+    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
+    cd nmap-command-builder
+    npm install
+    npm run dev
+
+The application will start as an Electron desktop app with the Nmap command builder interface.
 
 ---
 
@@ -93,7 +107,7 @@ It helps:
 | Requirement | Version |
 |---|---|
 | Node.js | 18+ |
-| Nmap | recent version |
+| Nmap | 7.x or newer |
 | OS | macOS · Linux |
 | Runtime | Electron |
 
