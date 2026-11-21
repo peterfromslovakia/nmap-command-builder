@@ -1,9 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const { detectNetworks } = require('./network');
 const { validateArgs } = require('./argsValidator');
+const { readState, resolveBounds, writeState } = require('./windowState');
+const { buildMenuTemplate } = require('./menu');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -65,9 +67,18 @@ function createWindow() {
     :                                              'icon.png';
   const iconPath = path.join(__dirname, '..', 'assets', iconFile);
 
+  const stateFile = path.join(app.getPath('userData'), 'window-state.json');
+  const bounds = resolveBounds(
+    readState(stateFile),
+    [screen.getPrimaryDisplay(), ...screen.getAllDisplays()].map((d) => d.workArea),
+    { width: 1440, height: 920, minWidth: 1100, minHeight: 700 }
+  );
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     minWidth: 1100,
     minHeight: 700,
     backgroundColor: '#080d08',
@@ -85,8 +96,10 @@ function createWindow() {
   });
 
   mainWindow.once('ready-to-show', () => {
+    if (bounds.maximized) mainWindow.maximize();
     mainWindow.show();
   });
+  mainWindow.on('close', () => writeState(stateFile, mainWindow));
 
   // Lockdown: ziadne nove okna, navigacia mimo appky ani webview.
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -120,6 +133,19 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(path.join(__dirname, '..', 'assets', 'icon.png'));
   }
+  app.setAboutPanelOptions({
+    applicationName: 'Nmap Command Builder',
+    applicationVersion: app.getVersion(),
+    copyright: '© 2026 Peter Obala · MIT License',
+    website: 'https://github.com/peterfromslovakia/nmap-command-builder',
+  });
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+    isMac: process.platform === 'darwin',
+    isDev,
+    appName: 'Nmap Command Builder',
+    openUrl: (url) => shell.openExternal(url),
+    showAbout: () => app.showAboutPanel(),
+  })));
   createWindow();
 });
 

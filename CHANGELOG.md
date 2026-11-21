@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-11-21
+
+### New
+- **My presets** — save the current flags (optionally with the target) under your own name in the PRESETS tab and load them with one click. Stored only on this computer; saving under an existing name overwrites it
+- **Keyboard shortcuts** — ⌘↵ / Ctrl+Enter run scan, ⌘. / Ctrl+. stop scan, ⌘F search flags, ⌘⇧C copy command, ⌘1–5 switch tabs (shown in the footer on wide windows)
+- **Scan comparison in reports** — PDF and Markdown reports include "Changes since previous scan" for the baseline selected in the app
+- **Application menu** — Edit (copy / paste), View (zoom, full screen), Help with links to the Nmap reference guide, NSE documentation, updates and issue reporting; About panel with version
+- **Window size and position are remembered**; a window left on a disconnected monitor reopens on the main screen
+
+### Improved
+- Checkboxes use the theme colour
+- CI runs ESLint (`npm run lint`, no warnings allowed)
 
 ### Maintenance
 - Added the `LICENSE` file (MIT) and the `license` field in `package.json`

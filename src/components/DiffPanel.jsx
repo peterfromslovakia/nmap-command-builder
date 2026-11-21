@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { diffScans, baselinesFor } from '../utils/scanDiff';
 
 const fmt = (iso) => {
@@ -30,10 +30,8 @@ const portLabel = (p) => (
 /**
  * Porovnanie aktualneho skenu s predchadzajucim skenom toho isteho targetu.
  */
-export default function DiffPanel({ current, snapshots, onClearSaved }) {
+export default function DiffPanel({ current, snapshots, baselineId, onBaselineChange, onClearSaved }) {
   const baselines = useMemo(() => (current ? baselinesFor(snapshots, current) : []), [snapshots, current]);
-  const [baselineId, setBaselineId] = useState(null);
-  useEffect(() => { setBaselineId(baselines[0]?.id ?? null); }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const baseline = baselines.find((b) => b.id === baselineId) || baselines[0];
   const diff = useMemo(() => (baseline && current ? diffScans(baseline, current) : null), [baseline, current]);
@@ -72,7 +70,7 @@ export default function DiffPanel({ current, snapshots, onClearSaved }) {
                 <select
                   className="flag-select"
                   value={baseline.id}
-                  onChange={(e) => setBaselineId(Number(e.target.value))}
+                  onChange={(e) => onBaselineChange(Number(e.target.value))}
                 >
                   {baselines.map((b) => (
                     <option key={b.id} value={b.id}>{fmt(b.time)} · {b.command}</option>

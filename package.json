@@ -1,6 +1,6 @@
 {
   "name": "nmap-command-builder",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Nmap Command Builder — Electron Desktop App",
   "author": "Peter Obala",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "electron": "electron .",
     "dist": "electron-builder",
     "test": "react-scripts test --watchAll=false",
-    "test:main": "node --test \"electron/**/*.test.js\""
+    "test:main": "node --test \"electron/**/*.test.js\"",
+    "lint": "eslint src electron scripts --ext .js,.jsx --max-warnings 0"
   },
   "dependencies": {
     "react": "^18.2.0",

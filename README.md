@@ -66,6 +66,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Safe / Advanced mode toggle
 - 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
 - Automatic local network detection (e.g. `192.168.1.0/24`) pre-fills the target and refreshes when the window regains focus
+- **My presets**: save your own flag combinations (optionally with the target) and reuse them with one click
 - Searchable Nmap cheatsheet
 - NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
 
@@ -75,7 +76,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live streaming terminal output
 - Kill button for long scans
 - Export results as `.txt`, `.json`, `.csv`
-- **Scan reports** as PDF or Markdown: summary, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
+- **Scan reports** as PDF or Markdown: summary, changes since the previous scan, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
 - Scan history with quick reload
 - Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
 
@@ -201,6 +202,22 @@ This launches:
 
 You can visually build commands and execute scans directly from the application.
 
+## Keyboard shortcuts
+
+| macOS | Windows / Linux | Action |
+|---|---|---|
+| ⌘ ↵ | Ctrl + Enter | Run scan |
+| ⌘ . | Ctrl + . | Stop running scan |
+| ⌘ F | Ctrl + F | Search flags |
+| ⌘ ⇧ C | Ctrl + Shift + C | Copy command |
+| ⌘ 1 – 5 | Ctrl + 1 – 5 | Switch tab (Builder, Cheatsheet, Presets, Scripts, Ethics) |
+
+The **Help** menu links to the Nmap reference guide, NSE script documentation, the latest release and issue reporting. Window size and position are remembered between launches.
+
+## Where data is stored
+
+Saved scan results (for the comparison) and your presets are stored only locally in the app's data folder — nothing is sent anywhere. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
+
 ---
 
 # Root Privileges
@@ -237,8 +254,9 @@ On Windows, Nmap uses Npcap, so raw scans work without running the app as admini
 
 # Testing
 
-    npm test            # renderer: validators, NSE selection, findings, reports, presets, scan diff, root rules, config
-    npm run test:main   # main process: network detection, argument whitelist
+    npm test            # renderer: validators, NSE selection, findings, reports, presets, user presets, shortcuts, scan diff, root rules, config
+    npm run test:main   # main process: network detection, argument whitelist, window state, menu
+    npm run lint        # ESLint, no warnings allowed (also runs in CI)
 
 The preset tests check that every preset only uses known flags, produces a command the main-process whitelist accepts, and is labelled at least as risky as the NSE scripts it runs (intrusive → NOISY, `vuln` → INTRUSIVE, brute / exploit / dos → INTRUSIVE and Advanced-only).
 
@@ -324,8 +342,8 @@ Always follow responsible disclosure and legal guidelines when performing securi
 Future improvements planned:
 
 - improved network topology visualisation
-- user-defined custom presets
-- export the scan comparison into the PDF / Markdown report
+- import / export of user presets (share them between computers)
+- scheduled re-scans with a notification when something changes
 
 ---
 

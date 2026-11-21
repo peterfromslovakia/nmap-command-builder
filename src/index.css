@@ -85,3 +85,6 @@ html { --ui-zoom: 1; zoom: var(--ui-zoom); }
   width: calc(100vw / var(--ui-zoom));
   height: calc(100vh / var(--ui-zoom));
 }
+
+/* Checkboxy, radio a range v farbe temy (namiesto systemovej modrej) */
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--green-100); }
