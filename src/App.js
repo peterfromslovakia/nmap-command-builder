@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './App.css';
 
 import { FLAG_CATEGORIES } from './data/flags';
@@ -6,6 +6,8 @@ import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 import { buildReportModel, toMarkdown, toHtml } from './utils/report';
+import { rootRequirements } from './utils/privileges';
+import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots } from './utils/scanDiff';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -22,6 +24,7 @@ import NetworkMap from './components/NetworkMap';
 import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
 import FindingsPanel from './components/FindingsPanel';
+import DiffPanel from './components/DiffPanel';
 
 // ─── Initial state for expanded categories ────────────────────────────────────
 const initExpanded = () => {
@@ -71,6 +74,12 @@ export default function App() {
   const [scanHistory, setScanHistory] = useState([]);
   const [scannedTarget, setScannedTarget] = useState('');
 
+  // ── Saved scan snapshots (for "changes since previous scan") ─────────────
+  const [snapshots, setSnapshots] = useState(() => loadSnapshots());
+  const [currentSnapshot, setCurrentSnapshot] = useState(null);
+  const scanIdRef = useRef(0);
+  const savedScanIdRef = useRef(0);
+
   // ── Refs for closures in IPC callbacks ────────────────────────────────────
   const currentCommandRef = useRef('');
   const targetRef = useRef('');
@@ -83,6 +92,13 @@ export default function App() {
     target,
     flagSelections,
     advancedMode
+  );
+
+  // Bez rootu sa prikaz NEMENI, len sa ukaze, ktore flagy root potrebuju.
+  const noRoot = nmapStatus.checked && nmapStatus.privileged === false;
+  const rootNeeds = useMemo(
+    () => (noRoot ? rootRequirements(flagSelections) : []),
+    [noRoot, flagSelections]
   );
 
   // macOS: semafor okna (hiddenInset) prekryva lavu cast hlavicky
@@ -254,12 +270,17 @@ export default function App() {
     if (!vResult.valid) return;
 
     setScanStatus('scanning');
+    scanIdRef.current = Date.now();
+    setCurrentSnapshot(null);
     currentCommandRef.current = command;
     setScannedTarget(target);
 
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${command}\n` },
+      ...(rootNeeds.some((r) => r.effect === 'quits')
+        ? [{ id: Date.now() + 1, type: 'error', text: `[!] Not running as root: ${rootNeeds.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ')} need root, nmap will stop. Start the app with sudo.\n` }]
+        : []),
     ]);
 
     const res = await window.electronAPI.runScan(args);
@@ -270,12 +291,33 @@ export default function App() {
         { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
       ]);
     }
-  }, [scanStatus, target, command, args]);
+  }, [scanStatus, target, command, args, rootNeeds]);
 
   const handleKillScan = useCallback(async () => {
     if (!window.electronAPI) return;
     setScanStatus('killed');
     await window.electronAPI.killScan();
+  }, []);
+
+  // Po dokonceni skenu ulozi snimku vysledkov (len ak nasiel nejake hosty).
+  useEffect(() => {
+    if (scanStatus !== 'done' || savedScanIdRef.current === scanIdRef.current || !scanIdRef.current) return;
+    savedScanIdRef.current = scanIdRef.current;
+    const snap = makeSnapshot({
+      id: scanIdRef.current,
+      time: new Date().toISOString(),
+      target: scannedTarget,
+      command: currentCommandRef.current,
+      text: outputLines.map((l) => l.text || '').join(''),
+    });
+    if (snap.hosts.length === 0) return;
+    setSnapshots(saveSnapshot(snap));
+    setCurrentSnapshot(snap);
+  }, [scanStatus, outputLines, scannedTarget]);
+
+  const handleClearSnapshots = useCallback(() => {
+    setSnapshots(clearSnapshots());
+    setCurrentSnapshot(null);
   }, []);
 
   // ── Unified export handler — supports txt / json / csv ────────────────────
@@ -605,6 +647,26 @@ export default function App() {
             )}
           </div>
 
+          {rootNeeds.length > 0 && (
+            <div className="noroot-notice">
+              <div className="noroot-notice__title">
+                ⚠ THIS SCAN NEEDS ROOT — the app is running without root
+              </div>
+              {rootNeeds.map((r) => (
+                <div key={r.id} className={`noroot-notice__row noroot-notice__row--${r.effect}`}>
+                  <code>{r.flag}</code>
+                  <span className="noroot-notice__effect">
+                    {r.effect === 'quits' ? 'nmap will stop' : 'ignored by nmap'}
+                  </span>
+                  {r.tip && <span className="noroot-notice__note">tip: {r.tip}</span>}
+                </div>
+              ))}
+              <div className="noroot-notice__how">
+                Start the app with <code>sudo</code> (see README → Root Privileges).
+              </div>
+            </div>
+          )}
+
           {/* Terminal */}
           <TerminalOutput
             lines={outputLines}
@@ -612,6 +674,7 @@ export default function App() {
             onExport={handleExport}
             onClear={() => {
               setOutputLines([]);
+              setCurrentSnapshot(null);
               setScanStatus('idle');
               setScannedTarget('');
             }}
@@ -619,6 +682,11 @@ export default function App() {
 
           {/* Results panels — shown after scan completes (spolocne rolovanie) */}
           <div className="results-area">
+          <DiffPanel
+            current={currentSnapshot}
+            snapshots={snapshots}
+            onClearSaved={handleClearSnapshots}
+          />
           <PortsPanel
             lines={outputLines}
             scanStatus={scanStatus}
@@ -653,7 +721,7 @@ export default function App() {
           Created by <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.1.0</span>
+        <span className="app-footer__item">Nmap Command Builder v1.2.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Use responsibly &amp; ethically</span>
       </footer>

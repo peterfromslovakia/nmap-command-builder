@@ -1,6 +1,6 @@
 {
   "name": "nmap-command-builder",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Nmap Command Builder — Electron Desktop App",
   "author": "Peter Obala",
   "private": true,
@@ -61,7 +61,8 @@
     },
     "nsis": {
       "artifactName": "Nmap-Command-Builder-Setup-${version}.${ext}"
-    }
+    },
+    "afterPack": "scripts/adhoc-sign.js"
   },
   "eslintConfig": {
     "extends": [

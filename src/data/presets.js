@@ -56,11 +56,11 @@ export const PRESETS = [
   {
     id: 'aggressive',
     risk: 'medium',
-    riskNote: 'Noisy: OS detection, default scripts and traceroute are easily logged by IDS',
+    riskNote: 'Noisy: OS detection, default scripts and traceroute are easily logged by IDS (OS detection and traceroute need root)',
     name: 'Aggressive Scan',
     description: 'OS + version + scripts + traceroute in one shot',
     icon: '🚀',
-    requiresRoot: true,
+    requiresRoot: false,
     safe: true,
     flags: { aggressive: true, timing_template: '4' },
     target: '',

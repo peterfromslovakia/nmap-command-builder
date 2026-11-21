@@ -65,7 +65,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live command preview
 - Safe / Advanced mode toggle
 - 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
-- Automatic local network detection (e.g. `192.168.50.0/24`) pre-fills the target and refreshes when the window regains focus
+- Automatic local network detection (e.g. `192.168.1.0/24`) pre-fills the target and refreshes when the window regains focus
 - Searchable Nmap cheatsheet
 - NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
 
@@ -77,9 +77,11 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Export results as `.txt`, `.json`, `.csv`
 - **Scan reports** as PDF or Markdown: summary, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
 - Scan history with quick reload
+- Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
 
 ## Post-Scan Intelligence
 
+- **Changes since previous scan**: compares each scan with the previous scan of the same target — new / disappeared hosts, newly opened / closed ports, version changes, new / fixed vulnerabilities (results are stored locally in the app, max. 30 scans)
 - **Vulnerabilities & Fixes** panel: detects known issues in NSE script output (EternalBlue, Heartbleed, anonymous FTP, SMBv1, open relay, weak TLS, CVEs from `vulners`, …) and shows step-by-step remediation
 - "How to fix" hardening steps for every risky open port in Security Intel
 - Open Ports Panel with risk classification
@@ -91,7 +93,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 ## Safety & Awareness
 
-- ROOT badge for privileged scans
+- ROOT badge for privileged scans, and a notice when the app runs without root explaining which selected flags need it
 - IDS/IPS warning for stealth techniques
 - Built-in ethics and legal notice panel
 
@@ -140,6 +142,25 @@ Available builds:
 - Linux → `.AppImage`
 
 No Node.js installation required.
+
+### macOS: first launch
+
+The app is not signed with a paid Apple Developer ID, so macOS blocks it on first launch:
+
+1. Open the `.dmg` and drag **Nmap Command Builder** to **Applications**.
+2. Open the app — macOS shows *"cannot be opened because Apple cannot check it for malicious software"*. Click **Done**.
+3. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to *Nmap Command Builder*, then confirm.
+
+Alternatively, from Terminal:
+
+    xattr -cr "/Applications/Nmap Command Builder.app"
+
+If version **1.1.0** reports *"is damaged and can't be opened"*, run:
+
+    codesign --force --deep --sign - "/Applications/Nmap Command Builder.app"
+    xattr -cr "/Applications/Nmap Command Builder.app"
+
+(fixed in 1.2.0 — builds are now ad-hoc signed)
 
 ---
 
@@ -193,26 +214,35 @@ Examples include:
 - UDP scan (`-sU`)
 - advanced stealth techniques
 
-When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions.
+When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions. The command is **never changed** — instead, a notice above the terminal shows which selected flags need root and what Nmap will do without it.
 
-This means some advanced scan techniques may not work correctly.
+Verified with Nmap 7.99 without root:
 
-To enable full functionality, launch the application from Terminal using:
+| Flags | Without root |
+|---|---|
+| `-sS` `-sU` `-sA` `-sN` `-sF` `-sX` `-sI` `-O` `-f` `--mtu` `-D` `-S` `-PU` `--traceroute` | Nmap stops: *"requires root privileges. QUITTING!"* |
+| `--spoof-mac` `--data-length` `--badsum` | the scan runs, but Nmap ignores the option |
+| `-A` | **works** — version detection and default scripts run; only the OS detection and traceroute parts are skipped |
+| `-sT` `-sV` `-sC` `--script` `-PS` `-PA` `-p` `-T*` … | work normally |
+
+Tip: `-sT` (TCP connect scan) finds the same open ports as `-sS` without root, and `-sV` often reports the operating system in the *Service Info* line.
+
+To use root-only techniques, launch the application from Terminal with root privileges:
 
     sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
 
-This allows Nmap to perform raw packet operations required for advanced scan techniques.
-
-Basic scans such as `-sT` (TCP Connect Scan) work without root privileges.
+On Windows, Nmap uses Npcap, so raw scans work without running the app as administrator.
 
 ---
 
 # Testing
 
-    npm test            # renderer: validators, NSE selection, findings parser, reports, presets
+    npm test            # renderer: validators, NSE selection, findings, reports, presets, scan diff, root rules, config
     npm run test:main   # main process: network detection, argument whitelist
 
 The preset tests check that every preset only uses known flags, produces a command the main-process whitelist accepts, and is labelled at least as risky as the NSE scripts it runs (intrusive → NOISY, `vuln` → INTRUSIVE, brute / exploit / dos → INTRUSIVE and Advanced-only).
+
+Regression tests also guard the build and layout: the root-flag list matches the flag definitions, the release workflow does not create duplicate assets, the macOS build is ad-hoc signed, the CHANGELOG has a section for the current version and the footer shows the `package.json` version.
 
 ---
 
@@ -294,9 +324,8 @@ Always follow responsible disclosure and legal guidelines when performing securi
 Future improvements planned:
 
 - improved network topology visualisation
-- optional root privilege helper for advanced scans
-- compare two scans (new / closed ports, new findings)
 - user-defined custom presets
+- export the scan comparison into the PDF / Markdown report
 
 ---
 

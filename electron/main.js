@@ -145,6 +145,7 @@ ipcMain.handle('nmap:check', (event) => {
       resolve({
         available: code === 0,
         version: output.split('\n')[0]?.trim() || '',
+        privileged: isPrivileged(),
       });
     });
     proc.on('error', () => {
@@ -152,6 +153,13 @@ ipcMain.handle('nmap:check', (event) => {
     });
   });
 });
+
+// Root na macOS/Linuxe. Na Windows nmap pouziva Npcap a raw skeny funguju
+// aj bez spustenia ako spravca, preto sa tam nic neupravuje.
+function isPrivileged() {
+  if (process.platform === 'win32') return true;
+  return typeof process.getuid === 'function' && process.getuid() === 0;
+}
 
 // ─── IPC: Detect local networks ──────────────────────────────────────────────
 ipcMain.handle('net:detect', (event) => {

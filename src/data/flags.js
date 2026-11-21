@@ -89,6 +89,7 @@ export const FLAG_CATEGORIES = [
         type: 'text',
         placeholder: '53,161',
         safe: true,
+        requiresRoot: true,
       },
       {
         id: 'no_dns',
@@ -105,6 +106,7 @@ export const FLAG_CATEGORIES = [
         description: 'Trace hop path to each host',
         type: 'boolean',
         safe: true,
+        requiresRoot: true,
       },
     ],
   },
@@ -511,8 +513,7 @@ export const FLAG_CATEGORIES = [
         description: 'Enables OS detection, version detection, script scan, and traceroute',
         type: 'boolean',
         safe: true,
-        requiresRoot: true,
-        warning: 'Requires root; generates significant traffic',
+        warning: 'Generates significant traffic; without root, the OS detection and traceroute parts are skipped',
       },
     ],
   },
@@ -600,6 +601,7 @@ export const FLAG_CATEGORIES = [
         description: 'Send packets with bogus checksums to detect firewalls',
         type: 'boolean',
         safe: false,
+        requiresRoot: true,
         warning: 'ADVANCED — deliberately malformed packets',
       },
       {
