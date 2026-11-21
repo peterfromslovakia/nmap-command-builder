@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 — 2026-11-21
 
 ### New
 - **Network map in reports** — PDF and Markdown reports from a network scan include *Appendix A — network map*: router, devices grouped by type, coloured by risk, with finding numbers (F-01…), CISA KEV marks and the scanning computer marked. The raw scanner output is now *Appendix B*
