@@ -6,242 +6,157 @@
 ![Nmap](https://img.shields.io/badge/tool-nmap-red)
 ![Electron](https://img.shields.io/badge/built%20with-Electron-47848F)
 ![Last commit](https://img.shields.io/github/last-commit/peterfromslovakia/nmap-command-builder)
-![Repo size](https://img.shields.io/github/repo-size/peterfromslovakia/nmap-command-builder)
 [![Release](https://img.shields.io/github/v/release/peterfromslovakia/nmap-command-builder)](https://github.com/peterfromslovakia/nmap-command-builder/releases)
 [![Downloads](https://img.shields.io/github/downloads/peterfromslovakia/nmap-command-builder/total)](https://github.com/peterfromslovakia/nmap-command-builder/releases)
 
+[English](#english) · [Slovensky](#slovensky)
+
+---
+
+<a name="english"></a>
+# English
+
 A desktop cybersecurity tool for building, executing, and analysing **Nmap scans** through a graphical interface — no command-line experience required. Interface in **English and Slovak**.
 
-Built with **Electron + React** and designed for system administrators, cybersecurity students, and network engineers.
+Built with **Electron + React** for system administrators, cybersecurity students, and network engineers.
 
 ---
 
-# Table of Contents
-
-- [Screenshot](#screenshot)
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Why This Project Exists](#why-this-project-exists)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Root Privileges](#root-privileges)
-- [Testing](#testing)
-- [Production Build](#production-build)
-- [Security Model](#security-model)
-- [Dependency Security Notes](#dependency-security-notes)
-- [Responsible Use](#responsible-use)
-- [Changelog](CHANGELOG.md)
-- [Roadmap](#roadmap)
-- [Author](#author)
-- [License](#license)
-
----
-
-# Screenshot
+## Screenshot
 
 ![Nmap Command Builder](docs/images/nmap_screenshot.png)
 
 ---
 
-# Quick Start
+## What is installed automatically
 
-Clone the repository and run the development version.
+**Everything is bundled inside the installer — no separate software download is required.**
 
-    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
-    cd nmap-command-builder
-    npm install
-    npm run dev
-
-The application will start as an Electron desktop app with the Nmap command builder interface.
-
----
-
-# Features
-
-## Network Scan with One Button
-
-- **⌖ SCAN NETWORK** finds all active devices in your network (or any range you enter) — *quick* (devices only, ~1–2 min for a /24) or *detailed* (open ports and services)
-- **Network devices** table: device type (router, firewall, printer, NAS, camera, Windows / Apple / Linux computer, phone, TV, IoT, Wi-Fi AP / switch), IP, name, operating system, **MAC address and vendor** (also without root, from the system ARP table; private / randomised phone MACs are marked), open ports and latency
-- Filter by type, search, sort, export to CSV (Excel) and **SCAN ›** any device with one click
-- **Network map**: Internet → your router (the real default gateway of this computer) → devices grouped by type, each coloured by risk (critical / high / medium vulnerability, risky open ports such as SMB, RDP or Telnet, nothing found); actively exploited (CISA KEV) devices are marked, your own computer is marked *YOU*, *only devices at risk* filter, click a device for MAC, OS, ports and vulnerabilities
-- Works without root (TCP connect ping on common ports finds devices that ignore ping)
-
-## Live Vulnerability Intelligence (no registration)
-
-- Every CVE found by `vulners` / `vuln` scripts is checked against **CISA KEV** (vulnerabilities attackers are exploiting right now, incl. ransomware use), **FIRST EPSS** (probability of exploitation in the next 30 days) and **NIST NVD** (CVSS vector, CWE, description)
-- Actively exploited findings are marked **ACTIVELY EXPLOITED**, raised to at least *High* and listed first
-- No account or API key; only CVE numbers are sent (never IP addresses, host names or scan output); results are cached so the app also works offline; can be turned off
-
-## Monitoring
-
-- **Repeat a scan every 15 min / 1 h / 6 h / 24 h** and get a **system notification** when a new device, open port or vulnerability appears (compared with the previous scan of the same target)
-- Status bar with the next run, last result, *run now* and *stop*; the schedule survives an app restart and runs only while the app is open
-- Optional **automatic PDF report** into a folder you choose — after the first run and whenever something changes (`nmap-monitor-<target>-<date>_<time>.pdf`)
-
-## Command Builder
-
-- **English / Slovak** interface (EN | SK switch in the header, remembered; starts in Slovak on Slovak / Czech systems)
-- Visual flag selector organised into collapsible categories
-- Live command preview
-- Safe / Advanced mode toggle
-- 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
-- Automatic local network detection pre-fills the target (the whole network up to /22, e.g. `10.0.0.0/22` = 10.0.0.1 – 10.0.3.254; larger networks start with the /24 around your address) and refreshes when the window regains focus
-- **My presets**: save your own flag combinations (optionally with the target) and reuse them with one click; **export / import** them as a JSON file to share with colleagues or back up (imported presets are checked — unknown flags are dropped)
-- Searchable Nmap cheatsheet
-- NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
-
-## Scan Execution
-
-- Runs Nmap via `child_process.spawn`
-- Live streaming terminal output
-- Kill button for long scans
-- Export results as `.txt`, `.json`, `.csv`
-- **Penetration-test style reports** as PDF or Markdown, in **English or Slovak**: cover page and document control (tester, organisation, client, authorisation reference, classification), table of contents, executive summary with overall risk and priority actions, scope and methodology (derived from the actual command), risk rating with remediation timeframes, findings **F-01…** with affected asset, CVSS vector, EPSS, CWE, CISA KEV status, impact, NIST description and fix, asset inventory and **network map** (appendix) from the network scan, changes since the previous scan, hardening recommendations, sign-off table and raw output
-- Scan history with quick reload
-- Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
-
-## Post-Scan Intelligence
-
-- **Changes since previous scan**: compares each scan with the previous scan of the same target — new / disappeared hosts, newly opened / closed ports, version changes, new / fixed vulnerabilities (results are stored locally in the app, max. 30 scans)
-- **Vulnerabilities & Fixes** panel: detects known issues in NSE script output (EternalBlue, Heartbleed, anonymous FTP, SMBv1, open relay, weak TLS, CVEs from `vulners`, …) and shows step-by-step remediation
-- "How to fix" hardening steps for every risky open port in Security Intel
-- Open Ports Panel with risk classification
-- Host Info Panel (IP, hostname, MAC, vendor)
-- Security Intel Panel
-- Follow-up scan suggestions
-
-## Safety & Awareness
-
-- ROOT badge for privileged scans, and a notice when the app runs without root explaining which selected flags need it
-- IDS/IPS warning for stealth techniques
-- Built-in ethics and legal notice panel
-
----
-
-# Why This Project Exists
-
-Many powerful cybersecurity tools require deep command-line knowledge.
-
-This project aims to make **Nmap accessible through a graphical interface while still exposing the real commands being executed**.
-
-It helps:
-
-- system administrators
-- cybersecurity students
-- penetration testers
-- network engineers
-
-learn and use Nmap effectively without memorising hundreds of flags.
-
----
-
-# Requirements
-
-| Requirement | Version |
+| Platform | What the installer contains |
 |---|---|
-| OS | macOS · Windows · Linux |
-| Node.js | 18+ *(only when running from source)* |
+| macOS (Apple Silicon + Intel) | nmap universal binary (arm64 + x64 in one file, works on all Macs) |
+| Linux | nmap x64 binary |
+| Windows | nmap.exe + **Npcap installer** |
 
-**Nmap is bundled** — the installer includes nmap directly, so no separate installation is required. On Windows, the first time you run a privileged scan (SYN, OS detection, UDP) the app offers to install **Npcap** (the Windows packet-capture driver), which requires a one-time administrator confirmation.
+### Windows — Npcap
 
-The app scans **IPv4** networks and hosts (addresses, CIDR ranges, address ranges, host names). IPv6 scanning is intentionally not included: an IPv6 network (/64) has 18 quintillion addresses and cannot be swept, and devices on home and office networks are normally reachable over IPv4 as well.
+Npcap is the Windows packet-capture driver that nmap needs for privileged scans (SYN scan `-sS`, OS detection `-O`, UDP scan `-sU`). The Npcap installer is bundled inside the app:
+
+- For basic scans you do not need Npcap at all
+- When you first run a privileged scan, the app shows a banner: **Install Npcap**
+- Clicking the button runs the bundled Npcap installer — Windows asks for administrator confirmation once (this is a kernel driver, so Windows always requires this)
+- After that, all scan types work without restarting the app
+
+The Windows app installer itself also runs as administrator (`perMachine` install) so it is available for all user accounts.
 
 ---
 
-# Installation
+## Features
 
-## Option 1 — Download prebuilt release (recommended)
+### Scan network with one button
 
-Download the latest release from:
+- **⌖ SCAN NETWORK** finds all active devices in your network — *quick* (~1–2 min for a /24) or *detailed* (open ports and services)
+- **Network devices** table: device type, IP, hostname, OS, MAC address and vendor (without root, from the ARP table), open ports and latency — filter, sort, CSV export and **SCAN ›** per device
+- **Network map**: Internet → router → devices grouped by type, coloured by risk; CISA KEV marks, your computer marked *YOU*
+- Works without root (TCP connect ping)
 
-https://github.com/peterfromslovakia/nmap-command-builder/releases
+### Live vulnerability intelligence (no registration, no API key)
 
-Available builds:
+- Every CVE is checked against **CISA KEV** (exploited in the wild), **FIRST EPSS** (exploitation probability) and **NIST NVD** (CVSS, CWE, description)
+- Only CVE numbers are sent; results are cached for offline use; can be turned off
 
-- macOS Apple Silicon (M1–M5) → `…-arm64.dmg`
-- macOS Intel → `…-x64.dmg`
-- Windows → `…Setup-….exe`
-- Linux → `….AppImage`
+### TOOLS tab — network tools, no installation needed
 
-### Updates
+Four built-in tools that work straight away, no extra software:
 
-Every release is built for all platforms above. The app checks for a new version on start (at most every 12 hours) and shows a banner with a download button for your system; *Help → Check for Updates…* checks on demand. Download the new installer and install it over the old version — your saved presets, scans and settings are kept. The check only reads the public GitHub releases page and can be turned off in the banner (*don't check automatically*).
+| Tool | What it does |
+|---|---|
+| **WHOIS** | Who owns a domain or IP address — registrar, country, ASN, name servers; follows referral servers automatically |
+| **DNS Lookup** | Query A, AAAA, MX, NS, TXT, CNAME, SOA, PTR records — or all types at once |
+| **SSL Certificate** | Inspect the certificate of any host: subject, issuer, validity dates, SANs, SHA-256 fingerprint, days remaining; expired certificates highlighted |
+| **IP Information** | Geolocation and ISP details for any public IP via ipinfo.io (free, no registration, no API key) |
 
-No Node.js installation required. Nmap is bundled — no separate nmap download needed.
+### Reports
 
-### macOS: first launch
+- **Penetration-test style PDF/Markdown** in English or Slovak: cover page, executive summary, findings F-01… with CVSS/EPSS/KEV/CWE, network map appendix, remediation steps, sign-off table
+- **Monitoring**: repeat a scan every 15 min / 1 h / 6 h / 24 h with automatic PDF report on change
+
+### Command builder
+
+- Visual flag selector with 23 built-in presets labelled **LOW / NOISY / INTRUSIVE**
+- My presets: save and share your own flag combinations
+- Searchable cheatsheet, NSE script library (71 curated scripts)
+
+---
+
+## Requirements
+
+| | |
+|---|---|
+| OS | macOS 11+ · Windows 10+ · Linux (x64) |
+| Node.js | 18+ — only when running from source |
+
+No other software required when using the prebuilt installer.
+
+---
+
+## Installation
+
+### Option 1 — Prebuilt installer (recommended)
+
+Download from **[Releases](https://github.com/peterfromslovakia/nmap-command-builder/releases)**:
+
+| Platform | File |
+|---|---|
+| macOS Apple Silicon (M1–M5) | `…-arm64.dmg` |
+| macOS Intel | `…-x64.dmg` |
+| Windows | `…Setup-….exe` |
+| Linux | `….AppImage` |
+
+The app checks for updates on start (at most every 12 hours) and shows a banner with the right download for your system.
+
+#### macOS — first launch
 
 The app is not signed with a paid Apple Developer ID, so macOS blocks it on first launch:
 
 1. Open the `.dmg` and drag **Nmap Command Builder** to **Applications**.
 2. Open the app — macOS shows *"cannot be opened because Apple cannot check it for malicious software"*. Click **Done**.
-3. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to *Nmap Command Builder*, then confirm.
+3. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, then confirm.
 
-Alternatively, from Terminal:
+Or from Terminal:
 
     xattr -cr "/Applications/Nmap Command Builder.app"
 
-If version **1.1.0** reports *"is damaged and can't be opened"*, run:
-
-    codesign --force --deep --sign - "/Applications/Nmap Command Builder.app"
-    xattr -cr "/Applications/Nmap Command Builder.app"
-
-(fixed in 1.2.0 — builds are now ad-hoc signed)
-
----
-
-## Option 2 — Run from source
-
-Clone the repository:
+### Option 2 — Run from source
 
     git clone https://github.com/peterfromslovakia/nmap-command-builder.git
     cd nmap-command-builder
-
-Install dependencies:
-
     npm install
-
-Install dependencies and start:
-
     npm run dev
 
-Nmap must be available on PATH when running from source. Install it if needed:
-
-    brew install nmap          # macOS
-    sudo apt install nmap      # Debian / Ubuntu
+Nmap must be on PATH when running from source (`brew install nmap` / `sudo apt install nmap`).
 
 ---
-
-# Usage
-
-Run development mode:
-
-    npm run dev
-
-This launches:
-
-- React frontend
-- Electron desktop window
-- Nmap command builder interface
-
-You can visually build commands and execute scans directly from the application.
 
 ## Keyboard shortcuts
 
 | macOS | Windows / Linux | Action |
 |---|---|---|
 | ⌘ ↵ | Ctrl + Enter | Run scan |
-| ⌘ . | Ctrl + . | Stop running scan |
+| ⌘ . | Ctrl + . | Stop scan |
 | ⌘ F | Ctrl + F | Search flags |
 | ⌘ ⇧ C | Ctrl + Shift + C | Copy command |
-| ⌘ 1 – 5 | Ctrl + 1 – 5 | Switch tab (Builder, Cheatsheet, Presets, Scripts, Ethics) |
+| ⌘ 1 – 6 | Ctrl + 1 – 6 | Switch tab (Builder, Cheatsheet, Presets, Scripts, Ethics, Tools) |
 
-The **Help** menu links to the Nmap reference guide, NSE script documentation, the latest release and issue reporting. Window size and position are remembered between launches.
+---
+
+## Root privileges
+
+Some scan techniques require root / administrator rights (`-sS`, `-O`, `-sU`, …). The app never modifies the command — instead it shows which flags need root and offers **🔒 RUN AS ADMINISTRATOR** (macOS: system password dialog, Linux: polkit/zenity). On Windows, Npcap handles raw packet access so the app itself does not need to run as administrator.
+
+---
 
 ## Where data is stored
-
-The app needs no administrator rights or special permissions for its data — it uses the standard per-user application folder that every desktop app gets:
 
 | System | Folder |
 |---|---|
@@ -249,169 +164,194 @@ The app needs no administrator rights or special permissions for its data — it
 | Windows | `%APPDATA%\Nmap Command Builder` |
 | Linux | `~/.config/Nmap Command Builder` |
 
-Typical size is 5–30 MB (mostly Electron's own cache; the vulnerability database cache is under 1 MB). PDF reports are rendered through a temporary file that is deleted immediately. *Help → Open Data Folder* shows the folder, *Help → Delete All Saved Data…* removes everything after a confirmation (exported reports are not touched).
-
-Saved scan results (for the comparison), your presets, the monitoring schedule, the interface language and report details (tester name, organisation, …) are stored only locally in the app's data folder. The app makes these network requests on its own, all without an account or API key:
-
-| Service | When | What is sent |
-|---|---|---|
-| GitHub releases API | update check (max. every 12 h, can be turned off) | nothing but the request |
-| CISA KEV catalogue | after a scan with CVEs (max. once a day) | nothing — the whole public list is downloaded |
-| FIRST EPSS API | after a scan with CVEs | CVE numbers only |
-| NIST NVD API | after a scan with CVEs (details for up to 25 CVEs) | CVE numbers only |
-
-IP addresses, host names and scan output never leave your computer. Turn the vulnerability lookups off with *turn off* in the Vulnerabilities panel. Untick *Remember these details* in the report dialog to keep only the report language. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
+IP addresses, host names and scan output never leave your computer.
 
 ---
 
-# Root Privileges
+## Security model
 
-Some Nmap scan techniques require **root privileges (administrator rights)**.
+- `contextIsolation` enabled, `nodeIntegration` disabled, renderer sandbox on
+- Nmap runs only from the main process; flags checked against a whitelist; `--script` accepts names only, not file paths
+- IPC accepted only from the app window; navigation and new windows blocked
+- PDF reports rendered with JavaScript disabled and a strict CSP; all scan data HTML-escaped
 
-Examples include:
+---
 
-- SYN scan (`-sS`)
-- OS detection (`-O`)
-- UDP scan (`-sU`)
-- advanced stealth techniques
+## Testing
 
-When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions. The command is **never changed** — instead, a notice above the terminal shows which selected flags need root and what Nmap will do without it.
+    npm test          # 296 tests: validators, findings, reports, shortcuts, presets, scan diff, i18n
+    npm run lint      # ESLint, no warnings allowed (also runs in CI)
 
-Verified with Nmap 7.99 without root:
+---
 
-| Flags | Without root |
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+<a name="slovensky"></a>
+# Slovensky
+
+Desktopový nástroj na kybernetickú bezpečnosť — vizuálne zostavovanie, spúšťanie a analýza **Nmap skenov** bez príkazového riadka. Rozhranie v **angličtine a slovenčine**.
+
+---
+
+## Čo sa nainštaluje automaticky
+
+**Všetko je súčasťou inštalátora — žiadny ďalší softvér nie je potrebný.**
+
+| Platforma | Čo inštalátor obsahuje |
 |---|---|
-| `-sS` `-sU` `-sA` `-sN` `-sF` `-sX` `-sI` `-O` `-f` `--mtu` `-D` `-S` `-PU` `--traceroute` | Nmap stops: *"requires root privileges. QUITTING!"* |
-| `--spoof-mac` `--data-length` `--badsum` | the scan runs, but Nmap ignores the option |
-| `-A` | **works** — version detection and default scripts run; only the OS detection and traceroute parts are skipped |
-| `-sT` `-sV` `-sC` `--script` `-PS` `-PA` `-p` `-T*` … | work normally |
+| macOS (Apple Silicon + Intel) | nmap univerzálna binárka (arm64 + x64 v jednom súbore, funguje na všetkých Macoch) |
+| Linux | nmap x64 binárka |
+| Windows | nmap.exe + **inštalátor Npcap** |
 
-Tip: `-sT` (TCP connect scan) finds the same open ports as `-sS` without root, and `-sV` often reports the operating system in the *Service Info* line.
+### Windows — Npcap
 
-### Run as administrator (no Terminal needed)
+Npcap je ovládač pre zachytávanie paketov vo Windowse, ktorý nmap potrebuje na privilegované skenovanie (SYN skenovanie `-sS`, detekcia OS `-O`, UDP skenovanie `-sU`). Inštalátor Npcap je priamo v aplikácii:
 
-When the selected flags need root, the notice shows **🔒 RUN AS ADMINISTRATOR**. The same command then runs with administrator rights:
+- Pre základné skeny Npcap vôbec nepotrebuješ
+- Pri prvom spustení privilegovaného skenu sa zobrazí lišta: **Nainštalovať Npcap**
+- Po kliknutí sa spustí bundlovaný inštalátor Npcap — Windows požiada o potvrdenie správcom raz (ide o ovládač jadra, Windows to vždy vyžaduje)
+- Po inštalácii fungujú všetky typy skenov bez reštartu aplikácie
 
-- **macOS** — the system asks for your account password (`sudo` with a native password dialog)
-- **Linux** — a graphical password dialog (`sudo` with zenity / kdialog, otherwise `pkexec` / polkit)
-- The password goes straight to the system — the app never sees or stores it
-- For safety, administrator runs may not read or write files: `-oN`, `-oX`, `-oG`, `-iL`, script files and paths in `--script-args` are refused (as root they could overwrite any file). Export the results from the app instead
-- Monitoring is not offered for administrator scans (it would ask for the password on every run)
-
-Alternatively, launch the whole application from Terminal with root privileges:
-
-    sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
-
-On Windows, Nmap uses Npcap, so raw scans work without running the app as administrator.
+Samotný inštalátor Windows aplikácie tiež beží ako správca (`perMachine` inštalácia), takže je dostupný pre všetky používateľské účty.
 
 ---
 
-# Testing
+## Funkcie
 
-    npm test            # renderer: validators, NSE selection, findings, reports, presets, user presets, shortcuts, scan diff, root rules, config
-    npm run test:main   # main process: network detection, argument whitelist, window state, menu
-    npm run lint        # ESLint, no warnings allowed (also runs in CI)
+### Skenovanie siete jedným kliknutím
 
-The preset tests check that every preset only uses known flags, produces a command the main-process whitelist accepts, and is labelled at least as risky as the NSE scripts it runs (intrusive → NOISY, `vuln` → INTRUSIVE, brute / exploit / dos → INTRUSIVE and Advanced-only).
+- **⌖ SKENOVAŤ SIEŤ** nájde všetky aktívne zariadenia — *rýchle* (~1–2 min pre /24) alebo *podrobné* (porty a služby)
+- **Zoznam zariadení**: typ zariadenia, IP, meno, OS, MAC adresa a výrobca (bez rootu, z ARP tabuľky), otvorené porty a latenciu — filtrovanie, triedenie, export CSV a **SKENOVAŤ ›** pre každé zariadenie
+- **Mapa siete**: Internet → router → zariadenia podľa typu, sfarbené podľa rizika; značky CISA KEV, tvoj počítač označený *TY*
 
-Regression tests also guard the build and layout: the root-flag list matches the flag definitions, the release workflow does not create duplicate assets, the macOS build is ad-hoc signed, the CHANGELOG has a section for the current version and the footer shows the `package.json` version.
+### Spravodajstvo o zraniteľnostiach (bez registrácie, bez API kľúča)
 
----
+- Každé CVE sa overuje voči **CISA KEV** (aktívne zneužívané), **FIRST EPSS** (pravdepodobnosť zneužitia) a **NIST NVD** (CVSS, CWE, popis)
+- Odosielajú sa len čísla CVE; výsledky sa ukladajú do cache pre offline použitie; dá sa vypnúť
 
-# Production Build
+### Záložka NÁSTROJE — sieťové nástroje bez inštalácie
 
-Create optimized build:
+Štyri zabudované nástroje, ktoré fungujú ihneď, bez ďalšieho softvéru:
 
-    npm run build
+| Nástroj | Čo robí |
+|---|---|
+| **WHOIS** | Kto vlastní doménu alebo IP adresu — registrátor, krajina, ASN, nameservery; automaticky sleduje referral servery |
+| **DNS vyhľadávanie** | Dotaz na záznamy A, AAAA, MX, NS, TXT, CNAME, SOA, PTR — alebo všetky naraz |
+| **SSL certifikát** | Preskúmanie certifikátu ľubovoľného hostiteľa: subjekt, vydavateľ, platnosť, SANy, SHA-256 odtlačok, zostatok dní; vypršané certifikáty zvýraznené |
+| **Informácie o IP** | Geolokácia a informácie o ISP pre ľubovoľnú verejnú IP cez ipinfo.io (zdarma, bez registrácie, bez API kľúča) |
 
-Create distributable application:
+### Správy
 
-    npm run dist
+- **Penetračne-testový štýl PDF/Markdown** v angličtine alebo slovenčine: titulná strana, zhrnutie, zistenia F-01… s CVSS/EPSS/KEV/CWE, príloha s mapou siete, kroky nápravy, podpisový hárok
+- **Monitoring**: opakovanie skenu každých 15 min / 1 h / 6 h / 24 h s automatickým PDF reportom pri zmene
 
-This generates installers such as:
+### Zostavovač príkazov
 
-- macOS → `.dmg`
-- Windows → `.exe`
-- Linux → `.AppImage`
-
-inside the `dist` directory.
-
----
-
-# Security Model
-
-Security design decisions used in the application:
-
-- `contextIsolation` enabled
-- `nodeIntegration` disabled
-- Nmap execution only from Electron **main process**
-- user input validated before execution
-- `spawn` used instead of `exec`
-- no shell interpolation allowed
-- renderer sandbox enabled (`sandbox: true`)
-- IPC calls accepted only from the app window
-- nmap flags are checked against a whitelist in the main process
-- `--script` accepts script names and categories only, not file paths
-- navigation, new windows, webviews and permission requests are blocked
-- exports limited to `.txt`, `.json`, `.csv`, `.md` and `.pdf`
-- PDF reports are rendered in a hidden window with JavaScript disabled, a strict CSP (`default-src 'none'`) and all scan data HTML-escaped
-
-These measures help prevent command injection and improve runtime security.
+- Vizuálny výber prepínačov s 23 vstavanými presetmi označenými **NÍZKE / HLUČNÉ / INVAZÍVNE**
+- Vlastné presety: ulož a zdieľaj svoje kombinácie prepínačov
+- Prehľadávateľný cheatsheet, knižnica NSE skriptov (71 skriptov)
 
 ---
 
-# Dependency Security Notes
+## Požiadavky
 
-Running `npm audit` may report vulnerabilities in development dependencies such as:
+| | |
+|---|---|
+| OS | macOS 11+ · Windows 10+ · Linux (x64) |
+| Node.js | 18+ — len pri spustení zo zdrojového kódu |
 
-- `react-scripts`
-- `webpack-dev-server`
-- Electron build tooling
-- packaging libraries
-
-These warnings primarily affect the **development and build toolchain**, not the runtime behaviour of the packaged Electron application.
-
-To maintain build stability, dependencies are updated cautiously rather than automatically applying breaking changes with:
-
-    npm audit fix --force
+Pri použití predpripraveného inštalátora nie je potrebný žiadny ďalší softvér.
 
 ---
 
-# Responsible Use
+## Inštalácia
 
-Only scan networks and systems **you own or have explicit authorisation to test**.
+### Možnosť 1 — Predpripravený inštalátor (odporúčané)
 
-Unauthorised port scanning may be illegal in many jurisdictions.
+Stiahni z **[Releases](https://github.com/peterfromslovakia/nmap-command-builder/releases)**:
 
-### Slovakia
+| Platforma | Súbor |
+|---|---|
+| macOS Apple Silicon (M1–M5) | `…-arm64.dmg` |
+| macOS Intel | `…-x64.dmg` |
+| Windows | `…Setup-….exe` |
+| Linux | `….AppImage` |
 
-Skenovanie sietí bez povolenia je v Slovenskej republike trestným činom podľa § 247 Trestného zákona.
+Aplikácia kontroluje aktualizácie pri štarte (najčastejšie každých 12 hodín) a zobrazí lištu so správnym stiahnutím pre tvoj systém.
 
-Always follow responsible disclosure and legal guidelines when performing security testing.
+#### macOS — prvé spustenie
+
+Aplikácia nie je podpísaná plateným Apple Developer ID, preto macOS pri prvom spustení zablokuje otvorenie:
+
+1. Otvor `.dmg` a presuň **Nmap Command Builder** do **Aplikácie**.
+2. Spusti aplikáciu — macOS zobrazí *"nemožno otvoriť, pretože Apple nemôže skontrolovať..."*. Klikni **Hotovo**.
+3. Otvor **Systémové nastavenia → Súkromie a bezpečnosť**, posuň sa dolu a klikni **Otvoriť aj tak** vedľa *Nmap Command Builder*, potom potvrď.
+
+Alebo z Terminálu:
+
+    xattr -cr "/Applications/Nmap Command Builder.app"
+
+### Možnosť 2 — Spustenie zo zdrojového kódu
+
+    git clone https://github.com/peterfromslovakia/nmap-command-builder.git
+    cd nmap-command-builder
+    npm install
+    npm run dev
+
+Pri spustení zo zdrojového kódu musí byť nmap dostupný v PATH (`brew install nmap` / `sudo apt install nmap`).
 
 ---
 
-# Roadmap
+## Klávesové skratky
 
-Future improvements planned:
-
-- improved network topology visualisation
-- import / export of user presets (share them between computers)
-- scheduled re-scans with a notification when something changes
-
----
-
-# Author
-
-**Peter Obala**
-
-Cybersecurity enthusiast · Network administrator
-
-GitHub  
-https://github.com/peterfromslovakia
+| macOS | Windows / Linux | Akcia |
+|---|---|---|
+| ⌘ ↵ | Ctrl + Enter | Spustiť skenovanie |
+| ⌘ . | Ctrl + . | Zastaviť skenovanie |
+| ⌘ F | Ctrl + F | Hľadať prepínače |
+| ⌘ ⇧ C | Ctrl + Shift + C | Kopírovať príkaz |
+| ⌘ 1 – 6 | Ctrl + 1 – 6 | Prepínať záložky (Builder, Cheatsheet, Presety, Skripty, Etika, Nástroje) |
 
 ---
 
-# License
+## Root oprávnenia
 
-MIT License — see [LICENSE](LICENSE).
+Niektoré techniky skenovania vyžadujú root/správcovské práva (`-sS`, `-O`, `-sU`, …). Aplikácia nikdy nemení príkaz — namiesto toho zobrazí, ktoré prepínače vyžadujú root, a ponúkne **🔒 SPUSTIŤ AKO SPRÁVCA** (macOS: systémový dialóg pre heslo, Linux: polkit/zenity). Na Windowse Npcap rieši prístup k surových paketom, takže samotná aplikácia nemusí bežať ako správca.
+
+---
+
+## Kde sa ukladajú dáta
+
+| Systém | Priečinok |
+|---|---|
+| macOS | `~/Library/Application Support/Nmap Command Builder` |
+| Windows | `%APPDATA%\Nmap Command Builder` |
+| Linux | `~/.config/Nmap Command Builder` |
+
+IP adresy, mená hostiteľov a výstupy skenov nikdy neopustia tvoj počítač.
+
+---
+
+## Zodpovedné používanie
+
+Skenuj iba siete a systémy, ktoré **vlastníš alebo máš výslovné povolenie testovať**.
+
+Neoprávnené skenovanie portov môže byť v mnohých jurisdikciách nezákonné. V Slovenskej republike je skenovanie sietí bez povolenia trestným činom podľa **§ 247 Trestného zákona**.
+
+---
+
+## Autor
+
+**Peter Obala** — Cybersecurity enthusiast · Network administrator
+
+GitHub: https://github.com/peterfromslovakia
+
+---
+
+## Licencia / License
+
+MIT — pozri [LICENSE](LICENSE).
