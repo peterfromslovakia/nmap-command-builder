@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Run as administrator without Terminal** — when a scan needs root (`-sS`, `-O`, `-sU`…), *🔒 RUN AS ADMINISTRATOR* runs the same command with administrator rights. macOS shows the system password dialog, Linux a graphical password / polkit dialog; the app never sees the password. Administrator runs refuse options that read or write files (`-oN/-oX/-oG`, `-iL`, script files, paths in script arguments)
+
 ## 1.7.0 — 2026-11-21
 
 ### New

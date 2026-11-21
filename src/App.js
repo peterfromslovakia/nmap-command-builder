@@ -10,7 +10,7 @@ import { loadReportMeta, saveReportMeta } from './utils/reportMeta';
 import ReportDialog from './components/ReportDialog';
 import UpdateBanner from './components/UpdateBanner';
 import { loadUpdatePrefs, saveUpdatePrefs, shouldAutoCheck, shouldShowBanner } from './utils/updatePrefs';
-import { rootRequirements } from './utils/privileges';
+import { elevationBlockers, rootRequirements } from './utils/privileges';
 import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots, comparisonFor } from './utils/scanDiff';
 
 import CommandPreview from './components/CommandPreview';
@@ -342,7 +342,7 @@ export default function App() {
   }, []);
 
   // Spolocne spustenie skenu (RUN SCAN aj PREHLADAT SIET).
-  const startScan = useCallback(async ({ args: scanArgs, command: scanCommand, target: scanTarget, kind = 'scan', needs = [] }) => {
+  const startScan = useCallback(async ({ args: scanArgs, command: scanCommand, target: scanTarget, kind = 'scan', needs = [], elevated = false }) => {
     if (!window.electronAPI) return;
     if (scanStatus === 'scanning' || busyRef.current) return;
     if (!validateTarget(scanTarget).valid) return;
@@ -351,7 +351,7 @@ export default function App() {
     setScanStatus('scanning');
     scanIdRef.current = Date.now();
     scanKindRef.current = kind;
-    lastScanRef.current = { args: scanArgs, command: scanCommand, target: scanTarget };
+    lastScanRef.current = { args: scanArgs, command: scanCommand, target: scanTarget, elevated };
     setInventory(null);
     setCurrentSnapshot(null);
     currentCommandRef.current = scanCommand;
@@ -360,13 +360,14 @@ export default function App() {
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
       ...(kind === 'monitor' ? [{ id: Date.now() - 1, type: 'system', text: `[${ts}] ⟳ ${tRef.current('Monitoring — scheduled repeat of the scan')}\n` }] : []),
-      { id: Date.now(), type: 'system', text: `[${ts}] $ ${scanCommand}\n` },
-      ...(needs.some((r) => r.effect === 'quits')
+      { id: Date.now(), type: 'system', text: `[${ts}] ${elevated ? '#' : '$'} ${scanCommand}\n` },
+      ...(elevated ? [{ id: Date.now() + 2, type: 'system', text: `[${ts}] 🔒 ${tRef.current('Running with administrator rights — enter your password in the system dialog.')}\n` }] : []),
+      ...(!elevated && needs.some((r) => r.effect === 'quits')
         ? [{ id: Date.now() + 1, type: 'error', text: `[!] ${tRef.current('Not running as root: {flags} need root, nmap will stop. Start the app with sudo.', { flags: needs.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ') })}\n` }]
         : []),
     ]);
 
-    const res = await window.electronAPI.runScan(scanArgs);
+    const res = await window.electronAPI.runScan(scanArgs, { elevated });
     if (res && res.success === false) {
       busyRef.current = false;
       setScanStatus('error');
@@ -380,6 +381,13 @@ export default function App() {
   const handleRunScan = useCallback(
     () => startScan({ args, command, target, needs: rootNeeds }),
     [startScan, args, command, target, rootNeeds]
+  );
+
+  // Spustit ten isty prikaz s pravami spravcu (systemove okno na heslo).
+  const elevateBlocked = useMemo(() => elevationBlockers(args), [args]);
+  const handleRunElevated = useCallback(
+    () => startScan({ args, command, target, elevated: true }),
+    [startScan, args, command, target]
   );
 
   // ── Prehladat siet jednym tlacidlom ──────────────────────────────────────
@@ -996,7 +1004,7 @@ export default function App() {
 
           <MonitorBar
             monitor={monitor}
-            canStart={scanStatus === 'done' && Boolean(currentSnapshot) && Boolean(lastScanRef.current)}
+            canStart={scanStatus === 'done' && Boolean(currentSnapshot) && Boolean(lastScanRef.current) && !lastScanRef.current.elevated}
             lastTarget={lastScanRef.current?.target || ''}
             scanning={scanStatus === 'scanning'}
             onStart={handleStartMonitor}
@@ -1020,9 +1028,26 @@ export default function App() {
                   {r.tip && <span className="noroot-notice__note">{t('tip:')} {t(r.tip)}</span>}
                 </div>
               ))}
-              <div className="noroot-notice__how">
-                {t('Start the app with')} <code>sudo</code> {t('(see README → Root Privileges).')}
-              </div>
+              {nmapStatus.canElevate ? (
+                <div className="noroot-notice__elevate">
+                  <button
+                    className="btn btn--xs noroot-notice__btn"
+                    onClick={handleRunElevated}
+                    disabled={scanStatus === 'scanning' || elevateBlocked.length > 0}
+                  >
+                    🔒 {t('RUN AS ADMINISTRATOR')}
+                  </button>
+                  <span className="noroot-notice__how">
+                    {elevateBlocked.length > 0
+                      ? t('Not possible with {flags} — as administrator nmap must not read or write files. Remove them first.', { flags: elevateBlocked.join(' ') })
+                      : t('The same command runs with administrator rights. The system asks for your password — the app never sees or stores it.')}
+                  </span>
+                </div>
+              ) : (
+                <div className="noroot-notice__how">
+                  {t('Start the app with')} <code>sudo</code> {t('(see README → Root Privileges).')}
+                </div>
+              )}
             </div>
           )}
 

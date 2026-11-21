@@ -277,7 +277,17 @@ Verified with Nmap 7.99 without root:
 
 Tip: `-sT` (TCP connect scan) finds the same open ports as `-sS` without root, and `-sV` often reports the operating system in the *Service Info* line.
 
-To use root-only techniques, launch the application from Terminal with root privileges:
+### Run as administrator (no Terminal needed)
+
+When the selected flags need root, the notice shows **🔒 RUN AS ADMINISTRATOR**. The same command then runs with administrator rights:
+
+- **macOS** — the system asks for your account password (`sudo` with a native password dialog)
+- **Linux** — a graphical password dialog (`sudo` with zenity / kdialog, otherwise `pkexec` / polkit)
+- The password goes straight to the system — the app never sees or stores it
+- For safety, administrator runs may not read or write files: `-oN`, `-oX`, `-oG`, `-iL`, script files and paths in `--script-args` are refused (as root they could overwrite any file). Export the results from the app instead
+- Monitoring is not offered for administrator scans (it would ask for the password on every run)
+
+Alternatively, launch the whole application from Terminal with root privileges:
 
     sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
 

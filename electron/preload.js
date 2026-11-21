@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectNetworks: () => ipcRenderer.invoke('net:detect'),
 
   // Run a scan with the given args array
-  runScan: (args) => ipcRenderer.invoke('nmap:run', { args }),
+  runScan: (args, opts) => ipcRenderer.invoke('nmap:run', { args, elevated: Boolean(opts && opts.elevated) }),
 
   // Kill the running scan
   killScan: () => ipcRenderer.invoke('nmap:kill'),

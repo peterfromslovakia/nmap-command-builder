@@ -38,3 +38,18 @@ export function rootRequirements(flagSelections) {
     .filter(([id]) => isOn(flagSelections[id]))
     .map(([id, r]) => ({ id, ...r }));
 }
+
+/**
+ * Prepinace, pre ktore sa sken nesmie spustit s pravami spravcu (ako root by
+ * nmap citat/zapisoval subory kdekolvek). Rovnake pravidla kontroluje aj main
+ * proces (electron/elevate.js) — toto sluzi len na vysvetlenie v UI.
+ */
+export function elevationBlockers(args = []) {
+  const out = [];
+  args.forEach((a, i) => {
+    if (['-oN', '-oX', '-oG', '-iL'].includes(a)) out.push(a);
+    if (a === '--script' && /[^A-Za-z0-9_,*+() -]/.test(String(args[i + 1] || ''))) out.push('--script <file>');
+    if (a === '--script-args' && /[/\\]/.test(String(args[i + 1] || ''))) out.push('--script-args <path>');
+  });
+  return out;
+}

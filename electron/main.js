@@ -9,6 +9,9 @@ const { buildMenuTemplate, menuText } = require('./menu');
 const { checkForUpdate, isDownloadUrl } = require('./updates');
 const { arpDevices } = require('./arp');
 const { defaultGateway } = require('./gateway');
+const {
+  validateElevatedArgs, which, elevationMethod, writeAskpass, elevatedCommand, explainElevationError, msg: elevateMsg,
+} = require('./elevate');
 const { VulnIntel } = require('./vulnIntel');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
@@ -228,6 +231,8 @@ ipcMain.handle('nmap:check', (event) => {
         available: code === 0,
         version: output.split('\n')[0]?.trim() || '',
         privileged: isPrivileged(),
+        // Moznost spustit sken s pravami spravcu (systemove okno na heslo)
+        canElevate: !isPrivileged() && Boolean(elevationMethod()),
       });
     });
     proc.on('error', () => {
@@ -283,6 +288,7 @@ ipcMain.handle('net:detect', (event) => {
 ipcMain.handle('nmap:run', (event, payload) => {
   if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
   const args = payload && payload.args;
+  const elevated = Boolean(payload && payload.elevated);
   if (currentScanProcess) {
     return { success: false, error: 'A scan is already running.' };
   }
@@ -298,11 +304,41 @@ ipcMain.handle('nmap:run', (event, payload) => {
     }
   }
 
+  // Beh s pravami spravcu: prisnejsia kontrola + sudo/pkexec s grafickym oknom.
+  let cmd = 'nmap';
+  let cmdArgs = args;
+  let env = process.env;
+  if (elevated) {
+    const how = isPrivileged() ? null : elevationMethod();
+    if (!how) return { success: false, error: elevateMsg(uiLang, 'unavailable') };
+    const strictError = validateElevatedArgs(args);
+    if (strictError) return { success: false, error: strictError };
+    const nmapPath = which('nmap');
+    if (!nmapPath) return { success: false, error: 'nmap not found' };
+    try {
+      const c = elevatedCommand({
+        method: how.method,
+        nmapPath,
+        args,
+        askpass: how.helper ? writeAskpass(path.join(app.getPath('userData'), 'bin'), how.helper) : undefined,
+        prompt: uiLang === 'sk'
+          ? 'Nmap Command Builder chce spustiť sken s právami správcu.\n\nZadajte heslo k vášmu účtu:'
+          : 'Nmap Command Builder wants to run the scan with administrator rights.\n\nEnter your account password:',
+      });
+      ({ cmd, args: cmdArgs, env } = c);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
   return new Promise((resolve) => {
     try {
-      currentScanProcess = spawn('nmap', args, {
+      currentScanProcess = spawn(cmd, cmdArgs, {
         stdio: ['ignore', 'pipe', 'pipe'],
+        env,
       });
+      currentScanProcess.elevated = elevated;
+      let errHead = '';
 
       const send = (type, data) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -315,11 +351,16 @@ ipcMain.handle('nmap:run', (event, payload) => {
       currentScanProcess.stdout.setEncoding('utf8');
       currentScanProcess.stderr.setEncoding('utf8');
       currentScanProcess.stdout.on('data', (d) => outBuf.push(d));
-      currentScanProcess.stderr.on('data', (d) => errBuf.push(d));
+      currentScanProcess.stderr.on('data', (d) => {
+        if (errHead.length < 4000) errHead += d;
+        errBuf.push(d);
+      });
 
       currentScanProcess.on('close', (code, signal) => {
         outBuf.flush();
         errBuf.flush();
+        const why = elevated && code !== 0 ? explainElevationError(errHead, uiLang) : null;
+        if (why) send('stderr', `\n${why}\n`);
         currentScanProcess = null;
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('scan:done', { code, signal });
@@ -345,7 +386,15 @@ ipcMain.handle('nmap:run', (event, payload) => {
 ipcMain.handle('nmap:kill', (event) => {
   if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
   if (!currentScanProcess) return { success: false, error: 'No scan running.' };
-  currentScanProcess.kill('SIGTERM');
+  const proc = currentScanProcess;
+  if (proc.elevated) {
+    // sudo preposle SIGTERM nmapu (SIGKILL by zabil len sudo a nmap by bezal dalej).
+    // pkexec bezi ako root → signal neprejde; zavretie vystupu ukonci nmap pri dalsom zapise.
+    try { proc.kill('SIGTERM'); } catch (_) { /* EPERM pri pkexec */ }
+    try { proc.stdout.destroy(); proc.stderr.destroy(); } catch (_) {}
+    return { success: true };
+  }
+  proc.kill('SIGTERM');
   setTimeout(() => {
     if (currentScanProcess) {
       try { currentScanProcess.kill('SIGKILL'); } catch (_) {}

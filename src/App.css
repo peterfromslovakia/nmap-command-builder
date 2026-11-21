@@ -2515,3 +2515,7 @@
 .tmap-detail__findings { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .tmap-detail__findings .sev-badge { margin-right: 6px; }
 .tmap__hint { font-size: 10.5px; color: var(--text-dim); padding: 4px 12px 8px; text-align: center; }
+.noroot-notice__elevate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; }
+.noroot-notice__elevate .noroot-notice__how { margin-top: 0; }
+.noroot-notice__btn { color: var(--orange); border-color: rgba(255,153,0,0.55); }
+.noroot-notice__btn:hover:not(:disabled) { background: rgba(255,153,0,0.12); }

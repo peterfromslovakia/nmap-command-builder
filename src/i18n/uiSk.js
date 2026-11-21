@@ -362,5 +362,10 @@ const UI_SK = {
   'low vulnerability': 'nízka zraniteľnosť',
   'risky open ports': 'rizikové otvorené porty',
   'nothing found': 'bez nálezov',
+  // ── spustenie s pravami spravcu ──
+  'RUN AS ADMINISTRATOR': 'SPUSTIŤ AKO SPRÁVCA',
+  'Not possible with {flags} — as administrator nmap must not read or write files. Remove them first.': 'S {flags} to nejde — ako správca nesmie nmap čítať ani zapisovať súbory. Najprv ich odstráňte.',
+  'The same command runs with administrator rights. The system asks for your password — the app never sees or stores it.': 'Ten istý príkaz sa spustí s právami správcu. Heslo si vypýta systém — aplikácia ho nevidí ani neukladá.',
+  'Running with administrator rights — enter your password in the system dialog.': 'Spúšťa sa s právami správcu — zadajte heslo v systémovom okne.',
 };
 export default UI_SK;

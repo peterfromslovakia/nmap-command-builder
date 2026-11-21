@@ -27,3 +27,11 @@ test('preset requiresRoot matches its flags', () => {
     expect([p.id, Boolean(p.requiresRoot)]).toEqual([p.id, rootRequirements(p.flags).length > 0]);
   });
 });
+
+test('elevationBlockers mirrors the main-process rules for administrator runs', () => {
+  const { elevationBlockers } = require('./privileges');
+  expect(elevationBlockers(['-sS', '-O', '10.0.0.0/22'])).toEqual([]);
+  expect(elevationBlockers(['-sS', '-oN', 'scan.txt', '-iL', 'hosts.txt'])).toEqual(['-oN', '-iL']);
+  expect(elevationBlockers(['--script', 'my.nse', '--script-args', 'userdb=/etc/shadow'])).toEqual(['--script <file>', '--script-args <path>']);
+  expect(elevationBlockers(['--script', 'vuln,vulners', '--script-args', 'mincvss=7.0'])).toEqual([]);
+});
