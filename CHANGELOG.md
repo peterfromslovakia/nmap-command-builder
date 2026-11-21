@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Custom device labels** — assign your own name to any device (e.g. *My NAS*, *Work PC*). The label is tied to the MAC address, so it stays correct even when the IP changes. Labels are shown in the device list (click ✏ to edit), network map, PDF/Markdown reports, and CSV export. Stored locally on this computer
+
+### Improved (tested on a real home network)
+- **Better device recognition** — the device name now wins over port guesses (a MacBook with AirPlay is no longer a camera); names of UniFi gateways / switches / access points, EZVIZ / Hikvision / Reolink cameras, set-top boxes (Antik, STB), internet radios, EV chargers (Wallbox, Zappi), Shelly / Tasmota / smart-home devices, TVs and phones are recognised; UPnP alone no longer means "router"
+- **Device type from the MAC vendor** — cameras (Ezviz, Hikvision, Dahua, Reolink, Axis…), internet radios and audio (Frontier Silicon, Teufel, Bose…), smart home (Netatmo, tado, Nuki, Philips Hue); private (randomised) phone / laptop MACs are shown as such, never with a guessed vendor
+- **New device type: VoIP / IP phone** (Mitel, Yealink, Polycom, Snom, Grandstream, Fanvil, Gigaset, SIP)
+- **Your own computer** gets the right type even without a host name
+- **MAC addresses on macOS** — new macOS versions hide the neighbour table from apps; when no MAC addresses are available, the device list offers *🔒 FIND MAC ADDRESSES (administrator)* (a quick ARP scan as administrator, which also reports vendors and finds sleeping phones that ignore normal discovery). The macOS app now declares Local Network access
+- Quick network scan shows a realistic time (~1–2 min for a /24)
+
 ## 1.8.0 — 2026-11-21
 
 ### New

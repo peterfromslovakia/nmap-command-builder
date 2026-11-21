@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { DEVICE_TYPES, ipNum } from '../utils/inventory';
+import { getLabel } from '../utils/deviceLabels';
 import { useT } from '../i18n/ui';
 
 const SORTS = {
@@ -10,11 +11,14 @@ const SORTS = {
 };
 
 /** Inventar zariadeni v sieti (po "SCAN NETWORK" alebo skene viacerych hostov). */
-export default function InventoryPanel({ devices, target, onScanDevice, onExportCsv }) {
+export default function InventoryPanel({ devices, target, onScanDevice, onExportCsv, onFindMacs, labels, onLabelChange }) {
   const t = useT();
   const label = (type) => t(DEVICE_TYPES[type].label);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('ip');
+  const [editingIp, setEditingIp] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const editRef = useRef(null);
 
   const counts = useMemo(() => {
     const c = {};
@@ -26,12 +30,24 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
     const q = query.trim().toLowerCase();
     const list = q
       ? devices.filter((d) => [d.ip, d.hostname, d.mac, d.vendor, d.os, DEVICE_TYPES[d.type].label, label(d.type),
-        ...d.ports.map((p) => `${p.port} ${p.service} ${p.version}`)].join(' ').toLowerCase().includes(q))
+          getLabel(d.mac, d.ip, labels),
+          ...d.ports.map((p) => `${p.port} ${p.service} ${p.version}`)].join(' ').toLowerCase().includes(q))
       : devices;
     return [...list].sort(SORTS[sort]);
-  }, [devices, query, sort]); // eslint-disable-line react-hooks/exhaustive-deps -- label zavisi len od jazyka
+  }, [devices, query, sort, labels]); // eslint-disable-line react-hooks/exhaustive-deps -- label zavisi len od jazyka
 
   const withPorts = devices.some((d) => d.ports.length > 0);
+
+  const startEdit = (d) => {
+    setEditingIp(d.ip);
+    setEditValue(getLabel(d.mac, d.ip, labels));
+    setTimeout(() => editRef.current && editRef.current.focus(), 0);
+  };
+  const commitEdit = (d) => {
+    if (onLabelChange) onLabelChange(d.mac, d.ip, editValue.trim());
+    setEditingIp(null);
+  };
+  const cancelEdit = () => setEditingIp(null);
 
   return (
     <div className="inventory-panel">
@@ -43,6 +59,13 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
           <button className="findings-export" onClick={onExportCsv} title={t('Save the device list as CSV (Excel)')}>↓ CSV</button>
         </div>
       </div>
+
+      {onFindMacs && devices.length > 0 && devices.every((d) => !d.mac) && (
+        <div className="inventory-machint">
+          <span>ⓘ {t('MAC addresses and vendors were not available — the system hides them from apps without administrator rights.')} {t('An administrator scan (ARP) also finds sleeping phones.')}</span>
+          <button className="btn btn--xs noroot-notice__btn" onClick={onFindMacs}>🔒 {t('FIND MAC ADDRESSES (administrator)')}</button>
+        </div>
+      )}
 
       <div className="inventory-types">
         {counts.map(([type, n]) => (
@@ -79,7 +102,33 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
                   <span className="inv-type__label">{label(d.type)}</span>
                 </td>
                 <td className="inv-ip">{d.ip}</td>
-                <td className="inv-name">{d.hostname || '—'}{d.os && <span className="inv-os">{d.os}</span>}</td>
+                <td className="inv-name">
+                  {editingIp === d.ip ? (
+                    <input
+                      ref={editRef}
+                      className="inv-label-edit"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(d); if (e.key === 'Escape') cancelEdit(); }}
+                      onBlur={() => commitEdit(d)}
+                      placeholder={d.hostname || d.ip}
+                      maxLength={60}
+                    />
+                  ) : (
+                    <>
+                      {getLabel(d.mac, d.ip, labels)
+                        ? <span className="inv-label">{getLabel(d.mac, d.ip, labels)}</span>
+                        : (d.hostname || <span className="inv-dim">—</span>)}
+                      {onLabelChange && (
+                        <button className="inv-edit-btn" onClick={() => startEdit(d)} title={t('Edit device label')}>✏</button>
+                      )}
+                      {getLabel(d.mac, d.ip, labels) && d.hostname && (
+                        <span className="inv-os">{d.hostname}</span>
+                      )}
+                      {d.os && <span className="inv-os">{d.os}</span>}
+                    </>
+                  )}
+                </td>
                 <td className="inv-mac">
                   {d.mac ? <code>{d.mac}</code> : <span className="inv-dim">—</span>}
                   <span className="inv-vendor">{d.randomizedMac ? t('private (randomised) MAC') : d.vendor}</span>

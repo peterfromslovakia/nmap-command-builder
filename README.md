@@ -61,7 +61,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 ## Network Scan with One Button
 
-- **⌖ SCAN NETWORK** finds all active devices in your network (or any range you enter) — *quick* (devices only, ~30 s) or *detailed* (open ports and services)
+- **⌖ SCAN NETWORK** finds all active devices in your network (or any range you enter) — *quick* (devices only, ~1–2 min for a /24) or *detailed* (open ports and services)
 - **Network devices** table: device type (router, firewall, printer, NAS, camera, Windows / Apple / Linux computer, phone, TV, IoT, Wi-Fi AP / switch), IP, name, operating system, **MAC address and vendor** (also without root, from the system ARP table; private / randomised phone MACs are marked), open ports and latency
 - Filter by type, search, sort, export to CSV (Excel) and **SCAN ›** any device with one click
 - **Network map**: Internet → your router (the real default gateway of this computer) → devices grouped by type, each coloured by risk (critical / high / medium vulnerability, risky open ports such as SMB, RDP or Telnet, nothing found); actively exploited (CISA KEV) devices are marked, your own computer is marked *YOU*, *only devices at risk* filter, click a device for MAC, OS, ports and vulnerabilities

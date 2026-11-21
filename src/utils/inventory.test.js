@@ -112,3 +112,52 @@ test('Kerio Control is recognised as a firewall', () => {
   expect(classifyDevice({ ...base, ports: [{ port: 443, proto: 'tcp', service: 'ssl/http', version: 'Kerio Control Embedded Web Server' }] })).toBe('firewall');
   expect(classifyDevice({ ...base, hostname: 'kerio.firma.local', ports: [] })).toBe('firewall');
 });
+
+test('device type from typical host names (quick scan without ports)', () => {
+  const { classifyDevice } = require('./inventory');
+  const d = (hostname) => classifyDevice({ ip: '192.168.1.9', hostname, vendor: '', os: '', deviceHint: '', ports: [] });
+  expect(d('unifi.localdomain')).toBe('router');
+  expect(d('UDM-Pro.lan')).toBe('router');
+  expect(d('USW-Enterprise-8-PoE.localdomain')).toBe('ap');
+  expect(d('U6-Lite-Obyvacka.lan')).toBe('ap');
+  expect(d('H8c_BC8738062_EZVIZ.localdomain')).toBe('camera');
+  expect(d('juicebox.localdomain')).toBe('media'); // Antik Nano set-top box
+  expect(d('wallbox-pulsar.lan')).toBe('iot');
+  expect(d('shelly1pm-ABC123.lan')).toBe('iot');
+  expect(d('Petos-iPhone.lan')).toBe('phone');
+  expect(d('LGwebOSTV.lan')).toBe('media');
+  expect(d('DiskStation.lan')).toBe('nas');
+  expect(d('MacBook-Pro-M5.localdomain')).toBe('apple');
+  expect(d('')).toBe('unknown');
+});
+
+test('real-world cases: MacBook with AirPlay, Mitel VoIP phone, UPnP alone, own computer', () => {
+  const { classifyDevice, buildInventory } = require('./inventory');
+  const base = { ip: '192.168.1.9', vendor: '', os: '', deviceHint: '' };
+  const port = (p, service, version = '') => ({ port: p, proto: 'tcp', service, version });
+  // MacBook: AirPlay 5000/rtsp nesmie byt kamera
+  expect(classifyDevice({ ...base, hostname: 'MacBook-Pro-M5.localdomain', ports: [port(3000, 'http'), port(5000, 'rtsp')] })).toBe('apple');
+  // Mitel DECT / SIP telefon
+  expect(classifyDevice({ ...base, hostname: '', ports: [port(80, 'http', 'Mitel SIP DEC VoIP phone http config'), port(8080, 'upnp')] })).toBe('voip');
+  expect(classifyDevice({ ...base, hostname: '', deviceHint: 'VoIP phone', ports: [] })).toBe('voip');
+  // UPnP sam o sebe nie je router
+  expect(classifyDevice({ ...base, hostname: '', ports: [port(8080, 'upnp')] })).not.toBe('router');
+  // vlastny pocitac bez nazvu dostane typ podla systemu
+  const text = 'Nmap scan report for 192.168.1.168\nHost is up (0.0001s latency).\nPORT     STATE SERVICE\n5000/tcp open  rtsp\n'
+    + 'Nmap scan report for 192.168.1.20\nHost is up.\n';
+  const inv = buildInventory(text, [], { selfIps: ['192.168.1.168'], platform: 'darwin' });
+  expect(inv.find((d) => d.ip === '192.168.1.168').type).toBe('apple');
+});
+
+test('device type from MAC vendor (administrator scan)', () => {
+  const { classifyDevice } = require('./inventory');
+  const v = (vendor) => classifyDevice({ ip: '192.168.1.9', hostname: '', vendor, os: '', deviceHint: '', ports: [] });
+  expect(v('Hangzhou Ezviz Software')).toBe('camera');
+  expect(v('Frontier Silicon')).toBe('media'); // internetove radia
+  expect(v('Netatmo')).toBe('iot');
+  expect(v('Qnap Systems')).toBe('nas');
+  expect(v('Realtek Semiconductor')).toBe('unknown'); // bezny sietovy cip — nic nehovori
+  // internetove radio: vyrobca cipu ma prednost pred chybnym odhadom nmapu "VoIP phone"
+  expect(classifyDevice({ ip: '192.168.1.9', hostname: '', vendor: 'Frontier Silicon', os: '', deviceHint: 'VoIP phone',
+    ports: [{ port: 80, proto: 'tcp', service: 'http', version: 'Mitel SIP DEC VoIP phone http config' }] })).toBe('media');
+});

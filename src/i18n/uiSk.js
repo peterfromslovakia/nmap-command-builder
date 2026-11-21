@@ -37,7 +37,10 @@ const UI_SK = {
   'No network detected — enter a range (e.g. 192.168.1.0/24) as the target': 'Sieť sa nezistila — ako cieľ zadajte rozsah (napr. 192.168.1.0/24)',
   'SCAN NETWORK': 'PREHĽADAŤ SIEŤ',
   'Network scan mode': 'Režim prehľadania siete',
-  'quick · devices only (~30 s)': 'rýchlo · zariadenia (~30 s)',
+  'quick · devices only (~1–2 min)': 'rýchlo · zariadenia (~1–2 min)',
+  'MAC addresses and vendors were not available — the system hides them from apps without administrator rights.': 'MAC adresy a výrobcovia neboli dostupné — systém ich aplikáciám bez práv správcu skrýva.',
+  'An administrator scan (ARP) also finds sleeping phones.': 'Prehľadanie ako správca (ARP) nájde aj spiace telefóny.',
+  'FIND MAC ADDRESSES (administrator)': 'ZISTIŤ MAC ADRESY (správca)',
   'detailed · ports + services (minutes)': 'podrobne · porty + služby',
   'This scan requires root / sudo privileges': 'Tento sken vyžaduje oprávnenia root / sudo',
   'REQUIRES ROOT': 'VYŽADUJE ROOT',
@@ -191,6 +194,7 @@ const UI_SK = {
   'IoT / embedded': 'IoT / vstavané zariadenie',
   'Wi-Fi access point / switch': 'Wi-Fi prístupový bod / switch',
   'Unknown device': 'Neznáme zariadenie',
+  'VoIP / IP phone': 'VoIP / IP telefón',
 
   // ── porovnanie skenov ──
   'CHANGES SINCE PREVIOUS SCAN': 'ZMENY OD PREDCHÁDZAJÚCEHO SKENU',
@@ -367,5 +371,7 @@ const UI_SK = {
   'Not possible with {flags} — as administrator nmap must not read or write files. Remove them first.': 'S {flags} to nejde — ako správca nesmie nmap čítať ani zapisovať súbory. Najprv ich odstráňte.',
   'The same command runs with administrator rights. The system asks for your password — the app never sees or stores it.': 'Ten istý príkaz sa spustí s právami správcu. Heslo si vypýta systém — aplikácia ho nevidí ani neukladá.',
   'Running with administrator rights — enter your password in the system dialog.': 'Spúšťa sa s právami správcu — zadajte heslo v systémovom okne.',
+  // ── vlastne menovky zariadeni ──
+  'Edit device label': 'Upraviť menovku zariadenia',
 };
 export default UI_SK;

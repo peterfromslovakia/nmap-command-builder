@@ -58,7 +58,10 @@
         }
       ],
       "icon": "assets/icon.icns",
-      "artifactName": "Nmap-Command-Builder-${version}-${arch}.${ext}"
+      "artifactName": "Nmap-Command-Builder-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Nmap Command Builder scans devices on your local network that you choose to scan."
+      }
     },
     "win": {
       "target": "nsis",
