@@ -18,7 +18,10 @@ test('elevated runs forbid file input/output and script paths', () => {
   assert.strictEqual(validateElevatedArgs(['--script', 'vulners', '--script-args', 'mincvss=7.0', 'y']), null);
 });
 
-test('which returns absolute paths only', () => {
+// sudo / pkexec / askpass existuju len na macOS a Linuxe (POSIX cesty a prava suborov)
+const posixOnly = { skip: process.platform === 'win32' && 'POSIX only (no elevation on Windows)' };
+
+test('which returns absolute paths only', posixOnly, () => {
   const exists = (p) => p === '/opt/homebrew/bin/nmap';
   assert.strictEqual(which('nmap', 'relative/bin:/usr/bin:/opt/homebrew/bin', exists), '/opt/homebrew/bin/nmap');
   assert.strictEqual(which('nmap', 'relative/bin', () => true), null);
@@ -43,7 +46,7 @@ test('sudo command: askpass, empty prompt, -- before absolute nmap', () => {
   assert.throws(() => elevatedCommand({ method: 'sudo-askpass', nmapPath: 'nmap', args: [] }), /nmap not found/);
 });
 
-test('askpass script is private and never contains the prompt text itself', () => {
+test('askpass script is private and never contains the prompt text itself', posixOnly, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ncb-askpass-'));
   const f = writeAskpass(dir, 'osascript');
   assert.strictEqual(fs.statSync(f).mode & 0o777, 0o700);
