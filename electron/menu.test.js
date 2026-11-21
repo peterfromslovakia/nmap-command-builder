@@ -41,3 +41,12 @@ test('no menu accelerators clash with the in-app shortcuts', () => {
   const accels = make().items.map((i) => i.accelerator).filter(Boolean);
   ['CmdOrCtrl+Enter', 'CmdOrCtrl+.', 'CmdOrCtrl+F', 'CmdOrCtrl+Shift+C'].forEach((a) => assert.ok(!accels.includes(a)));
 });
+
+test('menu labels follow the UI language (en / sk), unknown falls back to English', () => {
+  const { menuText } = require('./menu');
+  const labels = (lang) => JSON.stringify(make({ isMac: false, lang }).tpl.map((m) => [m.label, (m.submenu || []).map((x) => x.label)]));
+  assert.match(labels('sk'), /Súbor.*Zobrazenie/);
+  assert.match(labels('sk'), /Skontrolovať aktualizácie…/);
+  assert.strictEqual(labels('de'), labels('en'));
+  assert.deepStrictEqual(Object.keys(menuText('sk')).sort(), Object.keys(menuText('en')).sort());
+});

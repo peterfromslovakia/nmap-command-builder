@@ -10,9 +10,9 @@ function defaultStorage() {
 export function loadReportMeta(storage = defaultStorage()) {
   try {
     const raw = JSON.parse(storage.getItem(STORE_KEY) || 'null');
-    return { ...normalizeMeta(raw && typeof raw === 'object' ? raw : {}), remember: raw ? raw.remember !== false : true };
+    return { ...normalizeMeta(raw && typeof raw === 'object' ? raw : {}), remember: raw ? raw.remember !== false : true, saved: Boolean(raw) };
   } catch (_) {
-    return { ...normalizeMeta({}), remember: true };
+    return { ...normalizeMeta({}), remember: true, saved: false };
   }
 }
 

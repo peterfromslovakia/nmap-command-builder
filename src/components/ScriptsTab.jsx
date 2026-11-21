@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { NSE_SCRIPTS, NSE_SCRIPT_MAP, NSE_CATEGORIES, DANGEROUS_CATEGORIES } from '../data/nseScripts';
 import { parseList } from '../utils/nseSelection';
+import { useLang } from '../i18n/ui';
 
 const RISK_LABEL = { safe: 'SAFE', intrusive: 'INTRUSIVE', dangerous: 'ADV' };
 
@@ -18,6 +19,7 @@ export default function ScriptsTab({
   onRemoveScripts,
   onClearScripts,
 }) {
+  const { lang, t } = useLang();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
 
@@ -41,33 +43,40 @@ export default function ScriptsTab({
       return (
         x.name.includes(q) ||
         x.service.includes(q) ||
-        x.description.toLowerCase().includes(q)
+        x.description.toLowerCase().includes(q) ||
+        t(x.description).toLowerCase().includes(q)
       );
     });
-  }, [query, category, advancedMode]);
+  }, [query, category, advancedMode, t]);
 
   const hiddenAdv = !advancedMode ? selected.filter(isAdvOnly) : [];
 
   return (
     <div className="scripts-tab">
       <p className="presets-intro">
-        Click a script or category to add it to <code>--script</code>. Scripts run against
-        open ports, so combine them with a port scan; most also need <code>-sV</code>.
-        Only run scripts against hosts you are authorized to test.
+        {lang === 'sk' ? (
+          <>Kliknutím pridáte skript alebo kategóriu do <code>--script</code>. Skripty bežia proti
+          otvoreným portom, preto ich kombinujte so skenom portov; väčšina potrebuje aj <code>-sV</code>.
+          Skripty spúšťajte len proti zariadeniam, ktoré máte povolené testovať.</>
+        ) : (
+          <>Click a script or category to add it to <code>--script</code>. Scripts run against
+          open ports, so combine them with a port scan; most also need <code>-sV</code>.
+          Only run scripts against hosts you are authorized to test.</>
+        )}
       </p>
 
       {/* Selection summary */}
       <div className="scripts-selection">
         <span className="scripts-selection__label">--script</span>
         {selected.length === 0 ? (
-          <span className="scripts-selection__empty">nothing selected</span>
+          <span className="scripts-selection__empty">{t('nothing selected')}</span>
         ) : (
           selected.map((name) => (
             <button
               key={name}
               className={`script-chip ${isAdvOnly(name) ? 'script-chip--adv' : ''}`}
               onClick={() => onToggleScript(name)}
-              title="Remove"
+              title={t('Remove')}
             >
               {name} ×
             </button>
@@ -75,22 +84,22 @@ export default function ScriptsTab({
         )}
         {selected.length > 0 && (
           <button className="scripts-selection__clear" onClick={onClearScripts}>
-            CLEAR
+            {t('CLEAR')}
           </button>
         )}
       </div>
 
       {hiddenAdv.length > 0 && (
         <div className="scripts-warning">
-          ⚠ Selected in ADV mode and still active: {hiddenAdv.join(', ')}.{' '}
+          ⚠ {t('Selected in ADV mode and still active:')} {hiddenAdv.join(', ')}.{' '}
           <button className="link-btn" onClick={() => onRemoveScripts(hiddenAdv)}>
-            Remove them
+            {t('Remove them')}
           </button>
         </div>
       )}
 
       {/* Categories */}
-      <div className="scripts-section-title">CATEGORIES</div>
+      <div className="scripts-section-title">{t('CATEGORIES')}</div>
       <div className="scripts-categories">
         {visibleCategories.map((c) => (
           <button
@@ -99,7 +108,7 @@ export default function ScriptsTab({
               DANGEROUS_CATEGORIES.has(c.id) ? 'script-cat--adv' : c.id === 'intrusive' ? 'script-cat--warn' : ''
             }`}
             onClick={() => onToggleScript(c.id)}
-            title={c.description}
+            title={t(c.description)}
           >
             {c.id}
           </button>
@@ -111,7 +120,7 @@ export default function ScriptsTab({
         <input
           className="search-input"
           type="text"
-          placeholder="Search scripts, services (http, smb, ssh…)"
+          placeholder={t('Search scripts, services (http, smb, ssh…)')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           spellCheck={false}
@@ -120,9 +129,9 @@ export default function ScriptsTab({
           className="flag-select"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          title="Filter by category"
+          title={t('Filter by category')}
         >
-          <option value="all">all categories</option>
+          <option value="all">{t('all categories')}</option>
           {visibleCategories.map((c) => (
             <option key={c.id} value={c.id}>{c.id}</option>
           ))}
@@ -132,7 +141,7 @@ export default function ScriptsTab({
       {/* Script list */}
       <div className="scripts-list">
         {visibleScripts.length === 0 && (
-          <div className="scripts-selection__empty">No scripts match.</div>
+          <div className="scripts-selection__empty">{t('No scripts match.')}</div>
         )}
         {visibleScripts.map((x) => {
           const active = selectedSet.has(x.name);
@@ -146,9 +155,9 @@ export default function ScriptsTab({
                   <span className="script-card__check">{active ? '■' : '□'}</span>
                   <code className="script-card__name">{x.name}</code>
                   <span className="script-card__service">{x.service}</span>
-                  <span className={`script-risk script-risk--${x.risk}`}>{RISK_LABEL[x.risk]}</span>
+                  <span className={`script-risk script-risk--${x.risk}`}>{t(RISK_LABEL[x.risk])}</span>
                 </div>
-                <p className="script-card__desc">{x.description}</p>
+                <p className="script-card__desc">{t(x.description)}</p>
                 <div className="script-card__cats">{x.categories.join(' · ')}</div>
               </button>
               {x.args.length > 0 && (
@@ -162,7 +171,7 @@ export default function ScriptsTab({
                         if (!active) onToggleScript(x.name);
                         onAddScriptArg(a.key, a.example);
                       }}
-                      title={a.description}
+                      title={t(a.description)}
                     >
                       + {a.key}={a.example}
                     </button>

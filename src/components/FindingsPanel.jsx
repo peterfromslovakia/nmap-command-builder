@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { parseFindings } from '../utils/findings';
 import { formatEpss } from '../utils/intel';
+import { useLang } from '../i18n/ui';
+import { tr } from '../i18n/report';
 
 const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
 
@@ -9,34 +11,36 @@ const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
  * Ak sken nespustal skripty, ponukne tip ako ich spustit.
  */
 function IntelStatus({ intel, onToggle }) {
+  const { t } = useLang();
   if (!intel) return null;
   const { enabled, loading, meta, nvdDone, nvdTotal } = intel;
   return (
     <div className="intel-status">
       {!enabled ? (
-        <span>Online vulnerability data is off.</span>
+        <span>{t('Online vulnerability data is off.')}</span>
       ) : loading ? (
-        <span><span className="btn-spinner" /> Checking CISA KEV and EPSS…</span>
+        <span><span className="btn-spinner" /> {t('Checking CISA KEV and EPSS…')}</span>
       ) : meta ? (
         <span>
-          Checked against <b>CISA KEV</b>{meta.kevVersion ? ` ${meta.kevVersion}` : ''}{meta.kevStale ? ' (offline copy)' : ''} · <b>EPSS</b>
-          {nvdTotal > 0 && <> · <b>NVD</b> {nvdDone < nvdTotal ? `${nvdDone}/${nvdTotal}…` : 'details loaded'}</>}
-          {meta.errors.length > 0 && <span className="intel-status__err" title={meta.errors.join('\n')}> · ⚠ {meta.errors.length} source(s) unavailable</span>}
+          {t('Checked against')} <b>CISA KEV</b>{meta.kevVersion ? ` ${meta.kevVersion}` : ''}{meta.kevStale ? ` ${t('(offline copy)')}` : ''} · <b>EPSS</b>
+          {nvdTotal > 0 && <> · <b>NVD</b> {nvdDone < nvdTotal ? `${nvdDone}/${nvdTotal}…` : t('details loaded')}</>}
+          {meta.errors.length > 0 && <span className="intel-status__err" title={meta.errors.join('\n')}> · ⚠ {t('{n} source(s) unavailable', { n: meta.errors.length })}</span>}
         </span>
       ) : null}
       <button className="link-btn intel-status__toggle" onClick={onToggle}
-        title="Only CVE numbers are sent to FIRST.org (EPSS) and NIST (NVD); the CISA list is downloaded. No IP addresses or scan data leave this computer.">
-        {enabled ? 'turn off' : 'turn on'}
+        title={t('Only CVE numbers are sent to FIRST.org (EPSS) and NIST (NVD); the CISA list is downloaded. No IP addresses or scan data leave this computer.')}>
+        {enabled ? t('turn off') : t('turn on')}
       </button>
     </div>
   );
 }
 
 function CveTable({ cves }) {
+  const { t } = useLang();
   if (!cves || cves.length === 0) return null;
   return (
     <table className="cve-table">
-      <thead><tr><th>CVE</th><th className="num">CVSS</th><th className="num" title="Probability of exploitation in the next 30 days (FIRST EPSS)">EPSS</th><th>STATUS</th></tr></thead>
+      <thead><tr><th>CVE</th><th className="num">CVSS</th><th className="num" title={t('Probability of exploitation in the next 30 days (FIRST EPSS)')}>EPSS</th><th>{t('STATUS')}</th></tr></thead>
       <tbody>
         {cves.slice(0, 12).map((c) => (
           <tr key={c.id} className={c.kev ? 'cve-row--kev' : ''}>
@@ -44,7 +48,7 @@ function CveTable({ cves }) {
             <td className="num">{c.score ?? '—'}</td>
             <td className="num">{formatEpss(c.epss) || '—'}</td>
             <td>
-              {c.kev ? <span className="kev-badge" title={c.kev.requiredAction}>EXPLOITED{c.kev.ransomware ? ' · RANSOMWARE' : ''}</span> : <span className="inv-dim">—</span>}
+              {c.kev ? <span className="kev-badge" title={c.kev.requiredAction}>{t('EXPLOITED')}{c.kev.ransomware ? ` · ${t('RANSOMWARE')}` : ''}</span> : <span className="inv-dim">—</span>}
             </td>
           </tr>
         ))}
@@ -54,6 +58,7 @@ function CveTable({ cves }) {
 }
 
 export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport, findings: enriched, intel, onToggleIntel }) {
+  const { lang, t } = useLang();
   const text = useMemo(() => lines.map((l) => l.text || '').join(''), [lines]);
   const parsed = useMemo(() => parseFindings(text), [text]);
   const findings = enriched || parsed;
@@ -85,21 +90,21 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
   return (
     <div className="findings-panel">
       <div className="intel-panel__header">
-        <span className="findings-panel__title">VULNERABILITIES &amp; FIXES</span>
+        <span className="findings-panel__title">{t('VULNERABILITIES & FIXES')}</span>
         <div className="intel-panel__summary">
           {['critical', 'high', 'medium', 'low'].map((s) =>
             counts[s] ? (
               <span key={s} className={`sev-badge sev-badge--${s}`}>
-                {counts[s]} {SEV_LABEL[s]}
+                {counts[s]} {t(SEV_LABEL[s])}
               </span>
             ) : null
           )}
           {onExport && (
             <>
-              <button className="findings-export" onClick={() => onExport('pdf')} title="Save report as PDF">
+              <button className="findings-export" onClick={() => onExport('pdf')} title={t('Save report as PDF')}>
                 ↓ PDF
               </button>
-              <button className="findings-export" onClick={() => onExport('md')} title="Save report as Markdown">
+              <button className="findings-export" onClick={() => onExport('md')} title={t('Save report as Markdown')}>
                 ↓ MD
               </button>
             </>
@@ -113,11 +118,11 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
         {findings.length === 0 && (
           <div className="findings-empty">
             {ranScripts
-              ? '✓ No known vulnerabilities detected by the scripts that ran.'
-              : 'No vulnerability scripts were run in this scan.'}
+              ? `✓ ${t('No known vulnerabilities detected by the scripts that ran.')}`
+              : t('No vulnerability scripts were run in this scan.')}
             {onLoadVulnScan && (
               <button className="link-btn" onClick={onLoadVulnScan}>
-                Add -sV --script vuln,vulners to the builder
+                {t('Add -sV --script vuln,vulners to the builder')}
               </button>
             )}
           </div>
@@ -128,11 +133,11 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
           return (
             <div key={`${f.id}-${f.host}-${f.port}-${i}`} className={`finding finding--${f.severity}`}>
               <button className="finding__row" onClick={() => toggle(f, i)}>
-                <span className={`sev-badge sev-badge--${f.severity}`}>{SEV_LABEL[f.severity]}</span>
+                <span className={`sev-badge sev-badge--${f.severity}`}>{t(SEV_LABEL[f.severity])}</span>
                 <span className="finding__title">
-                  {f.title}
-                  {f.exploited && <span className="kev-badge" title="Listed in the CISA Known Exploited Vulnerabilities catalogue">ACTIVELY EXPLOITED</span>}
-                  {f.epssMax != null && f.epssMax >= 0.1 && <span className="epss-badge" title="Highest EPSS — probability of exploitation in the next 30 days">EPSS {formatEpss(f.epssMax)}</span>}
+                  {tr(f.title, lang)}
+                  {f.exploited && <span className="kev-badge" title={t('Listed in the CISA Known Exploited Vulnerabilities catalogue')}>{t('ACTIVELY EXPLOITED')}</span>}
+                  {f.epssMax != null && f.epssMax >= 0.1 && <span className="epss-badge" title={t('Highest EPSS — probability of exploitation in the next 30 days')}>EPSS {formatEpss(f.epssMax)}</span>}
                 </span>
                 <span className="finding__where">
                   {f.host}{f.port ? ` · ${f.port}` : ''}
@@ -144,27 +149,27 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
                 <div className="finding__details">
                   {f.evidence && (
                     <div className="finding__evidence">
-                      <span className="finding__label">FOUND</span>
+                      <span className="finding__label">{t('FOUND')}</span>
                       <code>{f.evidence}</code>
                       <span className="finding__script">({f.script})</span>
                     </div>
                   )}
                   {f.exploited && (
                     <div className="finding__kev">
-                      ⚠ Attackers are exploiting this vulnerability right now (CISA KEV{f.ransomware ? ', used by ransomware' : ''}).
-                      {' '}Fix it first{f.kevDue ? ` — US federal agencies had to fix it by ${f.kevDue}` : ''}.
-                      {f.escalated && ' Severity raised to HIGH.'}
+                      ⚠ {f.ransomware ? t('Attackers are exploiting this vulnerability right now (CISA KEV, used by ransomware).') : t('Attackers are exploiting this vulnerability right now (CISA KEV).')}
+                      {' '}{f.kevDue ? t('Fix it first — US federal agencies had to fix it by {date}.', { date: f.kevDue }) : t('Fix it first.')}
+                      {f.escalated && f.originalSeverity !== 'high' && f.severity === 'high' && ` ${t('Severity raised to HIGH.')}`}
                     </div>
                   )}
                   <CveTable cves={f.cveDetails} />
-                  <div className="finding__label finding__label--fix">HOW TO FIX</div>
+                  <div className="finding__label finding__label--fix">{t('HOW TO FIX')}</div>
                   <ol className="finding__fix">
-                    {f.fix.map((step, j) => <li key={j}>{step}</li>)}
+                    {f.fix.map((step, j) => <li key={j}>{tr(step, lang)}</li>)}
                   </ol>
                   {f.refs && f.refs.length > 0 && (
                     <div className="finding__refs">
                       {f.refs.map((r) => (
-                        <button key={r} className="finding__ref" onClick={() => copy(r)} title="Click to copy link">
+                        <button key={r} className="finding__ref" onClick={() => copy(r)} title={t('Click to copy link')}>
                           {r}
                         </button>
                       ))}

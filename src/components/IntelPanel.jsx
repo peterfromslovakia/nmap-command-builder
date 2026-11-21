@@ -3,6 +3,8 @@ import { parseScanSummary } from '../utils/commandBuilder';
 import { getPortIntel } from '../data/portIntel';
 import { getPortRisk } from '../data/portRisk';
 import { getPortFixes } from '../data/remediation';
+import { useLang } from '../i18n/ui';
+import { tr } from '../i18n/report';
 
 /**
  * Collect intel entries for all open ports that have data.
@@ -30,6 +32,7 @@ const RISK_LABEL = { high: 'HIGH', medium: 'MED', safe: 'SAFE' };
 const RISK_CSS   = { high: 'intel-risk--high', medium: 'intel-risk--medium', safe: 'intel-risk--safe' };
 
 export default function IntelPanel({ lines, scanStatus }) {
+  const { lang, t } = useLang();
   const { openPorts } = useMemo(() => parseScanSummary(lines), [lines]);
   const entries = useMemo(() => buildIntelEntries(openPorts), [openPorts]);
 
@@ -56,13 +59,13 @@ export default function IntelPanel({ lines, scanStatus }) {
   return (
     <div className="intel-panel">
       <div className="intel-panel__header">
-        <span className="intel-panel__title">SECURITY INTEL</span>
+        <span className="intel-panel__title">{t('SECURITY INTEL')}</span>
         <div className="intel-panel__summary">
           {highCount > 0 && (
-            <span className="intel-badge intel-badge--high">{highCount} HIGH</span>
+            <span className="intel-badge intel-badge--high">{highCount} {t('HIGH')}</span>
           )}
           {medCount > 0 && (
-            <span className="intel-badge intel-badge--medium">{medCount} MED</span>
+            <span className="intel-badge intel-badge--medium">{medCount} {t('MED')}</span>
           )}
         </div>
       </div>
@@ -76,22 +79,22 @@ export default function IntelPanel({ lines, scanStatus }) {
                 className="intel-entry__row"
                 onClick={() => togglePort(e.port)}
               >
-                <span className={`intel-risk ${RISK_CSS[e.level] || RISK_CSS.safe}`}>{RISK_LABEL[e.level] || 'INFO'}</span>
+                <span className={`intel-risk ${RISK_CSS[e.level] || RISK_CSS.safe}`}>{t(RISK_LABEL[e.level] || 'INFO')}</span>
                 <span className="intel-port">{e.port}</span>
                 <span className="intel-service">{e.label}</span>
-                <span className="intel-risk-note">{e.note}</span>
+                <span className="intel-risk-note">{tr(e.note, lang)}</span>
                 <span className="intel-chevron">{isOpen ? '▾' : '▸'}</span>
               </button>
 
               {/* Expanded details */}
               {isOpen && (
                 <div className="intel-entry__details">
-                  <p className="intel-detail__risk">{e.note}</p>
+                  <p className="intel-detail__risk">{tr(e.note, lang)}</p>
 
                   {e.hints.slice(0, 2).map((hint, i) => (
                     <div key={i} className="intel-detail__hint">
                       <span className="intel-detail__bullet">›</span>
-                      <span>{hint}</span>
+                      <span>{t(hint)}</span>
                     </div>
                   ))}
 
@@ -106,9 +109,9 @@ export default function IntelPanel({ lines, scanStatus }) {
 
                   {e.fixes.length > 0 && (
                     <div className="intel-detail__fix">
-                      <div className="finding__label finding__label--fix">HOW TO FIX</div>
+                      <div className="finding__label finding__label--fix">{t('HOW TO FIX')}</div>
                       <ol className="finding__fix">
-                        {e.fixes.map((f, i) => <li key={i}>{f}</li>)}
+                        {e.fixes.map((f, i) => <li key={i}>{tr(f, lang)}</li>)}
                       </ol>
                     </div>
                   )}

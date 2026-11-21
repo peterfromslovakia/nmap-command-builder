@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // UI language for the native menu and dialogs
+  setLang: (lang) => ipcRenderer.invoke('app:setLang', lang),
+
   // Vulnerability intelligence: CISA KEV + EPSS (+ cached NVD), NVD detail per CVE
   intelLookup: (cves) => ipcRenderer.invoke('intel:lookup', cves),
   intelNvd: (cve) => ipcRenderer.invoke('intel:nvd', cve),

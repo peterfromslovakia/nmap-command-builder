@@ -33,6 +33,7 @@ import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
 import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
 import { parseFindings } from './utils/findings';
+import { useLang } from './i18n/ui';
 import { collectCves, applyIntel, loadIntelEnabled, saveIntelEnabled } from './utils/intel';
 import InventoryPanel from './components/InventoryPanel';
 
@@ -64,6 +65,10 @@ function parseCommandToTarget(command) {
 }
 
 export default function App() {
+  const { lang, setLang, t } = useLang();
+  const tRef = useRef(t);
+  tRef.current = t;
+  useEffect(() => { window.electronAPI?.setLang?.(lang); document.documentElement.lang = lang; }, [lang]);
   // ── Nmap availability ──────────────────────────────────────────────────────
   const [nmapStatus, setNmapStatus] = useState({ checked: false, available: false, version: '' });
 
@@ -192,8 +197,8 @@ export default function App() {
     const cleanDone = window.electronAPI.onScanDone((data) => {
       setScanStatus(data.signal ? 'killed' : 'done');
       const statusMsg = data.signal
-        ? `\n[⊗ Scan killed — signal: ${data.signal}]`
-        : `\n[✓ Scan completed — exit code: ${data.code ?? 0}]`;
+        ? `\n[⊗ ${tRef.current('Scan killed — signal: {signal}', { signal: data.signal })}]`
+        : `\n[✓ ${tRef.current('Scan completed — exit code: {code}', { code: data.code ?? 0 })}]`;
       setOutputLines((prev) => [
         ...prev,
         { id: Date.now(), type: 'system', text: statusMsg },
@@ -214,7 +219,7 @@ export default function App() {
       setScanStatus('error');
       setOutputLines((prev) => [
         ...prev,
-        { id: Date.now(), type: 'error', text: `\n[✗ Scan error: ${data.message}]` },
+        { id: Date.now(), type: 'error', text: `\n[✗ ${tRef.current('Scan error: {msg}', { msg: data.message })}]` },
       ]);
     });
 
@@ -327,7 +332,7 @@ export default function App() {
     setOutputLines([
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${scanCommand}\n` },
       ...(needs.some((r) => r.effect === 'quits')
-        ? [{ id: Date.now() + 1, type: 'error', text: `[!] Not running as root: ${needs.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ')} need root, nmap will stop. Start the app with sudo.\n` }]
+        ? [{ id: Date.now() + 1, type: 'error', text: `[!] ${tRef.current('Not running as root: {flags} need root, nmap will stop. Start the app with sudo.', { flags: needs.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ') })}\n` }]
         : []),
     ]);
 
@@ -336,7 +341,7 @@ export default function App() {
       setScanStatus('error');
       setOutputLines((prev) => [
         ...prev,
-        { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
+        { id: Date.now(), type: 'error', text: `\n[✗ ${tRef.current('Scan not started: {msg}', { msg: res.error })}]` },
       ]);
     }
   }, [scanStatus]);
@@ -484,8 +489,8 @@ export default function App() {
         setOutputLines((prev) => [
           ...prev,
           res.success
-            ? { id: Date.now(), type: 'system', text: `\n[✓ PDF report saved to: ${res.filePath}]` }
-            : res.cancelled ? null : { id: Date.now(), type: 'error', text: `\n[✗ PDF export failed: ${res.error}]` },
+            ? { id: Date.now(), type: 'system', text: `\n[✓ ${tRef.current('PDF report saved to: {path}', { path: res.filePath })}]` }
+            : res.cancelled ? null : { id: Date.now(), type: 'error', text: `\n[✗ ${tRef.current('PDF export failed: {msg}', { msg: res.error })}]` },
         ].filter(Boolean));
         return;
       }
@@ -621,11 +626,11 @@ export default function App() {
 
   // ── Status indicator label ────────────────────────────────────────────────
   const statusMap = {
-    idle: { label: 'READY', cls: 'status--ready' },
-    scanning: { label: 'SCANNING', cls: 'status--scanning' },
-    done: { label: 'DONE', cls: 'status--done' },
-    error: { label: 'ERROR', cls: 'status--error' },
-    killed: { label: 'KILLED', cls: 'status--killed' },
+    idle: { label: t('READY'), cls: 'status--ready' },
+    scanning: { label: t('SCANNING'), cls: 'status--scanning' },
+    done: { label: t('DONE'), cls: 'status--done' },
+    error: { label: t('ERROR'), cls: 'status--error' },
+    killed: { label: t('KILLED'), cls: 'status--killed' },
   };
   const currentStatus = statusMap[scanStatus] || statusMap.idle;
 
@@ -635,8 +640,8 @@ export default function App() {
       <div className="no-electron">
         <div className="no-electron__box">
           <div className="no-electron__icon">⚠</div>
-          <h2>Electron API not available</h2>
-          <p>This app must be run as an Electron desktop application.</p>
+          <h2>{t('Electron API not available')}</h2>
+          <p>{t('This app must be run as an Electron desktop application.')}</p>
           <code>npm run dev</code>
         </div>
       </div>
@@ -655,9 +660,17 @@ export default function App() {
           <span className="app-title">NMAP COMMAND BUILDER</span>
         </div>
         <div className="app-header__right">
+          <div className="lang-switch" role="group" aria-label={t('Language')}>
+            {['en', 'sk'].map((l) => (
+              <button key={l} className={`lang-switch__btn ${lang === l ? 'lang-switch__btn--active' : ''}`}
+                onClick={() => setLang(l)} aria-pressed={lang === l} title={l === 'sk' ? 'Slovenčina' : 'English'}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
           {nmapStatus.checked && (
             <span className={`nmap-version ${nmapStatus.available ? 'nmap-version--ok' : 'nmap-version--err'}`}>
-              {nmapStatus.available ? `● ${nmapStatus.version}` : '✗ nmap not found'}
+              {nmapStatus.available ? `● ${nmapStatus.version}` : `✗ ${t('nmap not found')}`}
             </span>
           )}
         </div>
@@ -675,8 +688,8 @@ export default function App() {
       {/* ── nmap not found warning ────────────────────────────────────────── */}
       {nmapStatus.checked && !nmapStatus.available && (
         <div className="nmap-warn-bar">
-          ⚠ nmap is not installed or not in PATH.
-          Install: <code>sudo apt install nmap</code> (Linux) · <code>brew install nmap</code> (macOS)
+          ⚠ {t('nmap is not installed or not in PATH.')}
+          {' '}{t('Install:')} <code>sudo apt install nmap</code> (Linux) · <code>brew install nmap</code> (macOS)
         </div>
       )}
 
@@ -703,33 +716,33 @@ export default function App() {
               className={`tab-btn ${activeTab === 'builder' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('builder')}
             >
-              BUILDER
+              {t('BUILDER')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'cheatsheet' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('cheatsheet')}
             >
-              CHEATSHEET
+              {t('CHEATSHEET')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'presets' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('presets')}
             >
-              PRESETS
+              {t('PRESETS')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'scripts' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('scripts')}
-              title="NSE script library"
+              title={t('NSE script library')}
             >
-              SCRIPTS
+              {t('SCRIPTS')}
             </button>
             <button
               className={`tab-btn tab-btn--ethics ${activeTab === 'ethics' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('ethics')}
-              title="Legal notice, ethical usage guide, root-required scans"
+              title={t('Legal notice, ethical usage guide, root-required scans')}
             >
-              ETHICS
+              {t('ETHICS')}
             </button>
 
             {/* Safe / Advanced toggle */}
@@ -737,16 +750,16 @@ export default function App() {
               <button
                 className={`mode-btn ${!advancedMode ? 'mode-btn--active' : ''}`}
                 onClick={() => setAdvancedMode(false)}
-                title="Safe mode — standard flags only"
+                title={t('Safe mode — standard flags only')}
               >
-                SAFE
+                {t('SAFE')}
               </button>
               <button
                 className={`mode-btn mode-btn--adv ${advancedMode ? 'mode-btn--active' : ''}`}
                 onClick={() => setAdvancedMode(true)}
-                title="Advanced mode — enable evasion and spoofing flags"
+                title={t('Advanced mode — enable evasion and spoofing flags')}
               >
-                ADV
+                {t('ADV')}
               </button>
             </div>
           </div>
@@ -810,20 +823,20 @@ export default function App() {
               disabled={!canRun}
               title={
                 !nmapStatus.available
-                  ? 'nmap not found'
+                  ? t('nmap not found')
                   : !targetValid
-                  ? 'Enter a valid target first'
+                  ? t('Enter a valid target first')
                   : scanStatus === 'scanning'
-                  ? 'Scan already running'
-                  : `Run nmap scan (${IS_MAC ? '⌘↵' : 'Ctrl+Enter'})`
+                  ? t('Scan already running')
+                  : t('Run nmap scan ({keys})', { keys: IS_MAC ? '⌘↵' : 'Ctrl+Enter' })
               }
             >
               {scanStatus === 'scanning' ? (
                 <>
-                  <span className="btn-spinner" /> SCANNING…
+                  <span className="btn-spinner" /> {t('SCANNING…')}
                 </>
               ) : (
-                '▶ RUN SCAN'
+                `▶ ${t('RUN SCAN')}`
               )}
             </button>
 
@@ -831,34 +844,34 @@ export default function App() {
               className="btn btn--kill"
               onClick={handleKillScan}
               disabled={scanStatus !== 'scanning'}
-              title={`Kill running scan (${IS_MAC ? '⌘.' : 'Ctrl+.'})`}
+              title={t('Kill running scan ({keys})', { keys: IS_MAC ? '⌘.' : 'Ctrl+.' })}
             >
-              ⊗ KILL
+              ⊗ {t('KILL')}
             </button>
 
-            <div className="discover-group" title={discoveryTarget ? `Find all active devices in ${discoveryTarget}` : 'No network detected — enter a range (e.g. 192.168.1.0/24) as the target'}>
+            <div className="discover-group" title={discoveryTarget ? t('Find all active devices in {net}', { net: discoveryTarget }) : t('No network detected — enter a range (e.g. 192.168.1.0/24) as the target')}>
               <button
                 className="btn btn--discover"
                 onClick={() => handleDiscoverNetwork(discoverMode)}
                 disabled={!nmapStatus.available || !discoveryTarget || scanStatus === 'scanning'}
               >
-                ⌖ SCAN NETWORK
+                ⌖ {t('SCAN NETWORK')}
               </button>
               <select
                 className="discover-mode"
                 value={discoverMode}
                 onChange={(e) => setDiscoverMode(e.target.value)}
                 disabled={scanStatus === 'scanning'}
-                aria-label="Network scan mode"
+                aria-label={t('Network scan mode')}
               >
-                <option value="quick">quick · devices only (~30 s)</option>
-                <option value="standard">detailed · ports + services (minutes)</option>
+                <option value="quick">{t('quick · devices only (~30 s)')}</option>
+                <option value="standard">{t('detailed · ports + services (minutes)')}</option>
               </select>
             </div>
 
             {requiresRoot && (
-              <span className="badge badge--root" title="This scan requires root / sudo privileges">
-                ⚠ REQUIRES ROOT
+              <span className="badge badge--root" title={t('This scan requires root / sudo privileges')}>
+                ⚠ {t('REQUIRES ROOT')}
               </span>
             )}
           </div>
@@ -866,19 +879,19 @@ export default function App() {
           {rootNeeds.length > 0 && (
             <div className="noroot-notice">
               <div className="noroot-notice__title">
-                ⚠ THIS SCAN NEEDS ROOT — the app is running without root
+                ⚠ {t('THIS SCAN NEEDS ROOT — the app is running without root')}
               </div>
               {rootNeeds.map((r) => (
                 <div key={r.id} className={`noroot-notice__row noroot-notice__row--${r.effect}`}>
                   <code>{r.flag}</code>
                   <span className="noroot-notice__effect">
-                    {r.effect === 'quits' ? 'nmap will stop' : 'ignored by nmap'}
+                    {r.effect === 'quits' ? t('nmap will stop') : t('ignored by nmap')}
                   </span>
-                  {r.tip && <span className="noroot-notice__note">tip: {r.tip}</span>}
+                  {r.tip && <span className="noroot-notice__note">{t('tip:')} {t(r.tip)}</span>}
                 </div>
               ))}
               <div className="noroot-notice__how">
-                Start the app with <code>sudo</code> (see README → Root Privileges).
+                {t('Start the app with')} <code>sudo</code> {t('(see README → Root Privileges).')}
               </div>
             </div>
           )}
@@ -951,11 +964,11 @@ export default function App() {
       {reportDialog && (
         <ReportDialog
           format={reportDialog}
-          initial={reportMeta}
+          initial={reportMeta.saved ? reportMeta : { ...reportMeta, lang }}
           onCancel={() => setReportDialog(null)}
           onGenerate={(meta) => {
             saveReportMeta(meta);
-            setReportMeta(meta);
+            setReportMeta({ ...meta, saved: true });
             setReportDialog(null);
             handleExport(reportDialog, meta);
           }}
@@ -964,16 +977,16 @@ export default function App() {
 
       <footer className="app-footer">
         <span className="app-footer__text">
-          Created by <span className="app-footer__author">Peter Obala</span>
+          {t('Created by')} <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Nmap Command Builder v1.4.0</span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Use responsibly &amp; ethically</span>
+        <span className="app-footer__item">{t('Use responsibly & ethically')}</span>
         <span className="app-footer__sep app-footer__keys-sep">·</span>
-        <span className="app-footer__keys" title="Keyboard shortcuts">
+        <span className="app-footer__keys" title={t('Keyboard shortcuts')}>
           {shortcutHints(IS_MAC).map((h) => (
-            <span key={h.label}><kbd>{h.keys}</kbd> {h.label}</span>
+            <span key={h.label}><kbd>{h.keys}</kbd> {t(h.label)}</span>
           ))}
         </span>
       </footer>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../i18n/ui';
 
 function formatTime(iso) {
   try {
@@ -22,11 +23,12 @@ function statusClass(entry) {
 }
 
 export default function ScanHistory({ history, onLoad }) {
+  const t = useT();
   if (history.length === 0) return null;
 
   return (
     <div className="scan-history">
-      <div className="scan-history__title">SCAN HISTORY</div>
+      <div className="scan-history__title">{t('SCAN HISTORY')}</div>
       <div className="scan-history__list">
         {history.map((entry, i) => (
           <div key={i} className="hist-entry">
@@ -37,7 +39,7 @@ export default function ScanHistory({ history, onLoad }) {
             <button
               className="hist-cmd"
               onClick={() => onLoad(entry)}
-              title={`Reload: ${entry.command}`}
+              title={`${t('Reload:')} ${entry.command}`}
             >
               {entry.command}
             </button>

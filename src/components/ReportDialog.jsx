@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { REPORT_LANGS } from '../i18n/report';
+import { useT } from '../i18n/ui';
 
 const FIELDS = [
   ['tester', 'Performed by', 'Name of the person who ran the test'],
@@ -12,6 +13,7 @@ const FIELDS = [
  * Udaje do reportu pred exportom: jazyk, kto test vykonal, pre koho a na zaklade coho.
  */
 export default function ReportDialog({ format, initial, onCancel, onGenerate }) {
+  const t = useT();
   const [meta, setMeta] = useState(initial);
   const first = useRef(null);
   useEffect(() => { first.current?.focus(); }, []);
@@ -32,10 +34,10 @@ export default function ReportDialog({ format, initial, onCancel, onGenerate }) 
         aria-labelledby="report-dialog-title"
         onSubmit={(e) => { e.preventDefault(); onGenerate(meta); }}
       >
-        <div className="modal__title" id="report-dialog-title">REPORT — {format.toUpperCase()}</div>
+        <div className="modal__title" id="report-dialog-title">{t('REPORT')} — {format.toUpperCase()}</div>
 
-        <div className="report-dialog__langs" role="radiogroup" aria-label="Report language">
-          <span className="report-dialog__label">Language</span>
+        <div className="report-dialog__langs" role="radiogroup" aria-label={t('Report language')}>
+          <span className="report-dialog__label">{t('Language')}</span>
           {Object.entries(REPORT_LANGS).map(([code, name]) => (
             <label key={code} className={`lang-option ${meta.lang === code ? 'lang-option--active' : ''}`}>
               <input type="radio" name="lang" value={code} checked={meta.lang === code} onChange={set('lang')} />
@@ -46,13 +48,13 @@ export default function ReportDialog({ format, initial, onCancel, onGenerate }) 
 
         {FIELDS.map(([key, label, hint], i) => (
           <label key={key} className="report-dialog__field">
-            <span className="report-dialog__label">{label}</span>
+            <span className="report-dialog__label">{t(label)}</span>
             <input
               ref={i === 0 ? first : undefined}
               className="flag-input"
               value={meta[key]}
               maxLength={120}
-              placeholder={hint}
+              placeholder={t(hint)}
               onChange={set(key)}
               spellCheck={false}
             />
@@ -61,12 +63,12 @@ export default function ReportDialog({ format, initial, onCancel, onGenerate }) 
 
         <label className="report-dialog__remember">
           <input type="checkbox" checked={meta.remember} onChange={set('remember')} />
-          {' '}Remember these details on this computer
+          {' '}{t('Remember these details on this computer')}
         </label>
 
         <div className="modal__actions">
-          <button type="button" className="btn btn--sm" onClick={onCancel}>CANCEL</button>
-          <button type="submit" className="btn btn--sm btn--primary">↓ GENERATE {format.toUpperCase()}</button>
+          <button type="button" className="btn btn--sm" onClick={onCancel}>{t('CANCEL')}</button>
+          <button type="submit" className="btn btn--sm btn--primary">↓ {t('GENERATE')} {format.toUpperCase()}</button>
         </div>
       </form>
     </div>

@@ -2,6 +2,14 @@ import React from 'react';
 import { FLAG_CATEGORIES } from '../data/flags';
 import { validateTarget } from '../utils/validator';
 import FlagCategory from './FlagCategory';
+import { useT } from '../i18n/ui';
+
+/** Hladanie v anglickom aj prelozenom nazve / popise. */
+export const flagMatches = (f, q, t) => {
+  if (!q) return true;
+  const s = q.toLowerCase();
+  return [f.name, f.flag, f.description, t(f.name), t(f.description)].some((x) => x.toLowerCase().includes(s));
+};
 
 // Viac rozhrani v tej istej sieti (napr. Wi-Fi + Ethernet) = jedno tlacidlo.
 function groupNetworks(networks) {
@@ -29,6 +37,7 @@ export default function BuilderTab({
   expandedCategories,
   onToggleCategory,
 }) {
+  const t = useT();
   const targetResult = target ? validateTarget(target) : null;
   const targetError = targetResult && !targetResult.valid ? targetResult.error : null;
 
@@ -37,13 +46,7 @@ export default function BuilderTab({
     if (!cat.safe && !advancedMode) return false;
     return cat.flags.some((f) => {
       if (!f.safe && !advancedMode) return false;
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        f.name.toLowerCase().includes(q) ||
-        f.flag.toLowerCase().includes(q) ||
-        f.description.toLowerCase().includes(q)
-      );
+      return flagMatches(f, searchQuery, t);
     });
   });
 
@@ -52,8 +55,8 @@ export default function BuilderTab({
       {/* Target input */}
       <div className="builder-target">
         <label className="target-label">
-          <span className="target-label__text">TARGET</span>
-          <span className="target-label__hint">IP · CIDR · hostname · range</span>
+          <span className="target-label__text">{t('TARGET')}</span>
+          <span className="target-label__hint">{t('IP · CIDR · hostname · range')}</span>
         </label>
         <div className={`target-input-wrap ${targetError ? 'target-input-wrap--error' : ''}`}>
           <span className="target-input__prefix">&gt;</span>
@@ -62,18 +65,18 @@ export default function BuilderTab({
             type="text"
             value={target}
             onChange={(e) => onTargetChange(e.target.value)}
-            placeholder="192.168.1.1 or 10.0.0.0/24 or hostname"
+            placeholder={t('192.168.1.1 or 10.0.0.0/24 or hostname')}
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
           />
         </div>
-        {targetError && <div className="target-error">⚠ {targetError}</div>}
+        {targetError && <div className="target-error">⚠ {/^Invalid target: "(.*)"$/.test(targetError) ? t('Invalid target: "{value}"', { value: targetError.slice(17, -1) }) : t(targetError)}</div>}
 
         {/* Detected local networks */}
         <div className="net-detect">
           <span className="net-detect__label">
-            {networks.length > 0 ? 'DETECTED NETWORK' : 'NO NETWORK DETECTED'}
+            {networks.length > 0 ? t('DETECTED NETWORK') : t('NO NETWORK DETECTED')}
           </span>
           {groupNetworks(networks).map((g) => (
             <button
@@ -81,17 +84,17 @@ export default function BuilderTab({
               type="button"
               className={`net-chip ${target === g.suggested ? 'net-chip--active' : ''} ${g.virtual ? 'net-chip--virtual' : ''}`}
               onClick={() => onUseNetwork && onUseNetwork(g.suggested)}
-              title={g.members.map((m) => `${m.iface}: you are ${m.address} (network ${m.cidr})`).join('\n')}
+              title={g.members.map((m) => t('{iface}: you are {ip} (network {cidr})', { iface: m.iface, ip: m.address, cidr: m.cidr })).join('\n')}
             >
               {g.members.map((m) => m.iface).join(' + ')} · {g.suggested}
-              <span className="net-chip__ip"> (you {g.members.map((m) => m.address).join(', ')})</span>
+              <span className="net-chip__ip"> ({t('you')} {g.members.map((m) => m.address).join(', ')})</span>
             </button>
           ))}
           <button
             type="button"
             className="net-chip net-chip--refresh"
             onClick={() => onRefreshNetworks && onRefreshNetworks()}
-            title="Re-detect network"
+            title={t('Re-detect network')}
           >
             ⟳
           </button>
@@ -106,7 +109,7 @@ export default function BuilderTab({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search flags…"
+          placeholder={t('Search flags…')}
           spellCheck={false}
         />
         {searchQuery && (
@@ -120,7 +123,7 @@ export default function BuilderTab({
       <div className="builder-flags">
         {visibleCategories.length === 0 ? (
           <div className="no-results">
-            No flags match <em>"{searchQuery}"</em>
+            {t('No flags match')} <em>"{searchQuery}"</em>
           </div>
         ) : (
           visibleCategories.map((cat) => (

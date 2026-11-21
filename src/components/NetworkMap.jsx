@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useT } from '../i18n/ui';
 
 function parseHostsFromLines(lines) {
   const hosts = [];
@@ -37,6 +38,7 @@ const TYPE_ICONS = { router: '⬡', gateway: '⬡', firewall: '⛨', server: '�
 const TYPE_CSS   = { router: 'node--router', gateway: 'node--gateway', firewall: 'node--firewall', server: 'node--server', workstation: 'node--workstation', host: 'node--host' };
 
 export default function NetworkMap({ lines, scanStatus, scannedTarget }) {
+  const t = useT();
   const hosts = useMemo(() => parseHostsFromLines(lines), [lines]);
 
   const isCidr = /\/\d+$/.test(scannedTarget);
@@ -45,21 +47,21 @@ export default function NetworkMap({ lines, scanStatus, scannedTarget }) {
   return (
     <div className="netmap">
       <div className="netmap__header">
-        <span className="netmap__title">NETWORK MAP</span>
+        <span className="netmap__title">{t('NETWORK MAP')}</span>
         <span className="netmap__subnet">{scannedTarget}</span>
-        <span className="netmap__count">{hosts.length} hosts</span>
+        <span className="netmap__count">{hosts.length} {t('hosts')}</span>
       </div>
       <div className="netmap__body">
         {hosts.map((h, i) => {
           const type = guessHostType(h.ip, h.hostname);
           return (
-            <div key={i} className={`netmap-node ${TYPE_CSS[type]}`} title={`${h.ip}${h.hostname ? ' · ' + h.hostname : ''} · ${type}`}>
+            <div key={i} className={`netmap-node ${TYPE_CSS[type]}`} title={`${h.ip}${h.hostname ? ' · ' + h.hostname : ''} · ${t(type)}`}>
               <span className="netmap-node__icon">{TYPE_ICONS[type]}</span>
               <span className="netmap-node__ip">{h.ip}</span>
               {h.hostname && (
                 <span className="netmap-node__hostname">{h.hostname}</span>
               )}
-              <span className="netmap-node__type">{type}</span>
+              <span className="netmap-node__type">{t(type)}</span>
             </div>
           );
         })}

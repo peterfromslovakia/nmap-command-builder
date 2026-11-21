@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DEVICE_TYPES, ipNum } from '../utils/inventory';
+import { useT } from '../i18n/ui';
 
 const SORTS = {
   ip: (a, b) => ipNum(a.ip) - ipNum(b.ip),
@@ -10,6 +11,8 @@ const SORTS = {
 
 /** Inventar zariadeni v sieti (po "SCAN NETWORK" alebo skene viacerych hostov). */
 export default function InventoryPanel({ devices, target, onScanDevice, onExportCsv }) {
+  const t = useT();
+  const label = (type) => t(DEVICE_TYPES[type].label);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('ip');
 
@@ -22,39 +25,39 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = q
-      ? devices.filter((d) => [d.ip, d.hostname, d.mac, d.vendor, d.os, DEVICE_TYPES[d.type].label,
+      ? devices.filter((d) => [d.ip, d.hostname, d.mac, d.vendor, d.os, DEVICE_TYPES[d.type].label, label(d.type),
         ...d.ports.map((p) => `${p.port} ${p.service} ${p.version}`)].join(' ').toLowerCase().includes(q))
       : devices;
     return [...list].sort(SORTS[sort]);
-  }, [devices, query, sort]);
+  }, [devices, query, sort]); // eslint-disable-line react-hooks/exhaustive-deps -- label zavisi len od jazyka
 
   const withPorts = devices.some((d) => d.ports.length > 0);
 
   return (
     <div className="inventory-panel">
       <div className="intel-panel__header">
-        <span className="inventory-panel__title">NETWORK DEVICES</span>
+        <span className="inventory-panel__title">{t('NETWORK DEVICES')}</span>
         <span className="inventory-panel__target">{target}</span>
         <div className="intel-panel__summary">
-          <span className="inventory-count">{devices.length} device{devices.length === 1 ? '' : 's'}</span>
-          <button className="findings-export" onClick={onExportCsv} title="Save the device list as CSV (Excel)">↓ CSV</button>
+          <span className="inventory-count">{devices.length} {devices.length === 1 ? t('device') : t('devices')}</span>
+          <button className="findings-export" onClick={onExportCsv} title={t('Save the device list as CSV (Excel)')}>↓ CSV</button>
         </div>
       </div>
 
       <div className="inventory-types">
         {counts.map(([type, n]) => (
-          <button key={type} className="inventory-type" onClick={() => setQuery(DEVICE_TYPES[type].label)} title="Filter">
-            <span className="inventory-type__icon">{DEVICE_TYPES[type].icon}</span> {DEVICE_TYPES[type].label} <b>{n}</b>
+          <button key={type} className="inventory-type" onClick={() => setQuery(label(type))} title={t('Filter')}>
+            <span className="inventory-type__icon">{DEVICE_TYPES[type].icon}</span> {label(type)} <b>{n}</b>
           </button>
         ))}
         <span className="inventory-tools">
-          <input className="search-input inventory-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter: IP, name, vendor, port…" spellCheck={false} />
-          {query && <button className="link-btn" onClick={() => setQuery('')}>clear</button>}
-          <select className="flag-select inventory-sort" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort devices">
-            <option value="ip">sort: IP</option>
-            <option value="type">sort: type</option>
-            <option value="vendor">sort: vendor</option>
-            <option value="ports">sort: open ports</option>
+          <input className="search-input inventory-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Filter: IP, name, vendor, port…')} spellCheck={false} />
+          {query && <button className="link-btn" onClick={() => setQuery('')}>{t('clear')}</button>}
+          <select className="flag-select inventory-sort" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={t('Sort devices')}>
+            <option value="ip">{t('sort: IP')}</option>
+            <option value="type">{t('sort: type')}</option>
+            <option value="vendor">{t('sort: vendor')}</option>
+            <option value="ports">{t('sort: open ports')}</option>
           </select>
         </span>
       </div>
@@ -63,42 +66,41 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
         <table className="inventory-table">
           <thead>
             <tr>
-              <th>TYPE</th><th>IP ADDRESS</th><th>NAME</th><th>MAC / VENDOR</th>
-              {withPorts && <th>OPEN PORTS</th>}
-              <th className="num">LATENCY</th><th />
+              <th>{t('TYPE')}</th><th>{t('IP ADDRESS')}</th><th>{t('NAME')}</th><th>{t('MAC / VENDOR')}</th>
+              {withPorts && <th>{t('OPEN PORTS')}</th>}
+              <th className="num">{t('LATENCY')}</th><th />
             </tr>
           </thead>
           <tbody>
             {shown.map((d) => (
               <tr key={d.ip}>
-                <td className="inv-type" title={DEVICE_TYPES[d.type].label}>
+                <td className="inv-type" title={label(d.type)}>
                   <span className={`inv-type__icon inv-type--${d.type}`}>{DEVICE_TYPES[d.type].icon}</span>
-                  <span className="inv-type__label">{DEVICE_TYPES[d.type].label}</span>
+                  <span className="inv-type__label">{label(d.type)}</span>
                 </td>
                 <td className="inv-ip">{d.ip}</td>
                 <td className="inv-name">{d.hostname || '—'}{d.os && <span className="inv-os">{d.os}</span>}</td>
                 <td className="inv-mac">
                   {d.mac ? <code>{d.mac}</code> : <span className="inv-dim">—</span>}
-                  <span className="inv-vendor">{d.randomizedMac ? 'private (randomised) MAC' : d.vendor}</span>
+                  <span className="inv-vendor">{d.randomizedMac ? t('private (randomised) MAC') : d.vendor}</span>
                 </td>
                 {withPorts && (
                   <td className="inv-ports">
-                    {d.ports.length === 0 ? <span className="inv-dim">none</span> : d.ports.map((p) => (
+                    {d.ports.length === 0 ? <span className="inv-dim">{t('none')}</span> : d.ports.map((p) => (
                       <span key={`${p.port}/${p.proto}`} className="inv-port" title={`${p.service} ${p.version}`.trim()}>{p.port}</span>
                     ))}
                   </td>
                 )}
                 <td className="num inv-dim">{d.latencyMs != null ? `${d.latencyMs} ms` : ''}</td>
-                <td><button className="btn btn--xs" onClick={() => onScanDevice(d.ip)} title="Use this device as the target and pick a scan">SCAN ›</button></td>
+                <td><button className="btn btn--xs" onClick={() => onScanDevice(d.ip)} title={t('Use this device as the target and pick a scan')}>{t('SCAN')} ›</button></td>
               </tr>
             ))}
           </tbody>
         </table>
-        {shown.length === 0 && <div className="findings-empty">No device matches “{query}”.</div>}
+        {shown.length === 0 && <div className="findings-empty">{t('No device matches')} “{query}”.</div>}
       </div>
       <div className="inventory-note">
-        Device type is an estimate from open ports, network card vendor and name. MAC addresses come from this
-        computer&apos;s ARP table and are available only for devices in the same local network.
+        {t("Device type is an estimate from open ports, network card vendor and name. MAC addresses come from this computer's ARP table and are available only for devices in the same local network.")}
       </div>
     </div>
   );

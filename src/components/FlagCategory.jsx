@@ -1,4 +1,6 @@
 import React from 'react';
+import { useT } from '../i18n/ui';
+import { flagMatches } from './BuilderTab';
 
 export default function FlagCategory({
   category,
@@ -9,17 +11,9 @@ export default function FlagCategory({
   expanded,
   onToggle,
 }) {
+  const t = useT();
   // Filter flags by search query
-  const visibleFlags = category.flags.filter((f) => {
-    if (!f.safe && !advancedMode) return false;
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      f.name.toLowerCase().includes(q) ||
-      f.flag.toLowerCase().includes(q) ||
-      f.description.toLowerCase().includes(q)
-    );
-  });
+  const visibleFlags = category.flags.filter((f) => (f.safe || advancedMode) && flagMatches(f, searchQuery, t));
 
   if (visibleFlags.length === 0) return null;
 
@@ -27,7 +21,7 @@ export default function FlagCategory({
     <div className={`flag-category ${!category.safe ? 'flag-category--advanced' : ''}`}>
       <button className="flag-category__header" onClick={onToggle}>
         <span className="flag-category__icon">{category.icon}</span>
-        <span className="flag-category__name">{category.name}</span>
+        <span className="flag-category__name">{t(category.name)}</span>
         {!category.safe && (
           <span className="badge badge--adv badge--xs">ADV</span>
         )}
@@ -56,6 +50,7 @@ export default function FlagCategory({
 }
 
 function FlagItem({ flag, value, onChange }) {
+  const t = useT();
   const isActive = flag.type === 'boolean' ? value === true : Boolean(value);
 
   function handleBoolean() {
@@ -78,7 +73,7 @@ function FlagItem({ flag, value, onChange }) {
   return (
     <div className={`flag-item ${isActive ? 'flag-item--active' : ''} ${flag.requiresRoot ? 'flag-item--root' : ''}`}>
       {flag.type === 'boolean' ? (
-        <label className="flag-item__row flag-item__row--checkbox" title={flag.description}>
+        <label className="flag-item__row flag-item__row--checkbox" title={t(flag.description)}>
           <input
             type="checkbox"
             checked={value === true}
@@ -86,33 +81,33 @@ function FlagItem({ flag, value, onChange }) {
             className="flag-checkbox"
           />
           <span className="flag-item__flag-name">{flag.flag}</span>
-          <span className="flag-item__label">{flag.name}</span>
+          <span className="flag-item__label">{t(flag.name)}</span>
           <div className="flag-item__badges">
             {flag.requiresRoot && <span className="badge badge--root badge--xs">ROOT</span>}
             {!flag.safe && <span className="badge badge--adv badge--xs">ADV</span>}
           </div>
         </label>
       ) : flag.type === 'select' ? (
-        <label className="flag-item__row flag-item__row--select" title={flag.description}>
+        <label className="flag-item__row flag-item__row--select" title={t(flag.description)}>
           <span className="flag-item__flag-name">{flag.flag}</span>
-          <span className="flag-item__label">{flag.name}</span>
+          <span className="flag-item__label">{t(flag.name)}</span>
           <select
             value={value || ''}
             onChange={handleSelect}
             className="flag-select"
           >
-            <option value="">— off —</option>
+            <option value="">— {t('off')} —</option>
             {flag.options.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </option>
             ))}
           </select>
         </label>
       ) : flag.type === 'number' ? (
-        <label className="flag-item__row flag-item__row--input" title={flag.description}>
+        <label className="flag-item__row flag-item__row--input" title={t(flag.description)}>
           <span className="flag-item__flag-name">{flag.flag}</span>
-          <span className="flag-item__label">{flag.name}</span>
+          <span className="flag-item__label">{t(flag.name)}</span>
           <div className="flag-item__badges">
             {flag.requiresRoot && <span className="badge badge--root badge--xs">ROOT</span>}
             {!flag.safe && <span className="badge badge--adv badge--xs">ADV</span>}
@@ -129,9 +124,9 @@ function FlagItem({ flag, value, onChange }) {
         </label>
       ) : (
         // text
-        <label className="flag-item__row flag-item__row--input" title={flag.description}>
+        <label className="flag-item__row flag-item__row--input" title={t(flag.description)}>
           <span className="flag-item__flag-name">{flag.flag}</span>
-          <span className="flag-item__label">{flag.name}</span>
+          <span className="flag-item__label">{t(flag.name)}</span>
           <div className="flag-item__badges">
             {flag.requiresRoot && <span className="badge badge--root badge--xs">ROOT</span>}
             {!flag.safe && <span className="badge badge--adv badge--xs">ADV</span>}
@@ -147,9 +142,9 @@ function FlagItem({ flag, value, onChange }) {
         </label>
       )}
       {isActive && flag.warning && (
-        <div className="flag-item__warning">⚠ {flag.warning}</div>
+        <div className="flag-item__warning">⚠ {t(flag.warning)}</div>
       )}
-      <div className="flag-item__desc">{flag.description}</div>
+      <div className="flag-item__desc">{t(flag.description)}</div>
     </div>
   );
 }

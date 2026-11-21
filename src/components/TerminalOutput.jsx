@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { parseScanSummary } from '../utils/commandBuilder';
+import { useT } from '../i18n/ui';
 
 // ─── Line classifier ──────────────────────────────────────────────────────────
 function classifyLine(line) {
@@ -18,6 +19,7 @@ function classifyLine(line) {
 }
 
 export default function TerminalOutput({ lines, scanStatus, onExport, onClear }) {
+  const t = useT();
   const bodyRef = useRef(null);
   const exportRef = useRef(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -58,7 +60,7 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
     <div className="terminal">
       <div className="terminal__titlebar">
         <span className="terminal__title">
-          TERMINAL OUTPUT
+          {t('TERMINAL OUTPUT')}
           {isScanning && <span className="term-spinner" />}
         </span>
         <div className="terminal__actions">
@@ -67,9 +69,9 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
               <button
                 className={`btn btn--xs btn--ghost${copied ? ' btn--copied' : ''}`}
                 onClick={handleCopy}
-                title="Copy all output to clipboard"
+                title={t('Copy all output to clipboard')}
               >
-                {copied ? '✓ COPIED' : '⊞ COPY'}
+                {copied ? `✓ ${t('COPIED')}` : `⊞ ${t('COPY')}`}
               </button>
 
               {/* Export dropdown */}
@@ -77,9 +79,9 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
                 <button
                   className="btn btn--xs btn--ghost"
                   onClick={() => setExportOpen((v) => !v)}
-                  title="Export output"
+                  title={t('Export output')}
                 >
-                  ↓ EXPORT ▾
+                  ↓ {t('EXPORT')} ▾
                 </button>
                 {exportOpen && (
                   <div className="export-menu">
@@ -88,35 +90,35 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
                       onClick={() => { onExport('pdf'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">PDF</span>
-                      <span className="export-menu__desc">report with findings &amp; fixes</span>
+                      <span className="export-menu__desc">{t('report with findings & fixes')}</span>
                     </button>
                     <button
                       className="export-menu__item"
                       onClick={() => { onExport('md'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">MD</span>
-                      <span className="export-menu__desc">Markdown report</span>
+                      <span className="export-menu__desc">{t('Markdown report')}</span>
                     </button>
                     <button
                       className="export-menu__item"
                       onClick={() => { onExport('txt'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">TXT</span>
-                      <span className="export-menu__desc">raw terminal output</span>
+                      <span className="export-menu__desc">{t('raw terminal output')}</span>
                     </button>
                     <button
                       className="export-menu__item"
                       onClick={() => { onExport('json'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">JSON</span>
-                      <span className="export-menu__desc">structured scan data</span>
+                      <span className="export-menu__desc">{t('structured scan data')}</span>
                     </button>
                     <button
                       className="export-menu__item"
                       onClick={() => { onExport('csv'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">CSV</span>
-                      <span className="export-menu__desc">open ports table</span>
+                      <span className="export-menu__desc">{t('open ports table')}</span>
                     </button>
                   </div>
                 )}
@@ -125,9 +127,9 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
               <button
                 className="btn btn--xs btn--ghost"
                 onClick={onClear}
-                title="Clear terminal"
+                title={t('Clear terminal')}
               >
-                ✕ CLEAR
+                ✕ {t('CLEAR')}
               </button>
             </>
           )}
@@ -140,8 +142,8 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
             <span className="terminal__placeholder-prompt">$</span>
             <span className="terminal__placeholder-text">
               {scanStatus === 'idle'
-                ? ' Waiting for scan… Build a command and press RUN SCAN.'
-                : ' Running scan…'}
+                ? ` ${t('Waiting for scan… Build a command and press RUN SCAN.')}`
+                : ` ${t('Running scan…')}`}
             </span>
             <span className="cmd-cursor" />
           </div>
@@ -169,20 +171,20 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
       {/* Scan summary after completion */}
       {summary && summary.openPorts.length > 0 && (
         <div className="terminal__summary">
-          <span className="summary-label">SUMMARY:</span>
+          <span className="summary-label">{t('SUMMARY:')}</span>
           <span className="summary-item">
-            <span className="summary-val">{summary.hosts}</span> host{summary.hosts !== 1 ? 's' : ''}
+            <span className="summary-val">{summary.hosts}</span> {summary.hosts !== 1 ? t('hosts') : t('host')}
           </span>
           <span className="summary-sep">·</span>
           <span className="summary-item">
-            <span className="summary-val">{summary.openPorts.length}</span> open port{summary.openPorts.length !== 1 ? 's' : ''}
+            <span className="summary-val">{summary.openPorts.length}</span> {summary.openPorts.length !== 1 ? t('open ports') : t('open port')}
           </span>
           {summary.services.length > 0 && (
             <>
               <span className="summary-sep">·</span>
               <span className="summary-item summary-services">
                 {summary.services.slice(0, 8).join(', ')}
-                {summary.services.length > 8 && ` +${summary.services.length - 8} more`}
+                {summary.services.length > 8 && ` ${t('+{n} more', { n: summary.services.length - 8 })}`}
               </span>
             </>
           )}

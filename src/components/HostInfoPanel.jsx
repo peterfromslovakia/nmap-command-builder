@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useT } from '../i18n/ui';
 
 /**
  * Parse single-host details from nmap output lines.
@@ -48,6 +49,7 @@ function parseHostInfo(lines) {
 }
 
 export default function HostInfoPanel({ lines, scanStatus }) {
+  const t = useT();
   const info = useMemo(() => parseHostInfo(lines), [lines]);
 
   if (scanStatus !== 'done' && scanStatus !== 'killed') return null;
@@ -56,7 +58,7 @@ export default function HostInfoPanel({ lines, scanStatus }) {
   return (
     <div className="hostinfo-panel">
       <div className="hostinfo-panel__header">
-        <span className="hostinfo-panel__title">HOST INFO</span>
+        <span className="hostinfo-panel__title">{t('HOST INFO')}</span>
         <span className="hostinfo-panel__ip">{info.ip}</span>
       </div>
       <div className="hostinfo-panel__body">
@@ -65,7 +67,7 @@ export default function HostInfoPanel({ lines, scanStatus }) {
           <span className="hostinfo-value hostinfo-value--ip">{info.ip}</span>
         </div>
         <div className="hostinfo-row">
-          <span className="hostinfo-label">HOSTNAME</span>
+          <span className="hostinfo-label">{t('HOSTNAME')}</span>
           <span className="hostinfo-value">{info.hostname || '—'}</span>
         </div>
         <div className="hostinfo-row">
@@ -73,11 +75,11 @@ export default function HostInfoPanel({ lines, scanStatus }) {
           <span className="hostinfo-value hostinfo-value--mac">{info.mac || '—'}</span>
         </div>
         <div className="hostinfo-row">
-          <span className="hostinfo-label">VENDOR</span>
+          <span className="hostinfo-label">{t('VENDOR')}</span>
           <span className="hostinfo-value">{info.vendor || '—'}</span>
         </div>
         <div className="hostinfo-row">
-          <span className="hostinfo-label">LATENCY</span>
+          <span className="hostinfo-label">{t('LATENCY')}</span>
           <span className="hostinfo-value hostinfo-value--latency">
             {info.latency ? info.latency : '—'}
           </span>

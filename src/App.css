@@ -2474,3 +2474,27 @@
 .cve-table .kev-badge { margin-left: 0; }
 .cve-cwe { display: block; font-size: 10px; color: var(--text-dim); }
 .cve-row--kev td { background: rgba(196,0,29,0.08); }
+
+/* ─── Language switch (EN / SK) ─────────────────────────────────────────────── */
+.app-header__right { display: flex; align-items: center; gap: 12px; }
+.lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.lang-switch__btn {
+  background: transparent; border: none; color: var(--text-300); cursor: pointer;
+  font: inherit; font-size: 10px; letter-spacing: 1px; padding: 2px 7px;
+}
+.lang-switch__btn + .lang-switch__btn { border-left: 1px solid var(--border); }
+.lang-switch__btn:hover { color: var(--text-100); }
+.lang-switch__btn--active { background: rgba(0, 255, 65, 0.12); color: var(--green, #00ff41); }
+
+/* Ovladanie skenu: pri uzkom paneli (dlhsie slovenske texty) sa zuzi a zalomi. */
+.scan-controls { flex-wrap: wrap; row-gap: 6px; }
+.scan-controls .btn { white-space: nowrap; }
+.discover-group { min-width: 0; }
+.discover-mode { min-width: 0; text-overflow: ellipsis; }
+@media (max-width: 1300px) {
+  .btn--run { padding: 8px 14px; letter-spacing: 1px; font-size: 13.5px; }
+  .btn--kill { padding: 8px 10px; }
+  .btn--discover { padding: 8px 10px; letter-spacing: 1px; }
+  .discover-mode { max-width: 170px; }
+  .discover-group { margin-left: 0; }
+}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../i18n/ui';
 
 export default function CommandPreview({
   command,
@@ -11,6 +12,7 @@ export default function CommandPreview({
   onCopy,
   onClear,
 }) {
+  const t = useT();
   return (
     <div className="cmd-preview-bar">
       <div className="cmd-preview-prompt">
@@ -23,39 +25,39 @@ export default function CommandPreview({
 
       <div className="cmd-actions">
         {requiresRoot && (
-          <span className="badge badge--root" title="This scan type requires root / sudo">
+          <span className="badge badge--root" title={t('This scan type requires root / sudo')}>
             ⚠ ROOT
           </span>
         )}
         {isAdvanced && (
-          <span className="badge badge--adv" title="Advanced flags are active">
+          <span className="badge badge--adv" title={t('Advanced flags are active')}>
             ⚡ ADV
           </span>
         )}
         {hasIdsRisk && (
-          <span className="badge badge--ids" title="Active flags may trigger IDS / IPS detection systems">
+          <span className="badge badge--ids" title={t('Active flags may trigger IDS / IPS detection systems')}>
             ⚠ IDS/IPS
           </span>
         )}
         {warnings.length > 0 && (
-          <span className="badge badge--warn" title={warnings.join('\n')}>
-            ⚠ {warnings.length} WARNING{warnings.length > 1 ? 'S' : ''}
+          <span className="badge badge--warn" title={warnings.map((w) => t(w)).join('\n')}>
+            ⚠ {warnings.length} {warnings.length > 1 ? t('WARNINGS') : t('WARNING')}
           </span>
         )}
         <button
           className="btn btn--sm btn--copy"
           onClick={onCopy}
           disabled={!hasTarget && command === 'nmap'}
-          title="Copy command to clipboard"
+          title={t('Copy command to clipboard')}
         >
-          {copied ? '✓ COPIED' : '⎘ COPY'}
+          {copied ? `✓ ${t('COPIED')}` : `⎘ ${t('COPY')}`}
         </button>
         <button
           className="btn btn--sm btn--clear"
           onClick={onClear}
-          title="Clear all selections"
+          title={t('Clear all selections')}
         >
-          ✕ CLEAR
+          ✕ {t('CLEAR')}
         </button>
       </div>
     </div>

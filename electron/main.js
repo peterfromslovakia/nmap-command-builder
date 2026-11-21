@@ -5,7 +5,7 @@ const fs = require('fs');
 const { detectNetworks } = require('./network');
 const { validateArgs } = require('./argsValidator');
 const { readState, resolveBounds, writeState } = require('./windowState');
-const { buildMenuTemplate } = require('./menu');
+const { buildMenuTemplate, menuText } = require('./menu');
 const { checkForUpdate, isDownloadUrl } = require('./updates');
 const { arpDevices } = require('./arp');
 const { VulnIntel } = require('./vulnIntel');
@@ -126,6 +126,26 @@ function createWindow() {
   });
 }
 
+// Jazyk menu a dialogov hlavneho procesu (nastavuje renderer prepinacom EN/SK).
+let uiLang = 'en';
+function setMenu(lang) {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+    isMac: process.platform === 'darwin',
+    isDev,
+    appName: 'Nmap Command Builder',
+    openUrl: (url) => shell.openExternal(url),
+    showAbout: () => app.showAboutPanel(),
+    checkUpdates: () => checkUpdatesInteractive(),
+    lang,
+  })));
+}
+
+ipcMain.handle('app:setLang', (event, lang) => {
+  if (!isTrusted(event) || (lang !== 'en' && lang !== 'sk')) return false;
+  if (lang !== uiLang) { uiLang = lang; setMenu(lang); }
+  return true;
+});
+
 app.whenReady().then(() => {
   // Appka nepotrebuje kameru, mikrofon, polohu ani notifikacie.
   const { session } = require('electron');
@@ -142,14 +162,7 @@ app.whenReady().then(() => {
     copyright: '© 2026 Peter Obala · MIT License',
     website: 'https://github.com/peterfromslovakia/nmap-command-builder',
   });
-  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
-    isMac: process.platform === 'darwin',
-    isDev,
-    appName: 'Nmap Command Builder',
-    openUrl: (url) => shell.openExternal(url),
-    showAbout: () => app.showAboutPanel(),
-    checkUpdates: () => checkUpdatesInteractive(),
-  })));
+  setMenu(uiLang);
   createWindow();
 });
 
@@ -335,21 +348,22 @@ const runUpdateCheck = () => checkForUpdate(app.getVersion(), { fetchFn: (u, o) 
 async function checkUpdatesInteractive() {
   const r = await runUpdateCheck();
   const win = mainWindow || undefined;
+  const T = menuText(uiLang);
   if (!r.ok) {
-    await dialog.showMessageBox(win, { type: 'warning', message: 'Could not check for updates', detail: r.error });
+    await dialog.showMessageBox(win, { type: 'warning', message: T.updErr, detail: r.error });
   } else if (!r.available) {
-    await dialog.showMessageBox(win, { type: 'info', message: 'You have the latest version', detail: `Nmap Command Builder ${r.current}` });
+    await dialog.showMessageBox(win, { type: 'info', message: T.updLatest, detail: `Nmap Command Builder ${r.current}` });
   } else {
-    const buttons = r.asset ? ['Download', 'Release Notes', 'Later'] : ['Release Notes', 'Later'];
+    const actions = r.asset ? ['download', 'notes', 'later'] : ['notes', 'later'];
     const { response } = await dialog.showMessageBox(win, {
       type: 'info',
-      message: `Version ${r.latest} is available`,
-      detail: `You have ${r.current}.${r.asset ? ` Download: ${r.asset.name}` : ''}`,
-      buttons, defaultId: 0, cancelId: buttons.length - 1,
+      message: T.updAvail(r.latest),
+      detail: `${T.updHave(r.current)}${r.asset ? ` ${T.updFile(r.asset.name)}` : ''}`,
+      buttons: actions.map((a) => T[a]), defaultId: 0, cancelId: actions.length - 1,
     });
-    const choice = buttons[response];
-    if (choice === 'Download') shell.openExternal(r.asset.url);
-    if (choice === 'Release Notes') shell.openExternal(r.pageUrl);
+    const choice = actions[response];
+    if (choice === 'download') shell.openExternal(r.asset.url);
+    if (choice === 'notes') shell.openExternal(r.pageUrl);
   }
 }
 

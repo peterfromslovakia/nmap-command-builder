@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { parseScanSummary } from '../utils/commandBuilder';
 import { getPortIntel } from '../data/portIntel';
+import { useT } from '../i18n/ui';
 
 /**
  * Build a deduplicated list of follow-up scan suggestions from open ports.
@@ -32,6 +33,7 @@ function buildSuggestions(openPorts, scannedTarget) {
 }
 
 export default function FollowUpPanel({ lines, scanStatus, scannedTarget, onLoadCommand }) {
+  const t = useT();
   const { openPorts } = useMemo(() => parseScanSummary(lines), [lines]);
   const suggestions = useMemo(
     () => buildSuggestions(openPorts, scannedTarget),
@@ -53,22 +55,22 @@ export default function FollowUpPanel({ lines, scanStatus, scannedTarget, onLoad
   return (
     <div className="followup-panel">
       <div className="followup-panel__header">
-        <span className="followup-panel__title">FOLLOW-UP SCANS</span>
-        <span className="followup-panel__count">{suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}</span>
+        <span className="followup-panel__title">{t('FOLLOW-UP SCANS')}</span>
+        <span className="followup-panel__count">{suggestions.length} {suggestions.length !== 1 ? t('suggestions') : t('suggestion')}</span>
       </div>
       <div className="followup-panel__body">
         {suggestions.map((s, i) => (
           <div key={i} className="followup-row">
             <div className="followup-row__meta">
               <span className="followup-row__service">{s.service}</span>
-              <span className="followup-row__label">{s.label}</span>
+              <span className="followup-row__label">{t(s.label)}</span>
             </div>
             <code className="followup-row__cmd">{s.cmd}</code>
             <div className="followup-row__actions">
               <button
                 className={`btn btn--xs btn--copy ${copiedIdx === i ? 'btn--copied' : ''}`}
                 onClick={() => handleCopy(s.cmd, i)}
-                title="Copy this command to clipboard"
+                title={t('Copy this command to clipboard')}
               >
                 {copiedIdx === i ? '✓' : '⎘'}
               </button>
@@ -76,7 +78,7 @@ export default function FollowUpPanel({ lines, scanStatus, scannedTarget, onLoad
                 <button
                   className="btn btn--xs btn--ghost"
                   onClick={() => onLoadCommand(s.cmd)}
-                  title="Load this command into the builder"
+                  title={t('Load this command into the builder')}
                 >
                   ↗
                 </button>

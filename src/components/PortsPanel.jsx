@@ -2,6 +2,8 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { parseScanSummary } from '../utils/commandBuilder';
 import { getPortRisk } from '../data/portRisk';
 import { getPortIntel } from '../data/portIntel';
+import { useLang } from '../i18n/ui';
+import { tr } from '../i18n/report';
 
 const RISK_CSS = {
   high:   'port-risk-high',
@@ -10,6 +12,7 @@ const RISK_CSS = {
 };
 
 export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
+  const { lang, t } = useLang();
   const { openPorts } = useMemo(() => parseScanSummary(lines), [lines]);
 
   const [selectedPort, setSelectedPort] = useState(null);
@@ -41,15 +44,15 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
   return (
     <div className="ports-panel">
       <div className="ports-panel__header">
-        <span className="ports-panel__title">OPEN PORTS</span>
+        <span className="ports-panel__title">{t('OPEN PORTS')}</span>
         <div className="ports-panel__header-actions">
-          <span className="ports-panel__count">{openPorts.length} open</span>
+          <span className="ports-panel__count">{openPorts.length} {t('open')}</span>
           <button
             className={`btn btn--xs btn--copy ${copied ? 'btn--copied' : ''}`}
             onClick={handleCopyList}
-            title="Copy port list (e.g. 22,80,443)"
+            title={t('Copy port list (e.g. 22,80,443)')}
           >
-            {copied ? '✓ COPIED' : '⎘ COPY LIST'}
+            {copied ? `✓ ${t('COPIED')}` : `⎘ ${t('COPY LIST')}`}
           </button>
         </div>
       </div>
@@ -58,10 +61,10 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
           <thead>
             <tr>
               <th className="ports-th ports-th--risk"></th>
-              <th className="ports-th">PORT</th>
-              <th className="ports-th">PROTO</th>
-              <th className="ports-th">SERVICE</th>
-              <th className="ports-th ports-th--version">VERSION</th>
+              <th className="ports-th">{t('PORT')}</th>
+              <th className="ports-th">{t('PROTO')}</th>
+              <th className="ports-th">{t('SERVICE')}</th>
+              <th className="ports-th ports-th--version">{t('VERSION')}</th>
             </tr>
           </thead>
           <tbody>
@@ -76,7 +79,7 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
                   <tr
                     className={`ports-row ${riskCss} ${intel ? 'ports-row--clickable' : ''} ${isOpen ? 'ports-row--active' : ''}`}
                     onClick={intel ? () => togglePort(p.port) : undefined}
-                    title={intel ? 'Click to see follow-up actions' : undefined}
+                    title={intel ? t('Click to see follow-up actions') : undefined}
                   >
                     <td className="ports-cell ports-cell--risk">
                       <span className={`port-risk-dot port-risk-dot--${risk}`} />
@@ -99,10 +102,10 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
                           <div className="port-actions__header">
                             <span className="port-actions__label">{intel.label}</span>
                             <span className={`port-actions__risk port-actions__risk--${risk}`}>
-                              {risk.toUpperCase()}
+                              {t(risk.toUpperCase())}
                             </span>
                           </div>
-                          <p className="port-actions__risk-note">{intel.risk}</p>
+                          <p className="port-actions__risk-note">{tr(intel.risk, lang)}</p>
                           <div className="port-actions__cmds">
                             {intel.followUp.map((fu, j) => (
                               <div key={j} className="port-action-row">
@@ -111,7 +114,7 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
                                   <button
                                     className={`btn btn--xs btn--copy ${copiedActionIdx === `${i}-${j}` ? 'btn--copied' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); handleCopyAction(fu.cmd, `${i}-${j}`); }}
-                                    title="Copy command"
+                                    title={t('Copy command')}
                                   >
                                     {copiedActionIdx === `${i}-${j}` ? '✓' : '⎘'}
                                   </button>
@@ -119,7 +122,7 @@ export default function PortsPanel({ lines, scanStatus, onLoadCommand }) {
                                     <button
                                       className="btn btn--xs btn--ghost"
                                       onClick={(e) => { e.stopPropagation(); onLoadCommand(fu.cmd); }}
-                                      title="Load into builder"
+                                      title={t('Load into builder')}
                                     >
                                       ↗
                                     </button>

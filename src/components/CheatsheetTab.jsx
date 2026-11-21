@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { CHEATSHEET } from '../data/cheatsheet';
+import { useT } from '../i18n/ui';
 
 export default function CheatsheetTab({ onLoadCommand }) {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [copiedCmd, setCopiedCmd] = useState(null);
 
@@ -17,7 +19,7 @@ export default function CheatsheetTab({ onLoadCommand }) {
     items: section.items.filter((item) => {
       if (!search) return true;
       const q = search.toLowerCase();
-      return item.command.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
+      return [item.command, item.description, t(item.description)].some((x) => x.toLowerCase().includes(q));
     }),
   })).filter((section) => section.items.length > 0);
 
@@ -30,7 +32,7 @@ export default function CheatsheetTab({ onLoadCommand }) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search cheatsheet…"
+          placeholder={t('Search cheatsheet…')}
           spellCheck={false}
         />
         {search && (
@@ -44,7 +46,7 @@ export default function CheatsheetTab({ onLoadCommand }) {
         <div key={section.category} className="cheatsheet-section">
           <h3 className="cheatsheet-section__title">
             <span className="cheatsheet-section__bar" />
-            {section.category}
+            {t(section.category)}
           </h3>
           <table className="cheatsheet-table">
             <tbody>
@@ -53,12 +55,12 @@ export default function CheatsheetTab({ onLoadCommand }) {
                   <td className="cheatsheet-cmd">
                     <code>{item.command}</code>
                   </td>
-                  <td className="cheatsheet-desc">{item.description}</td>
+                  <td className="cheatsheet-desc">{t(item.description)}</td>
                   <td className="cheatsheet-actions">
                     <button
                       className="btn btn--xs btn--copy"
                       onClick={() => handleCopy(item.command)}
-                      title="Copy command"
+                      title={t('Copy command')}
                     >
                       {copiedCmd === item.command ? '✓' : '⎘'}
                     </button>
@@ -71,7 +73,7 @@ export default function CheatsheetTab({ onLoadCommand }) {
       ))}
 
       {filtered.length === 0 && (
-        <div className="no-results">No results for <em>"{search}"</em></div>
+        <div className="no-results">{t('No results for')} <em>"{search}"</em></div>
       )}
     </div>
   );
