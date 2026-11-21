@@ -66,11 +66,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path extraResources\bin | Out-Null
-          # Zip distribúcia (~6 MB) — žiadny inštalátor, nmap.exe je priamo vo vnútri
-          Invoke-WebRequest "https://nmap.org/dist/nmap-7.95-win32.zip" -OutFile nmap-win32.zip
-          Expand-Archive nmap-win32.zip -DestinationPath nmap-tmp
-          Copy-Item "nmap-tmp\nmap-7.95\nmap.exe" "extraResources\bin\"
-          Invoke-WebRequest "https://npcap.com/dist/npcap-1.79.exe" -OutFile "extraResources\bin\Npcap-installer.exe"
+          # Chocolatey je vždy k dispozícii na GitHub Windows runneroch
+          choco install nmap --no-progress -y | Out-Null
+          Copy-Item "C:\Program Files (x86)\Nmap\nmap.exe" "extraResources\bin\"
+          # Npcap installer bundlujeme samostatne (pre prípad že ho používateľ nemá)
+          Invoke-WebRequest "https://npcap.com/dist/npcap-1.79.exe" -OutFile "extraResources\bin\Npcap-installer.exe" -UseBasicParsing
 
       # electron-builder len zostavuje; vydanie vytvara az job "release" nizsie
       # (inak electron-builder vytvori vlastne vydanie a subory su tam 2x).
