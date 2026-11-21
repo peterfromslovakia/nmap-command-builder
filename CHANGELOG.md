@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 — 2026-11-21
 
 ### New
 - **Export / import of my presets** — share your presets with colleagues or back them up as a JSON file; imported presets are checked the same way as saved ones (unknown flags and invalid values are dropped, the same name replaces the existing preset)
