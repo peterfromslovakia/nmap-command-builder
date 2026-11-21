@@ -6,6 +6,14 @@
 - **Run as administrator without Terminal** — when a scan needs root (`-sS`, `-O`, `-sU`…), *🔒 RUN AS ADMINISTRATOR* runs the same command with administrator rights. macOS shows the system password dialog, Linux a graphical password / polkit dialog; the app never sees the password. Administrator runs refuse options that read or write files (`-oN/-oX/-oG`, `-iL`, script files, paths in script arguments)
 - **Help → Open Data Folder** and **Help → Delete All Saved Data…** (saved scans, presets, report details, monitoring, vulnerability cache, settings; after confirmation). README lists where the data lives on each system
 
+### Fixed
+- **Large networks: no devices lost** — the terminal shows only the last part of very long output, but the device list, network map, findings and reports now use the complete scan output (before, on networks with thousands of devices the first devices could silently disappear)
+- **Very long scan output in reports** — the raw-output appendix is shortened to its beginning and end (max. 2 MB) with a clear note, so the PDF always fits
+
+### Tests
+- Stress and edge cases: 3 000 devices, IPv6 hosts, empty / interrupted scans, Windows line endings, hostile service banners (HTML is escaped in reports)
+
+
 ## 1.7.0 — 2026-11-21
 
 ### New

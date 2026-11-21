@@ -122,6 +122,13 @@ function reportMap(devices, findings, gatewayIp, localIps, target) {
   return { ...topo, gateway: add(topo.gateway), groups: addGroups(topo.groups), segments: topo.segments.map((sg) => ({ ...sg, groups: addGroups(sg.groups) })) };
 }
 
+const RAW_LIMIT = 2 * 1024 * 1024;
+function rawAppendix(raw) {
+  if (raw.length <= RAW_LIMIT) return { raw, rawTruncated: false };
+  const half = RAW_LIMIT / 2;
+  return { raw: `${raw.slice(0, half)}\n\n[…]\n\n${raw.slice(-half)}`, rawTruncated: true, rawLength: raw.length };
+}
+
 export function buildReportModel({
   text, command, target, timestamp, nmapVersion, comparison, meta, findings: given, intelMeta, inventory, generatedAt,
   gatewayIp = null, localIps = [],
@@ -195,7 +202,8 @@ export function buildReportModel({
       sections: changeSections(comparison.diff, m.lang),
     } : null,
     openPortCount: hosts.reduce((n, h) => n + h.ports.length, 0),
-    raw: String(text || '').trim(),
+    // Priloha s vystupom skenera: max. ~2 MB (PDF ma limit 20 MB); zaciatok aj koniec.
+    ...rawAppendix(String(text || '').trim()),
   };
 }
 
@@ -383,7 +391,9 @@ export function toMarkdown(m) {
     out.push('```', '');
   }
 
-  out.push(h2('raw'), '', '```', m.raw.replace(/```/g, "'''"), '```', '');
+  out.push(h2('raw'), '');
+  if (m.rawTruncated) out.push(`> ${L.rawTruncated(Math.round(m.rawLength / 1048576))}`, '');
+  out.push('```', m.raw.replace(/```/g, "'''"), '```', '');
   out.push('---', `_${L.footer}${m.tester ? ` · ${m.tester}` : ''} · ${m.generatedAt}${m.intelMeta ? ` · ${L.dataSources(m.intelMeta.kevVersion)}` : ''}_`, '');
   return out.join('\n');
 }
@@ -698,6 +708,7 @@ export function toHtml(m) {
   ${signoff}
   ${map}
   ${h2('raw')}
+  ${m.rawTruncated ? `<p class="meta">⚠ ${e(L.rawTruncated(Math.round(m.rawLength / 1048576)))}</p>` : ''}
   <pre>${e(m.raw)}</pre>
 
   <footer>${e(L.footer)}${m.tester ? ` · ${e(m.tester)}` : ''} · ${e(m.generatedAt)}${m.intelMeta ? ` · ${e(L.dataSources(m.intelMeta.kevVersion))}` : ''}</footer>

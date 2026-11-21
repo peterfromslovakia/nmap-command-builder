@@ -48,7 +48,10 @@ const initExpanded = () => {
   return s;
 };
 
-const MAX_OUTPUT_CHUNKS = 5000; // strop pamate pri dlhych skenoch (-p-)
+const MAX_OUTPUT_CHUNKS = 5000; // strop terminalu (zobrazenie) pri dlhych skenoch (-p-)
+// Analyza (inventar, mapa, nalezy, report) pracuje s celym vystupom, nie len so
+// zobrazenou castou — inak by pri sieti s tisickami zariadeni vypadli prve.
+const MAX_ANALYSIS_BYTES = 64 * 1024 * 1024;
 
 // Nastavi/odstrani jednu hodnotu flagu (prazdna hodnota = flag sa odstrani).
 function setFlagValue(selections, id, value) {
@@ -90,6 +93,9 @@ export default function App() {
   // ── Scan state ─────────────────────────────────────────────────────────────
   const [scanStatus, setScanStatus] = useState('idle'); // idle|scanning|done|error|killed
   const [outputLines, setOutputLines] = useState([]);
+  // Cely vystup skenu (terminal zobrazuje len poslednych MAX_OUTPUT_CHUNKS blokov).
+  const fullOutRef = useRef({ chunks: [], bytes: 0, truncated: false });
+  const resetFullOutput = (text = '') => { fullOutRef.current = { chunks: text ? [text] : [], bytes: text.length, truncated: false }; };
   const [scanHistory, setScanHistory] = useState([]);
   const [scannedTarget, setScannedTarget] = useState('');
 
@@ -195,12 +201,15 @@ export default function App() {
     if (!window.electronAPI) return;
 
     const cleanOutput = window.electronAPI.onScanOutput((data) => {
+      const full = fullOutRef.current;
+      if (full.bytes < MAX_ANALYSIS_BYTES) { full.chunks.push(String(data.data || '')); full.bytes += String(data.data || '').length; }
       setOutputLines((prev) => {
         const next = [
           ...prev,
           { id: Date.now() + Math.random(), type: data.type, text: data.data },
         ];
-        return next.length > MAX_OUTPUT_CHUNKS ? next.slice(-MAX_OUTPUT_CHUNKS) : next;
+        if (next.length > MAX_OUTPUT_CHUNKS) { fullOutRef.current.truncated = true; return next.slice(-MAX_OUTPUT_CHUNKS); }
+        return next;
       });
     });
 
@@ -358,6 +367,7 @@ export default function App() {
     setScannedTarget(scanTarget);
 
     const ts = new Date().toLocaleTimeString();
+    resetFullOutput(`[${ts}] $ ${scanCommand}\n`);
     setOutputLines([
       ...(kind === 'monitor' ? [{ id: Date.now() - 1, type: 'system', text: `[${ts}] ⟳ ${tRef.current('Monitoring — scheduled repeat of the scan')}\n` }] : []),
       { id: Date.now(), type: 'system', text: `[${ts}] ${elevated ? '#' : '$'} ${scanCommand}\n` },
@@ -414,6 +424,17 @@ export default function App() {
     await window.electronAPI.killScan();
   }, []);
 
+  // Text dokonceneho skenu pre analyzu (cely vystup).
+  const scanText = useMemo(() => {
+    if (scanStatus !== 'done' && scanStatus !== 'killed') return '';
+    return fullOutRef.current.truncated ? fullOutRef.current.chunks.join('') : outputLines.map((l) => l.text || '').join('');
+  }, [scanStatus, outputLines]);
+  // Panely s vysledkami dostanu cely vystup, aj ked terminal zobrazuje len koniec.
+  const analysisLines = useMemo(
+    () => (fullOutRef.current.truncated && scanText ? [{ id: 'full', type: 'stdout', text: scanText }] : outputLines),
+    [outputLines, scanText]
+  );
+
   // Po dokonceni skenu ulozi snimku vysledkov (len ak nasiel nejake hosty).
   useEffect(() => {
     if (scanStatus !== 'done' || savedScanIdRef.current === scanIdRef.current || !scanIdRef.current) return;
@@ -423,12 +444,12 @@ export default function App() {
       time: new Date().toISOString(),
       target: scannedTarget,
       command: currentCommandRef.current,
-      text: outputLines.map((l) => l.text || '').join(''),
+      text: scanText,
     });
     if (snap.hosts.length === 0) { emptyScanIdRef.current = scanIdRef.current; return; }
     setSnapshots(saveSnapshot(snap));
     setCurrentSnapshot(snap);
-  }, [scanStatus, outputLines, scannedTarget]);
+  }, [scanStatus, scanText, scannedTarget]);
 
   // ── Monitorovanie: opakovanie skenu v intervale + upozornenie na zmeny ───
   useEffect(() => {
@@ -509,7 +530,7 @@ export default function App() {
   // Po skene: inventar zariadeni (+ MAC / vyrobca z ARP tabulky systemu).
   useEffect(() => {
     if (scanStatus !== 'done' && scanStatus !== 'killed') return undefined;
-    const text = outputLines.map((l) => l.text || '').join('');
+    const text = scanText;
     const base = buildInventory(text);
     if (base.length === 0 || (base.length < 2 && scanKindRef.current !== 'discovery')) return undefined;
     let alive = true;
@@ -518,13 +539,9 @@ export default function App() {
       if (alive) setInventory(buildInventory(text, arp));
     });
     return () => { alive = false; };
-  }, [scanStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- staci pri zmene stavu skenu
+  }, [scanStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- staci pri zmene stavu skenu (scanText sa meni s nim)
 
   // Nalezy posledneho skenu (+ KEV / EPSS / NVD).
-  const scanText = useMemo(
-    () => (scanStatus === 'done' || scanStatus === 'killed' ? outputLines.map((l) => l.text || '').join('') : ''),
-    [scanStatus, outputLines]
-  );
   const rawFindings = useMemo(() => (scanText ? parseFindings(scanText) : []), [scanText]);
   const findings = useMemo(() => applyIntel(rawFindings, intelEnabled ? intelData : null), [rawFindings, intelData, intelEnabled]);
   const findingsCves = useMemo(() => collectCves(rawFindings).join(','), [rawFindings]);
@@ -571,7 +588,7 @@ export default function App() {
   // Datovy model reportu z aktualneho skenu (export aj automaticke reporty monitorovania).
   const reportModelRef = useRef(null);
   reportModelRef.current = (meta, cmp = comparison) => {
-    const rawText = outputLines.map((l) => l.text || '').join('');
+    const rawText = scanText || outputLines.map((l) => l.text || '').join('');
     return buildReportModel({
       text: rawText,
       command: currentCommandRef.current,
@@ -599,8 +616,8 @@ export default function App() {
     // Report (PDF / MD): najprv udaje o teste a jazyk.
     if ((format === 'pdf' || format === 'md') && !meta) { setReportDialog(format); return; }
 
-    const rawText = outputLines.map((l) => l.text || '').join('');
-    const { openPorts } = parseScanSummary(outputLines);
+    const rawText = scanText || outputLines.map((l) => l.text || '').join('');
+    const { openPorts } = parseScanSummary(analysisLines);
     const ts = new Date().toISOString();
     const stamp = Date.now();
 
@@ -667,7 +684,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines]);
+  }, [outputLines, scanText, analysisLines]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
@@ -1057,6 +1074,7 @@ export default function App() {
             scanStatus={scanStatus}
             onExport={handleExport}
             onClear={() => {
+              resetFullOutput();
               setOutputLines([]);
               setCurrentSnapshot(null);
               setScanStatus('idle');
@@ -1094,13 +1112,13 @@ export default function App() {
             onClearSaved={handleClearSnapshots}
           />
           <PortsPanel
-            lines={outputLines}
+            lines={analysisLines}
             scanStatus={scanStatus}
             onLoadCommand={handleLoadCommand}
           />
-          <HostInfoPanel lines={outputLines} scanStatus={scanStatus} />
+          <HostInfoPanel lines={analysisLines} scanStatus={scanStatus} />
           <FindingsPanel
-            lines={outputLines}
+            lines={analysisLines}
             scanStatus={scanStatus}
             onLoadVulnScan={handleLoadVulnScan}
             onExport={handleExport}
@@ -1110,9 +1128,9 @@ export default function App() {
             } : null}
             onToggleIntel={handleToggleIntel}
           />
-          <IntelPanel lines={outputLines} scanStatus={scanStatus} />
+          <IntelPanel lines={analysisLines} scanStatus={scanStatus} />
           <FollowUpPanel
-            lines={outputLines}
+            lines={analysisLines}
             scanStatus={scanStatus}
             scannedTarget={scannedTarget}
             onLoadCommand={handleLoadCommand}
