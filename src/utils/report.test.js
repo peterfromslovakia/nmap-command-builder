@@ -240,7 +240,19 @@ describe('network map appendix', () => {
   test('Slovak labels and no map for single host scans', () => {
     const m = b({ text: '', command: 'nmap x', target: 'x', timestamp: 't', inventory, findings, meta: { lang: 'sk' } });
     expect(h(m)).toContain('Príloha A — mapa siete');
-    expect(h(m)).toContain('3 zariadenia');
+    expect(h(m)).toContain('Lokálna sieť x · 2 zariadenia');
     expect(b({ text: '', command: 'nmap x', target: 'x', timestamp: 't', inventory: [inventory[0]] }).map).toBeNull();
   });
+});
+
+test('map appendix: firewall gateway label and one frame per scanned range', () => {
+  const { buildReportModel: b, toHtml: h, toMarkdown: md } = require('./report');
+  const dev = (ip, type) => ({ ip, type, hostname: '', mac: '', vendor: '', os: '', ports: [] });
+  const m = b({ text: '', command: 'nmap -sn 10.0.0.0/22 192.168.5.0/24', target: '10.0.0.0/22 192.168.5.0/24', timestamp: 't', meta: { lang: 'sk' },
+    inventory: [dev('10.0.0.1', 'firewall'), dev('10.0.3.7', 'windows'), dev('192.168.5.9', 'printer')], gatewayIp: '10.0.0.1' });
+  const html = h(m);
+  expect(html).toContain('Lokálna sieť 10.0.0.0/22 · 1 zariadenie');
+  expect(html).toContain('Lokálna sieť 192.168.5.0/24 · 1 zariadenie');
+  expect(html).toMatch(/nm-gw__type">Firewall</);
+  expect(md(m)).toMatch(/└─ Firewall: 10\.0\.0\.1[\s\S]*├─ Lokálna sieť 10\.0\.0\.0\/22[\s\S]*└─ Lokálna sieť 192\.168\.5\.0\/24/);
 });

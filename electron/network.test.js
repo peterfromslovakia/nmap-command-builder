@@ -23,6 +23,14 @@ test('narrows huge networks to /24 around own address', () => {
   assert.strictEqual(r[0].suggested, '10.20.30.0/24');
 });
 
+test('whole office network up to /22 (e.g. 10.0.0.1 – 10.0.3.254)', () => {
+  const r = detectNetworks({ en0: [mk('10.0.2.57', '255.255.252.0')] });
+  assert.strictEqual(r[0].cidr, '10.0.0.0/22');
+  assert.strictEqual(r[0].suggested, '10.0.0.0/22');
+  assert.strictEqual(detectNetworks({ en0: [mk('10.0.1.9', '255.255.254.0')] })[0].suggested, '10.0.0.0/23');
+  assert.strictEqual(detectNetworks({ en0: [mk('10.0.9.9', '255.255.248.0')] })[0].suggested, '10.0.9.0/24');
+});
+
 test('ignores link-local, loopback and broken masks', () => {
   const r = detectNetworks({
     en1: [mk('169.254.10.1', '255.255.0.0')],

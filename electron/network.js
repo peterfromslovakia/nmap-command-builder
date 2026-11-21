@@ -28,6 +28,8 @@ function isPrivate(ip) {
  * @param {Record<string, os.NetworkInterfaceInfo[]>} [ifaces]
  * @returns {Array<{iface,address,prefix,cidr,suggested,isPrivate,virtual}>}
  */
+const MIN_WHOLE_PREFIX = 22;
+
 function detectNetworks(ifaces = os.networkInterfaces()) {
   const out = [];
   for (const [iface, list] of Object.entries(ifaces || {})) {
@@ -42,9 +44,10 @@ function detectNetworks(ifaces = os.networkInterfaces()) {
         address: a.address,
         prefix,
         cidr,
-        // siete sirsie ako /24 (napr. 10.0.0.0/8) by boli obrovsky sken,
-        // preto navrhneme len /24 okolo nasej adresy
-        suggested: prefix < 24 ? networkOf(a.address, 24) : cidr,
+        // Firemne siete byvaju /22 – /23 (napr. 10.0.0.1 – 10.0.3.254 za Kerio /
+        // FortiGate) → navrhneme celu siet (max. 1022 adries). Este sirsie siete
+        // (napr. 10.0.0.0/8) by boli obrovsky sken → len /24 okolo nasej adresy.
+        suggested: prefix < MIN_WHOLE_PREFIX ? networkOf(a.address, 24) : cidr,
         isPrivate: isPrivate(a.address),
         virtual: /^(utun|awdl|llw|bridge|vmnet|vnic|docker|veth|tailscale|zt)/i.test(iface),
       });

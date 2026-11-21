@@ -4,6 +4,12 @@
 
 ### New
 - **Network map in reports** — PDF and Markdown reports from a network scan include *Appendix A — network map*: router, devices grouped by type, coloured by risk, with finding numbers (F-01…), CISA KEV marks and the scanning computer marked. The raw scanner output is now *Appendix B*
+- **One frame per scanned range** in the network map — a single office network such as `10.0.0.0/22` (10.0.0.1 – 10.0.3.254) stays one network; several ranges scanned together get separate frames
+
+### Improved
+- **Whole office network is pre-filled** — networks up to /22 (1022 addresses, e.g. behind Kerio Control or FortiGate) are suggested whole; before only the /24 around your own address was offered
+- **Kerio Control** is recognised as a firewall (admin port 4081 or its web server banner)
+- The map and report show the gateway's real type (e.g. *Firewall* instead of *Router*)
 
 ## 1.6.0 — 2026-11-21
 

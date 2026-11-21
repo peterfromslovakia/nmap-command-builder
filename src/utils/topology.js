@@ -31,13 +31,25 @@ export function deviceRisk(device, findings = []) {
   return { level: risky.length ? 'exposed' : 'ok', findings: 0, exploited: false, riskyPorts: risky };
 }
 
+/** CIDR rozsahy zo zadaneho ciela ("10.0.0.0/22 192.168.5.0/24") → [{ cidr, net, mask }]. */
+export function targetNetworks(target) {
+  return String(target || '').split(/[\s,]+/).map((tok) => {
+    const m = tok.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+    if (!m || Number(m[2]) > 32) return null;
+    const ip = ipNum(m[1]);
+    if (ip === Number.MAX_SAFE_INTEGER) return null;
+    const size = 2 ** (32 - Number(m[2]));
+    return { cidr: tok, net: Math.floor(ip / size) * size, size };
+  }).filter(Boolean);
+}
+
 const sameNet24 = (a, b) => String(a).split('.').slice(0, 3).join('.') === String(b).split('.').slice(0, 3).join('.');
 
 /**
  * @param {{ devices: Array, gatewayIp?: string|null, localIps?: string[], findings?: Array }} o
  * @returns {{ gateway: object|null, groups: Array<{ type, devices }>, counts: object }}
  */
-export function buildTopology({ devices = [], gatewayIp = null, localIps = [], findings = [] }) {
+export function buildTopology({ devices = [], gatewayIp = null, localIps = [], findings = [], target = '' }) {
   const local = new Set(localIps);
   const nodes = devices.map((d) => ({ ...d, isSelf: local.has(d.ip), risk: deviceRisk(d, findings) }));
 
@@ -51,16 +63,38 @@ export function buildTopology({ devices = [], gatewayIp = null, localIps = [], f
     gateway = { ip: gatewayIp, hostname: '', type: 'router', ports: [], mac: '', vendor: '', synthetic: true, risk: { level: 'ok', findings: 0 } };
   }
 
-  const byType = new Map();
-  nodes.filter((d) => d !== gateway).forEach((d) => {
-    if (!byType.has(d.type)) byType.set(d.type, []);
-    byType.get(d.type).push(d);
-  });
   const rank = (t) => { const i = GROUP_ORDER.indexOf(t); return i < 0 ? GROUP_ORDER.length : i; };
-  const groups = [...byType].map(([type, list]) => ({ type, devices: list.sort((a, b) => ipNum(a.ip) - ipNum(b.ip)) }))
-    .sort((a, b) => rank(a.type) - rank(b.type));
+  const groupBy = (list) => {
+    const byType = new Map();
+    list.forEach((d) => {
+      if (!byType.has(d.type)) byType.set(d.type, []);
+      byType.get(d.type).push(d);
+    });
+    return [...byType].map(([type, l]) => ({ type, devices: l.sort((a, b) => ipNum(a.ip) - ipNum(b.ip)) }))
+      .sort((a, b) => rank(a.type) - rank(b.type));
+  };
+  const members = nodes.filter((d) => d !== gateway);
+  const groups = groupBy(members);
+
+  // Segmenty: kazdy zadany rozsah (CIDR) vlastny ramcek; jeden rozsah = jeden ramcek
+  // (napr. 10.0.0.0/22 = jedna siet, aj ked ma viac ako 254 adries).
+  const nets = targetNetworks(target);
+  let segments;
+  if (nets.length < 2) {
+    segments = [{ label: target || '', groups, total: members.length }];
+  } else {
+    const buckets = nets.map((n) => ({ ...n, list: [] }));
+    const other = [];
+    members.forEach((d) => {
+      const ip = ipNum(d.ip);
+      const b = buckets.find((n) => ip >= n.net && ip < n.net + n.size);
+      (b ? b.list : other).push(d);
+    });
+    segments = buckets.filter((b) => b.list.length).map((b) => ({ label: b.cidr, groups: groupBy(b.list), total: b.list.length }));
+    if (other.length) segments.push({ label: '', other: true, groups: groupBy(other), total: other.length });
+  }
 
   const counts = { critical: 0, high: 0, medium: 0, low: 0, exposed: 0, ok: 0 };
   nodes.forEach((d) => { counts[d.risk.level] += 1; });
-  return { gateway, groups, counts, total: nodes.length };
+  return { gateway, groups, segments, counts, total: nodes.length };
 }

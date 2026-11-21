@@ -104,3 +104,11 @@ test('discovery commands are accepted by the main-process whitelist and need no 
   expect(buildCommand('x', DISCOVERY_MODES.quick.flags, false).args).toContain('-sn');
   expect(buildCommand('x', DISCOVERY_MODES.standard.flags, false).args).toEqual(expect.arrayContaining(['-F', '-sV', '--version-light']));
 });
+
+test('Kerio Control is recognised as a firewall', () => {
+  const { classifyDevice } = require('./inventory');
+  const base = { ip: '10.0.0.1', hostname: '', vendor: '', os: '', deviceHint: '' };
+  expect(classifyDevice({ ...base, ports: [{ port: 4081, proto: 'tcp', service: 'ssl/http', version: '' }, { port: 53, proto: 'tcp', service: 'domain', version: '' }] })).toBe('firewall');
+  expect(classifyDevice({ ...base, ports: [{ port: 443, proto: 'tcp', service: 'ssl/http', version: 'Kerio Control Embedded Web Server' }] })).toBe('firewall');
+  expect(classifyDevice({ ...base, hostname: 'kerio.firma.local', ports: [] })).toBe('firewall');
+});

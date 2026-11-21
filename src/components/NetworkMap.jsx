@@ -95,11 +95,12 @@ export default function NetworkMap({ devices, findings = [], gatewayIp, localIps
   const [onlyRisky, setOnlyRisky] = useState(false);
   const [expanded, setExpanded] = useState({});
 
-  const topo = useMemo(() => buildTopology({ devices, gatewayIp, localIps, findings }), [devices, gatewayIp, localIps, findings]);
+  const topo = useMemo(() => buildTopology({ devices, gatewayIp, localIps, findings, target }), [devices, gatewayIp, localIps, findings, target]);
   const risky = (d) => d.risk.level !== 'ok';
-  const groups = topo.groups
+  const filterGroups = (groups) => groups
     .map((g) => ({ ...g, devices: onlyRisky ? g.devices.filter(risky) : g.devices }))
     .filter((g) => g.devices.length > 0);
+  const segments = topo.segments.map((sg) => ({ ...sg, groups: filterGroups(sg.groups) }));
   const all = [topo.gateway, ...topo.groups.flatMap((g) => g.devices)].filter(Boolean);
   const sel = all.find((d) => d.ip === selected) || null;
   const riskyCount = all.filter(risky).length;
@@ -135,30 +136,37 @@ export default function NetworkMap({ devices, findings = [], gatewayIp, localIps
           <div className="tmap__wire" />
         </div>
 
-        <div className="tmap__groups">
-          <span className="tmap__segment">{t('Local network')} {target}</span>
-          {groups.map((g) => {
-            const type = DEVICE_TYPES[g.type] || DEVICE_TYPES.unknown;
-            const open = expanded[g.type] || g.devices.length <= GROUP_LIMIT;
-            const list = open ? g.devices : g.devices.slice(0, GROUP_LIMIT);
-            return (
-              <div key={g.type} className="tmap-group">
-                <div className="tmap-group__head">
-                  <span className="tmap-group__icon">{type.icon}</span>
-                  {t(type.label)} <span className="tmap-group__n">{g.devices.length}</span>
-                </div>
-                <div className="tmap-group__list">
-                  {list.map((d) => <DeviceNode key={d.ip} d={d} selected={selected === d.ip} onSelect={setSelected} t={t} />)}
-                  {!open && (
-                    <button className="link-btn tmap-group__more" onClick={() => setExpanded((e) => ({ ...e, [g.type]: true }))}>
-                      {t('+ {n} more', { n: g.devices.length - GROUP_LIMIT })}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {groups.length === 0 && <div className="tmap__empty">{t('No device at risk was found.')}</div>}
+        <div className="tmap__segments">
+          {segments.map((sg, si) => (
+            <div key={sg.label || `other-${si}`} className="tmap__groups">
+              <span className="tmap__segment">
+                {sg.other ? t('Other addresses') : `${t('Local network')} ${sg.label}`} · {t('{n} devices', { n: sg.total })}
+              </span>
+              {sg.groups.map((g) => {
+                const type = DEVICE_TYPES[g.type] || DEVICE_TYPES.unknown;
+                const key = `${si}:${g.type}`;
+                const open = expanded[key] || g.devices.length <= GROUP_LIMIT;
+                const list = open ? g.devices : g.devices.slice(0, GROUP_LIMIT);
+                return (
+                  <div key={g.type} className="tmap-group">
+                    <div className="tmap-group__head">
+                      <span className="tmap-group__icon">{type.icon}</span>
+                      {t(type.label)} <span className="tmap-group__n">{g.devices.length}</span>
+                    </div>
+                    <div className="tmap-group__list">
+                      {list.map((d) => <DeviceNode key={d.ip} d={d} selected={selected === d.ip} onSelect={setSelected} t={t} />)}
+                      {!open && (
+                        <button className="link-btn tmap-group__more" onClick={() => setExpanded((e) => ({ ...e, [key]: true }))}>
+                          {t('+ {n} more', { n: g.devices.length - GROUP_LIMIT })}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {sg.groups.length === 0 && <div className="tmap__empty">{t('No device at risk was found.')}</div>}
+            </div>
+          ))}
         </div>
       </div>
 

@@ -96,7 +96,9 @@ const S = (re) => (d) => d.ports.some((x) => re.test(`${x.service} ${x.version}`
 const any = (...fns) => (d) => fns.some((f) => f(d));
 
 const RULES = [
-  ['firewall', any(V(/fortinet|palo alto|sophos|watchguard|check point|netgate/i), H(/firewall|opnsense|pfsense|fortigate/i), S(/opnsense|pfsense|fortigate/i))],
+  // Kerio Control: sprava na 4081/tcp (https), VPN 4090; banner "Kerio Control"
+  ['firewall', any(V(/fortinet|palo alto|sophos|watchguard|check point|netgate|mikrotik.*firewall/i), H(/firewall|opnsense|pfsense|fortigate|kerio/i),
+    S(/opnsense|pfsense|fortigate|kerio/i), P(4081))],
   ['printer', any(P(9100, 515, 631), H(/printer|print/i), V(/hewlett|^hp\b|canon|brother|epson|lexmark|kyocera|xerox|ricoh|konica|oki data/i), S(/ipp|jetdirect|cups/i))],
   ['camera', any(P(554, 37777, 8554), H(/webcam|camera|ipcam|nvr|dvr/i), V(/hikvision|dahua|axis comm|hanwha|uniview|reolink|amcrest/i), S(/rtsp/i))],
   ['nas', any(V(/synology|qnap|western digital|seagate|buffalo|asustor|terramaster/i), H(/\bnas\b|storage|diskstation/i), P(5000, 5001, 2049) )],

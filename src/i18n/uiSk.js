@@ -342,6 +342,7 @@ const UI_SK = {
   '{n} devices': '{n} zariadení',
   'only devices at risk': 'len ohrozené zariadenia',
   'Local network': 'Lokálna sieť',
+  'Other addresses': 'Ostatné adresy',
   Internet: 'Internet',
   'The router was not found in this scan': 'Router sa v tomto skene nenašiel',
   '+ {n} more': '+ ďalších {n}',

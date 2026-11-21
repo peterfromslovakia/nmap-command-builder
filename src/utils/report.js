@@ -114,11 +114,12 @@ const timeframeKey = (f) => (f.exploited ? 'exploited' : f.severity);
  * findings: obohatene nalezy (applyIntel); ak chyba, vyparsuju sa z textu.
  */
 /** Topologia pre report: ku kazdemu zariadeniu aj cisla nalezov (F-01…). */
-function reportMap(devices, findings, gatewayIp, localIps) {
-  const topo = buildTopology({ devices, gatewayIp, localIps, findings });
+function reportMap(devices, findings, gatewayIp, localIps, target) {
+  const topo = buildTopology({ devices, gatewayIp, localIps, findings, target });
   const refs = (ip) => findings.filter((f) => hostIp(f.host) === ip).map((f) => f.ref);
   const add = (d) => d && { ...d, refs: refs(d.ip) };
-  return { ...topo, gateway: add(topo.gateway), groups: topo.groups.map((g) => ({ ...g, devices: g.devices.map(add) })) };
+  const addGroups = (groups) => groups.map((g) => ({ ...g, devices: g.devices.map(add) }));
+  return { ...topo, gateway: add(topo.gateway), groups: addGroups(topo.groups), segments: topo.segments.map((sg) => ({ ...sg, groups: addGroups(sg.groups) })) };
 }
 
 export function buildReportModel({
@@ -185,7 +186,7 @@ export function buildReportModel({
     intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
     inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
     // Mapa siete (priloha A) — len pri skene siete s aspon 2 zariadeniami
-    map: Array.isArray(inventory) && inventory.length > 1 ? reportMap(inventory, findings, gatewayIp, localIps) : null,
+    map: Array.isArray(inventory) && inventory.length > 1 ? reportMap(inventory, findings, gatewayIp, localIps, target) : null,
     // comparison: { baselineTime, baselineCommand, sameCommand, sections }
     comparison: comparison && comparison.diff ? {
       baselineTime: comparison.baselineTime,
@@ -368,12 +369,16 @@ export function toMarkdown(m) {
     ].filter(Boolean).join(' ');
     out.push('', h2('map'), '', L.mapIntro, '', '```');
     out.push(L.mapInternet);
-    out.push(`└─ ${mp.gateway ? `${L.deviceTypes.router}: ${devLine(mp.gateway)}${mp.gateway.synthetic ? ` (${L.mapGatewayNote})` : ''}` : L.mapNoGateway}`);
-    out.push(`   └─ ${L.mapLocalNet} ${m.target} · ${L.mapDevices(mp.total)}`);
-    mp.groups.forEach((g, gi) => {
-      const lastG = gi === mp.groups.length - 1;
-      out.push(`      ${lastG ? '└─' : '├─'} ${L.deviceTypes[g.type] || g.type} (${g.devices.length})`);
-      g.devices.forEach((d, di) => out.push(`      ${lastG ? '  ' : '│ '}  ${di === g.devices.length - 1 ? '└─' : '├─'} ${devLine(d)}`));
+    out.push(`└─ ${mp.gateway ? `${L.deviceTypes[mp.gateway.type] || L.deviceTypes.router}: ${devLine(mp.gateway)}${mp.gateway.synthetic ? ` (${L.mapGatewayNote})` : ''}` : L.mapNoGateway}`);
+    mp.segments.forEach((sg, si) => {
+      const lastS = si === mp.segments.length - 1;
+      const pad = `   ${lastS ? '   ' : '│  '}`;
+      out.push(`   ${lastS ? '└─' : '├─'} ${sg.other ? L.mapOther : `${L.mapLocalNet} ${sg.label}`} · ${L.mapDevices(sg.total)}`);
+      sg.groups.forEach((g, gi) => {
+        const lastG = gi === sg.groups.length - 1;
+        out.push(`${pad}${lastG ? '└─' : '├─'} ${L.deviceTypes[g.type] || g.type} (${g.devices.length})`);
+        g.devices.forEach((d, di) => out.push(`${pad}${lastG ? '  ' : '│ '}  ${di === g.devices.length - 1 ? '└─' : '├─'} ${devLine(d)}`));
+      });
     });
     out.push('```', '');
   }
@@ -566,18 +571,19 @@ export function toHtml(m) {
     .map((l) => `<span class="nm-${l}"><i></i>${e(L.mapRisk[l])}: ${m.map.counts[l]}</span>`).join('')}</div>
   <div class="nm-spine">
     <div class="nm-cloud">${e(L.mapInternet)}</div><div class="nm-wire"></div>
-    ${m.map.gateway ? `<div class="nm-gw"><div class="nm-gw__type">${e(L.deviceTypes.router)}</div>${mapNode(m.map.gateway, m.map.gateway.synthetic ? ` <span class="nm-name">(${e(L.mapGatewayNote)})</span>` : '')}</div>` : `<div class="nm-cloud">${e(L.mapNoGateway)}</div>`}
+    ${m.map.gateway ? `<div class="nm-gw"><div class="nm-gw__type">${e(L.deviceTypes[m.map.gateway.type] || L.deviceTypes.router)}</div>${mapNode(m.map.gateway, m.map.gateway.synthetic ? ` <span class="nm-name">(${e(L.mapGatewayNote)})</span>` : '')}</div>` : `<div class="nm-cloud">${e(L.mapNoGateway)}</div>`}
     <div class="nm-wire"></div>
   </div>
+  ${m.map.segments.map((sg) => `
   <div class="nm-seg">
-    <div class="nm-seg__label">${e(L.mapLocalNet)} ${e(m.target)} · ${e(L.mapDevices(m.map.total))}</div>
-    <div class="nm-groups">${m.map.groups.map((g) => `
+    <div class="nm-seg__label">${e(sg.other ? L.mapOther : `${L.mapLocalNet} ${sg.label}`)} · ${e(L.mapDevices(sg.total))}</div>
+    <div class="nm-groups">${sg.groups.map((g) => `
       <div class="nm-group">
         <div class="nm-group__h">${e(L.deviceTypes[g.type] || g.type)} <span>${g.devices.length}</span></div>
         ${g.devices.map((d) => mapNode(d)).join('')}
       </div>`).join('')}
     </div>
-  </div>
+  </div>`).join('')}
   </section>`;
 
   const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : m.hosts.map((h) => `
@@ -636,7 +642,7 @@ export function toHtml(m) {
   .nm-wire { width: 2px; height: 12px; background: #9aa89a; }
   .nm-cloud { border: 1px dashed #9aa89a; border-radius: 12px; padding: 3px 16px; font-size: 9pt; color: #444; }
   .nm-gw { width: 62mm; } .nm-gw__type { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px; color: #666; text-align: center; margin-bottom: 2px; }
-  .nm-seg { position: relative; border: 1px dashed #9aa89a; border-radius: 5px; padding: 16px 8px 8px; margin-top: 0; }
+  .nm-seg { position: relative; border: 1px dashed #9aa89a; border-radius: 5px; padding: 16px 8px 8px; margin-top: 0; margin-bottom: 16px; }
   .nm-seg__label { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 8px; font-size: 8pt; color: #555; white-space: nowrap; }
   .nm-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: start; }
   .nm-group { border: 1px solid #d5ddd5; border-radius: 3px; padding: 5px; background: #fafcfa; }

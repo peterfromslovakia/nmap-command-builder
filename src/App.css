@@ -2448,6 +2448,7 @@
   display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: flex-start;
   border: 1px dashed var(--border-mid); border-radius: 4px; padding: 18px 10px 10px; position: relative;
 }
+.tmap__segments { display: flex; flex-direction: column; gap: 18px; }
 .tmap__segment {
   position: absolute; top: -8px; left: 50%; transform: translateX(-50%); white-space: nowrap;
   font-size: 10.5px; letter-spacing: 1px; color: var(--text-300); background: var(--bg-2); padding: 0 8px;

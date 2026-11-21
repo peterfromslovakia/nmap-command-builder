@@ -86,7 +86,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live command preview
 - Safe / Advanced mode toggle
 - 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
-- Automatic local network detection (e.g. `192.168.1.0/24`) pre-fills the target and refreshes when the window regains focus
+- Automatic local network detection pre-fills the target (the whole network up to /22, e.g. `10.0.0.0/22` = 10.0.0.1 – 10.0.3.254; larger networks start with the /24 around your address) and refreshes when the window regains focus
 - **My presets**: save your own flag combinations (optionally with the target) and reuse them with one click; **export / import** them as a JSON file to share with colleagues or back up (imported presets are checked — unknown flags are dropped)
 - Searchable Nmap cheatsheet
 - NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)

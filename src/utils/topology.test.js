@@ -31,3 +31,16 @@ test('fallbacks: router .1, synthetic gateway in same /24, none for other subnet
   expect(s.gateway).toMatchObject({ ip: '10.0.0.1', synthetic: true });
   expect(buildTopology({ devices: [dev('10.0.0.9', 'linux')], gatewayIp: '192.168.1.1' }).gateway).toBeNull();
 });
+
+test('segments: one frame for a /22 office network, one per range when several are scanned', () => {
+  const { targetNetworks } = require('./topology');
+  expect(targetNetworks('10.0.0.0/22 192.168.5.0/24, 10.1.1.1')).toEqual([
+    { cidr: '10.0.0.0/22', net: 167772160, size: 1024 }, { cidr: '192.168.5.0/24', net: 3232236800, size: 256 }]);
+  const devices = [dev('10.0.0.1', 'firewall'), dev('10.0.0.20', 'windows'), dev('10.0.3.200', 'windows'), dev('192.168.5.9', 'printer'), dev('172.16.0.4', 'linux')];
+  const one = buildTopology({ devices: devices.slice(0, 3), gatewayIp: '10.0.0.1', target: '10.0.0.0/22' });
+  expect(one.gateway.type).toBe('firewall');
+  expect(one.segments).toHaveLength(1);
+  expect(one.segments[0]).toMatchObject({ label: '10.0.0.0/22', total: 2 });
+  const many = buildTopology({ devices, gatewayIp: '10.0.0.1', target: '10.0.0.0/22 192.168.5.0/24' });
+  expect(many.segments.map((x) => [x.label, x.total, Boolean(x.other)])).toEqual([['10.0.0.0/22', 2, false], ['192.168.5.0/24', 1, false], ['', 1, true]]);
+});
