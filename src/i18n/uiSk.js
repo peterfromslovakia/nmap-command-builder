@@ -39,6 +39,7 @@ const UI_SK = {
   'Network scan mode': 'Režim prehľadania siete',
   'quick · devices only (~1–2 min)': 'rýchlo · zariadenia (~1–2 min)',
   'MAC addresses and vendors were not available — the system hides them from apps without administrator rights.': 'MAC adresy a výrobcovia neboli dostupné — systém ich aplikáciám bez práv správcu skrýva.',
+  'An administrator scan (ARP) also finds sleeping phones.': 'Prehľadanie ako správca (ARP) nájde aj spiace telefóny.',
   'FIND MAC ADDRESSES (administrator)': 'ZISTIŤ MAC ADRESY (správca)',
   'detailed · ports + services (minutes)': 'podrobne · porty + služby',
   'This scan requires root / sudo privileges': 'Tento sken vyžaduje oprávnenia root / sudo',

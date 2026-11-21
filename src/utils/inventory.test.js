@@ -121,7 +121,8 @@ test('device type from typical host names (quick scan without ports)', () => {
   expect(d('USW-Enterprise-8-PoE.localdomain')).toBe('ap');
   expect(d('U6-Lite-Obyvacka.lan')).toBe('ap');
   expect(d('H8c_BC8738062_EZVIZ.localdomain')).toBe('camera');
-  expect(d('juicebox.localdomain')).toBe('iot');
+  expect(d('juicebox.localdomain')).toBe('media'); // Antik Nano set-top box
+  expect(d('wallbox-pulsar.lan')).toBe('iot');
   expect(d('shelly1pm-ABC123.lan')).toBe('iot');
   expect(d('Petos-iPhone.lan')).toBe('phone');
   expect(d('LGwebOSTV.lan')).toBe('media');

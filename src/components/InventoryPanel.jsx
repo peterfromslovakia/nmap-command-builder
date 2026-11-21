@@ -46,7 +46,7 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
 
       {onFindMacs && devices.length > 0 && devices.every((d) => !d.mac) && (
         <div className="inventory-machint">
-          <span>ⓘ {t('MAC addresses and vendors were not available — the system hides them from apps without administrator rights.')}</span>
+          <span>ⓘ {t('MAC addresses and vendors were not available — the system hides them from apps without administrator rights.')} {t('An administrator scan (ARP) also finds sleeping phones.')}</span>
           <button className="btn btn--xs noroot-notice__btn" onClick={onFindMacs}>🔒 {t('FIND MAC ADDRESSES (administrator)')}</button>
         </div>
       )}

@@ -113,10 +113,10 @@ const RULES = [
   ['phone', any(P(62078), H(/iphone|ipad|android|galaxy|pixel|phone|oneplus|xiaomi|redmi|huawei-?p\d/i))],
   ['apple', any(V(/^apple/i), H(/macbook|imac|mac-?mini|apple/i), S(/afp|apple|airtunes|airplay/i), P(548, 7000))],
   ['windows', any(P(135, 139, 445, 3389), H(/windows|desktop-|laptop-|win-/i), (d) => /windows/i.test(d.os))],
-  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv|apple-?tv|lgwebos|bravia|shield|soundbar|playstation|xbox/i), P(8008, 8009, 1400))],
+  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv|apple-?tv|lgwebos|bravia|shield|soundbar|playstation|xbox|juicebox|antik|\bstb\b|set-?top|mag\d{3}|kodi|libreelec|radio/i), P(8008, 8009, 1400))],
   ['server', any(P(25, 110, 143, 389, 636, 1433, 1521, 3306, 5432, 27017, 6379, 9200), H(/server|srv|\bdc\d*\b|mail|db/i))],
   ['iot', any(V(/espressif|raspberry|tuya|shelly|sonoff|arduino|texas instruments|silicon labs|nordic/i), P(1883, 8883, 5683),
-    H(/juicebox|wallbox|zappi|charger|shelly|tasmota|\besp[-_]?\w*|sonoff|tuya|\bhue\b|nuki|tado|netatmo|ecobee|homey|loxone|myenergi|solar|inverter|fronius|victron/i))],
+    H(/wallbox|zappi|charger|shelly|tasmota|\besp[-_]?\w*|sonoff|tuya|\bhue\b|nuki|tado|netatmo|ecobee|homey|loxone|myenergi|solar|inverter|fronius|victron/i))],
   ['linux', any(P(22), (d) => /linux|unix|bsd/i.test(d.os))],
 ];
 
