@@ -1,32 +1,44 @@
 // ─── Target Validation ────────────────────────────────────────────────────────
+//
+// Poznamka: nmap sa spusta cez spawn() bez shellu, takze shell metaznaky nie su
+// primarne riziko. Zoznam nizsie je len obranna vrstva. Lomka "/" v nom NIE JE,
+// pretoze je platnou castou CIDR targetov (192.168.1.0/24) aj ciest k suborom.
 
-const SHELL_METACHAR = /[;&|`$(){}[\]<>!\\'"/]/;
+const UNSAFE_CHARS = /[;&|`$(){}[\]<>!\\'"\u0000-\u001f\u007f]/;
 
-// Accept: single IP, CIDR, IP range, hostname, wildcard IP, comma-separated list
-const RE_IPV4      = /^(\d{1,3}\.){3}\d{1,3}$/;
-const RE_CIDR      = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
-const RE_IP_RANGE  = /^(\d{1,3}\.){3}\d{1,3}-\d{1,3}$/;
-const RE_HOSTNAME  = /^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$/;
-const RE_WILDCARD  = /^(\d{1,3}|\*)(\.(\d{1,3}|\*))*$/;
+const RE_IPV4_LOOSE = /^(\d{1,3}\.){3}\d{1,3}$/;
+const RE_CIDR       = /^((?:\d{1,3}\.){3}\d{1,3})\/(\d{1,2})$/;
+const RE_IP_RANGE   = /^((?:\d{1,3}\.){3})(\d{1,3})-(\d{1,3})$/;
+const RE_HOSTNAME   = /^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$/;
+const RE_WILDCARD   = /^(\d{1,3}|\*)(\.(\d{1,3}|\*))*$/;
+
+function octetsOk(ip) {
+  return ip.split('.').every((o) => Number(o) >= 0 && Number(o) <= 255);
+}
 
 function isValidPart(part) {
   const p = part.trim();
-  if (!p) return false;
-  return (
-    RE_IPV4.test(p) ||
-    RE_CIDR.test(p) ||
-    RE_IP_RANGE.test(p) ||
-    RE_HOSTNAME.test(p) ||
-    RE_WILDCARD.test(p)
-  );
+  if (!p || p.length > 253) return false;
+
+  if (RE_IPV4_LOOSE.test(p)) return octetsOk(p);
+
+  let m = p.match(RE_CIDR);
+  if (m) return octetsOk(m[1]) && Number(m[2]) >= 0 && Number(m[2]) <= 32;
+
+  m = p.match(RE_IP_RANGE);
+  if (m) {
+    const [, prefix, from, to] = m;
+    return octetsOk(`${prefix}${from}`) && Number(to) <= 255 && Number(from) <= Number(to);
+  }
+
+  return RE_HOSTNAME.test(p) || RE_WILDCARD.test(p);
 }
 
 export function validateTarget(target) {
   const t = (target || '').trim();
   if (!t) return { valid: false, error: 'Target is required' };
-  if (SHELL_METACHAR.test(t)) return { valid: false, error: 'Target contains invalid characters' };
-  const parts = t.split(',');
-  for (const part of parts) {
+  if (UNSAFE_CHARS.test(t)) return { valid: false, error: 'Target contains invalid characters' };
+  for (const part of t.split(',')) {
     if (!isValidPart(part)) {
       return { valid: false, error: `Invalid target: "${part.trim()}"` };
     }
@@ -42,8 +54,12 @@ export function validateFlagValue(flagDef, value) {
     return { valid: false, error: `${flagDef.name} requires a value` };
   }
   const str = String(value).trim();
-  if (SHELL_METACHAR.test(str)) {
+  if (UNSAFE_CHARS.test(str)) {
     return { valid: false, error: 'Value contains invalid characters' };
+  }
+  // Hodnota zacinajuca "-" by sa v nmape interpretovala ako dalsi prepinac.
+  if (str.startsWith('-') && flagDef.flag !== '-PS' && flagDef.flag !== '-PA' && flagDef.flag !== '-PU') {
+    return { valid: false, error: `${flagDef.name}: value must not start with "-"` };
   }
   if (flagDef.type === 'number') {
     const n = parseFloat(str);
@@ -58,8 +74,7 @@ export function validateFlagValue(flagDef, value) {
 
 // ─── Arg Sanitizer ────────────────────────────────────────────────────────────
 
-// Strip dangerous shell characters from a single argument string.
-// Used as a final safety layer before passing args to spawn.
+// Odstrani nebezpecne znaky z jedneho argumentu. Lomka sa zachovava (CIDR, cesty).
 export function sanitizeArg(value) {
-  return String(value).replace(/[;&|`$(){}[\]<>!\\'"/]/g, '').trim();
+  return String(value).replace(new RegExp(UNSAFE_CHARS.source, 'g'), '').trim();
 }

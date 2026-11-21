@@ -26,6 +26,8 @@ const initExpanded = () => {
   return s;
 };
 
+const MAX_OUTPUT_CHUNKS = 5000; // strop pamate pri dlhych skenoch (-p-)
+
 // ─── Parse target from a saved command string (for history reload) ────────────
 function parseCommandToTarget(command) {
   const parts = command.replace(/^nmap\s+/, '').trim().split(/\s+/);
@@ -86,10 +88,13 @@ export default function App() {
     if (!window.electronAPI) return;
 
     const cleanOutput = window.electronAPI.onScanOutput((data) => {
-      setOutputLines((prev) => [
-        ...prev,
-        { id: Date.now() + Math.random(), type: data.type, text: data.data },
-      ]);
+      setOutputLines((prev) => {
+        const next = [
+          ...prev,
+          { id: Date.now() + Math.random(), type: data.type, text: data.data },
+        ];
+        return next.length > MAX_OUTPUT_CHUNKS ? next.slice(-MAX_OUTPUT_CHUNKS) : next;
+      });
     });
 
     const cleanDone = window.electronAPI.onScanDone((data) => {
@@ -186,7 +191,14 @@ export default function App() {
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${command}\n` },
     ]);
 
-    await window.electronAPI.runScan(args);
+    const res = await window.electronAPI.runScan(args);
+    if (res && res.success === false) {
+      setScanStatus('error');
+      setOutputLines((prev) => [
+        ...prev,
+        { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
+      ]);
+    }
   }, [scanStatus, target, command, args]);
 
   const handleKillScan = useCallback(async () => {
