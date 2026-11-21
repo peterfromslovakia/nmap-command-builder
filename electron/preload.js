@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // System notification (monitoring alerts)
+  notify: (title, body) => ipcRenderer.invoke('app:notify', { title, body }),
+
   // UI language for the native menu and dialogs
   setLang: (lang) => ipcRenderer.invoke('app:setLang', lang),
 

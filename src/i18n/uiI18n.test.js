@@ -45,7 +45,7 @@ export function uiStrings() {
     if (e.isDirectory()) walk(p);
     else if (/\.(jsx?|tsx?)$/.test(e.name) && !/\.test\./.test(e.name)) {
       const src = fs.readFileSync(p, 'utf8');
-      for (const m of src.matchAll(/\bt(?:Ref\.current)?\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)) {
+      for (const m of src.matchAll(/\b[tT](?:Ref\.current)?\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)) {
         s.add((m[1] ?? m[2]).replace(/\\'/g, "'").replace(/\\"/g, '"'));
       }
     }
@@ -53,7 +53,7 @@ export function uiStrings() {
   walk(path.join(dir, 'components'));
   ['App.js'].forEach((f) => {
     const src = fs.readFileSync(path.join(dir, f), 'utf8');
-    for (const m of src.matchAll(/\bt(?:Ref\.current)?\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)) s.add((m[1] ?? m[2]).replace(/\\'/g, "'"));
+    for (const m of src.matchAll(/\b[tT](?:Ref\.current)?\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)) s.add((m[1] ?? m[2]).replace(/\\'/g, "'"));
   });
   Object.values(DEVICE_TYPES).forEach((d) => s.add(d.label));
   shortcutHints(true).forEach((h) => s.add(h.label));

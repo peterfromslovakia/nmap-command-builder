@@ -2498,3 +2498,25 @@
   .discover-mode { max-width: 170px; }
   .discover-group { margin-left: 0; }
 }
+
+/* ─── Monitoring bar ─────────────────────────────────────────────────────────── */
+.monitor-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  padding: 5px 14px; font-size: 11.5px; color: var(--text-200);
+  border-bottom: 1px solid var(--border); background: var(--bg-2); flex-shrink: 0;
+}
+.monitor-bar__icon { color: var(--cyan); font-size: 13px; }
+.monitor-bar__icon--spin { display: inline-block; animation: monitor-spin 4s linear infinite; }
+@keyframes monitor-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .monitor-bar__icon--spin { animation: none; } }
+.monitor-bar__dim { color: var(--text-300); }
+.monitor-bar__select { width: auto; padding: 1px 4px; font-size: 11px; }
+.monitor-bar__start { margin-left: auto; border-color: rgba(0,255,255,0.45); color: var(--cyan); }
+.monitor-bar--active { border-left: 3px solid var(--cyan); }
+.monitor-bar--alert { border-left-color: #ff1f3d; background: rgba(196,0,29,0.08); }
+.monitor-bar__label { font-weight: 700; letter-spacing: 1.5px; color: var(--cyan); font-size: 11px; }
+.monitor-bar__target { color: var(--text-100); }
+.monitor-bar__result { color: var(--green-100, #00ff41); }
+.monitor-bar--alert .monitor-bar__result { color: #ff8a9a; font-weight: 600; }
+.monitor-bar__actions { margin-left: auto; display: inline-flex; gap: 6px; }
+.monitor-bar__hint { flex-basis: 100%; font-size: 10px; color: var(--text-dim); }

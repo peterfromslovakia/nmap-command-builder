@@ -140,6 +140,26 @@ function setMenu(lang) {
   })));
 }
 
+// Systemove upozornenie (monitorovanie). Text je obycajny retazec s obmedzenou dlzkou;
+// kliknutie len prenesie okno aplikacie do popredia.
+ipcMain.handle('app:notify', (event, payload) => {
+  if (!isTrusted(event) || !payload || typeof payload !== 'object') return false;
+  const { Notification } = require('electron');
+  if (!Notification.isSupported()) return false;
+  // eslint-disable-next-line no-control-regex -- riadiace znaky z textu upozornenia odstranujeme zamerne
+  const clip = (v, n) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n) : '');
+  const n = new Notification({ title: clip(payload.title, 120) || 'Nmap Command Builder', body: clip(payload.body, 400), silent: false });
+  n.on('click', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+  n.show();
+  if (process.platform === 'darwin' && app.dock) app.dock.bounce('informational');
+  return true;
+});
+
 ipcMain.handle('app:setLang', (event, lang) => {
   if (!isTrusted(event) || (lang !== 'en' && lang !== 'sk')) return false;
   if (lang !== uiLang) { uiLang = lang; setMenu(lang); }

@@ -35,6 +35,8 @@ import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory
 import { parseFindings } from './utils/findings';
 import { useLang } from './i18n/ui';
 import { collectCves, applyIntel, loadIntelEnabled, saveIntelEnabled } from './utils/intel';
+import MonitorBar from './components/MonitorBar';
+import { loadMonitor, saveMonitor, startMonitor, monitorDue, markRun, monitorChanges } from './utils/monitor';
 import InventoryPanel from './components/InventoryPanel';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
@@ -105,6 +107,12 @@ export default function App() {
   const [nvdProgress, setNvdProgress] = useState({ done: 0, total: 0 });
   const [discoverMode, setDiscoverMode] = useState('quick'); // zariadenia po skene siete
   const scanKindRef = useRef('scan');
+  const lastScanRef = useRef(null); // { args, command, target } posledneho spusteneho skenu
+  const [monitor, setMonitor] = useState(() => loadMonitor());
+  const [clock, setClock] = useState(() => Date.now());
+  const monitorHandledRef = useRef(0);
+  const busyRef = useRef(false); // sken bezi (synchronne, bez cakania na render)
+  const emptyScanIdRef = useRef(0); // sken bez najdenych zariadeni (snimka sa neulozi)
   const [userPresets, setUserPresets] = useState(() => loadUserPresets());
   const [diffBaselineId, setDiffBaselineId] = useState(null); // null = najnovsi predchadzajuci sken
   useEffect(() => { setDiffBaselineId(null); }, [currentSnapshot]);
@@ -195,6 +203,7 @@ export default function App() {
     });
 
     const cleanDone = window.electronAPI.onScanDone((data) => {
+      busyRef.current = false;
       setScanStatus(data.signal ? 'killed' : 'done');
       const statusMsg = data.signal
         ? `\n[⊗ ${tRef.current('Scan killed — signal: {signal}', { signal: data.signal })}]`
@@ -216,6 +225,7 @@ export default function App() {
     });
 
     const cleanError = window.electronAPI.onScanError((data) => {
+      busyRef.current = false;
       setScanStatus('error');
       setOutputLines((prev) => [
         ...prev,
@@ -317,12 +327,14 @@ export default function App() {
   // Spolocne spustenie skenu (RUN SCAN aj PREHLADAT SIET).
   const startScan = useCallback(async ({ args: scanArgs, command: scanCommand, target: scanTarget, kind = 'scan', needs = [] }) => {
     if (!window.electronAPI) return;
-    if (scanStatus === 'scanning') return;
+    if (scanStatus === 'scanning' || busyRef.current) return;
     if (!validateTarget(scanTarget).valid) return;
+    busyRef.current = true;
 
     setScanStatus('scanning');
     scanIdRef.current = Date.now();
     scanKindRef.current = kind;
+    lastScanRef.current = { args: scanArgs, command: scanCommand, target: scanTarget };
     setInventory(null);
     setCurrentSnapshot(null);
     currentCommandRef.current = scanCommand;
@@ -330,6 +342,7 @@ export default function App() {
 
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
+      ...(kind === 'monitor' ? [{ id: Date.now() - 1, type: 'system', text: `[${ts}] ⟳ ${tRef.current('Monitoring — scheduled repeat of the scan')}\n` }] : []),
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${scanCommand}\n` },
       ...(needs.some((r) => r.effect === 'quits')
         ? [{ id: Date.now() + 1, type: 'error', text: `[!] ${tRef.current('Not running as root: {flags} need root, nmap will stop. Start the app with sudo.', { flags: needs.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ') })}\n` }]
@@ -338,6 +351,7 @@ export default function App() {
 
     const res = await window.electronAPI.runScan(scanArgs);
     if (res && res.success === false) {
+      busyRef.current = false;
       setScanStatus('error');
       setOutputLines((prev) => [
         ...prev,
@@ -386,10 +400,63 @@ export default function App() {
       command: currentCommandRef.current,
       text: outputLines.map((l) => l.text || '').join(''),
     });
-    if (snap.hosts.length === 0) return;
+    if (snap.hosts.length === 0) { emptyScanIdRef.current = scanIdRef.current; return; }
     setSnapshots(saveSnapshot(snap));
     setCurrentSnapshot(snap);
   }, [scanStatus, outputLines, scannedTarget]);
+
+  // ── Monitorovanie: opakovanie skenu v intervale + upozornenie na zmeny ───
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!monitorDue(monitor, clock, scanStatus === 'scanning')) return;
+    const next = saveMonitor(markRun(monitor, Date.now()));
+    setMonitor(next);
+    startScan({ args: monitor.args, command: monitor.command, target: monitor.target, kind: 'monitor' });
+  }, [clock, monitor, scanStatus, startScan]);
+
+  // Vysledok monitorovaneho behu: porovnanie s predchadzajucim skenom toho isteho ciela.
+  useEffect(() => {
+    if (scanKindRef.current !== 'monitor' || !monitor || monitorHandledRef.current === scanIdRef.current) return;
+    if (scanStatus === 'scanning' || scanStatus === 'idle') return;
+    const finish = (lastResult, lastCounts) => {
+      monitorHandledRef.current = scanIdRef.current;
+      setMonitor((m) => (m ? saveMonitor({ ...m, lastResult, lastCounts: lastCounts || m.lastCounts }) : m));
+    };
+    if (scanStatus === 'error' || scanStatus === 'killed') { finish('error'); return; }
+    if (currentSnapshot && currentSnapshot.id === scanIdRef.current) {
+      const cmp = comparisonFor(snapshots, currentSnapshot);
+      if (!cmp) { finish('first'); return; }
+      const { alert, counts } = monitorChanges(cmp.diff);
+      finish(alert ? 'changes' : 'nochange', counts);
+      if (alert) {
+        const T = tRef.current;
+        const parts = [
+          counts.findings && T('{n} new vulnerabilities', { n: counts.findings }),
+          counts.ports && T('{n} new open ports', { n: counts.ports }),
+          counts.hosts && T('{n} new devices', { n: counts.hosts }),
+        ].filter(Boolean).join(', ');
+        window.electronAPI?.notify?.(T('Changes in {target}', { target: monitor.target }), parts);
+        setMonitor((m) => (m ? saveMonitor({ ...m, alerts: m.alerts + 1 }) : m));
+      }
+    } else if (emptyScanIdRef.current === scanIdRef.current) {
+      finish('nohosts');
+    }
+  }, [scanStatus, currentSnapshot, snapshots, monitor]);
+
+  const handleStartMonitor = useCallback((intervalMin) => {
+    if (!lastScanRef.current) return;
+    setMonitor(saveMonitor(startMonitor({ ...lastScanRef.current, intervalMin })));
+  }, []);
+  const handleStopMonitor = useCallback(() => setMonitor(saveMonitor(null)), []);
+  const handleMonitorNow = useCallback(() => {
+    if (!monitor || scanStatus === 'scanning') return;
+    setMonitor(saveMonitor(markRun(monitor, Date.now())));
+    startScan({ args: monitor.args, command: monitor.command, target: monitor.target, kind: 'monitor' });
+  }, [monitor, scanStatus, startScan]);
 
   // Po skene: inventar zariadeni (+ MAC / vyrobca z ARP tabulky systemu).
   useEffect(() => {
@@ -875,6 +942,16 @@ export default function App() {
               </span>
             )}
           </div>
+
+          <MonitorBar
+            monitor={monitor}
+            canStart={scanStatus === 'done' && Boolean(currentSnapshot) && Boolean(lastScanRef.current)}
+            lastTarget={lastScanRef.current?.target || ''}
+            scanning={scanStatus === 'scanning'}
+            onStart={handleStartMonitor}
+            onStop={handleStopMonitor}
+            onRunNow={handleMonitorNow}
+          />
 
           {rootNeeds.length > 0 && (
             <div className="noroot-notice">
