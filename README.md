@@ -342,4 +342,4 @@ https://github.com/peterfromslovakia
 
 # License
 
-MIT License
+MIT License — see [LICENSE](LICENSE).

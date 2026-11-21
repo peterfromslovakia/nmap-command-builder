@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Nmap Command Builder — Electron Desktop App",
   "author": "Peter Obala",
+  "license": "MIT",
   "private": true,
   "homepage": "./",
   "main": "electron/main.js",
@@ -37,6 +38,7 @@
     "files": [
       "build/**/*",
       "electron/**/*",
+      "!electron/**/*.test.js",
       "assets/**/*",
       "package.json"
     ],

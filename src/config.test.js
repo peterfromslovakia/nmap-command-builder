@@ -32,6 +32,15 @@ describe('release', () => {
     expect(fs.existsSync(path.join(root, pkg.build.afterPack))).toBe(true);
   });
 
+  test('test files are not packaged into the app', () => {
+    expect(pkg.build.files).toContain('!electron/**/*.test.js');
+  });
+
+  test('LICENSE file matches the license in package.json', () => {
+    expect(pkg.license).toBe('MIT');
+    expect(read('LICENSE')).toMatch(/^MIT License/);
+  });
+
   test('artifact names contain no spaces', () => {
     ['mac', 'nsis', 'linux'].forEach((k) => expect(pkg.build[k].artifactName).not.toMatch(/\s|\$\{productName\}/));
   });
