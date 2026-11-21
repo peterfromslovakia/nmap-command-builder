@@ -77,6 +77,8 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 ## Post-Scan Intelligence
 
+- **Vulnerabilities & Fixes** panel: detects known issues in NSE script output (EternalBlue, Heartbleed, anonymous FTP, SMBv1, open relay, weak TLS, CVEs from `vulners`, …) and shows step-by-step remediation
+- "How to fix" hardening steps for every risky open port in Security Intel
 - Open Ports Panel with risk classification
 - Host Info Panel (IP, hostname, MAC, vendor)
 - Host Discovery Panel
@@ -279,7 +281,6 @@ Always follow responsible disclosure and legal guidelines when performing securi
 Future improvements planned:
 
 - improved scan presets
-- vulnerability hints based on detected services
 - export reports to Markdown / PDF
 - improved network topology visualisation
 - automated GitHub release builds

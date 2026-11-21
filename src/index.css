@@ -17,8 +17,8 @@
   --green-400: #006611;
   --text-100: #ccffcc;
   --text-200: #88cc88;
-  --text-300: #446644;
-  --text-dim: #2a4a2a;
+  --text-300: #5f8f5f;
+  --text-dim: #4a704a;
   --red: #ff3333;
   --yellow: #ffdd00;
   --orange: #ff9900;
@@ -47,14 +47,14 @@ body {
   background: var(--bg-0);
   color: var(--text-100);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
 
 /* ─── Scrollbars ─────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }

@@ -20,6 +20,7 @@ import HostInfoPanel from './components/HostInfoPanel';
 import NetworkMap from './components/NetworkMap';
 import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
+import FindingsPanel from './components/FindingsPanel';
 
 // ─── Initial state for expanded categories ────────────────────────────────────
 const initExpanded = () => {
@@ -354,6 +355,17 @@ export default function App() {
     setActiveTab('builder');
   }, []);
 
+  // Doplni do buildera -sV + vuln skripty (z panela VULNERABILITIES & FIXES).
+  const handleLoadVulnScan = useCallback(() => {
+    setFlagSelections((prev) => ({
+      ...prev,
+      sv: true,
+      script: [removeScripts(prev.script, ['vuln', 'vulners']), 'vuln', 'vulners'].filter(Boolean).join(','),
+    }));
+    if (scannedTarget) { targetTouchedRef.current = true; setTarget(scannedTarget); }
+    setActiveTab('builder');
+  }, [scannedTarget]);
+
   // ── Validation for run button ─────────────────────────────────────────────
   const targetValid = target.trim() && validateTarget(target).valid;
   const canRun =
@@ -583,7 +595,8 @@ export default function App() {
             }}
           />
 
-          {/* Results panels — shown after scan completes */}
+          {/* Results panels — shown after scan completes (spolocne rolovanie) */}
+          <div className="results-area">
           <PortsPanel
             lines={outputLines}
             scanStatus={scanStatus}
@@ -592,6 +605,11 @@ export default function App() {
           <HostInfoPanel lines={outputLines} scanStatus={scanStatus} />
           <HostDiscoveryPanel lines={outputLines} scanStatus={scanStatus} />
           <NetworkMap lines={outputLines} scanStatus={scanStatus} scannedTarget={scannedTarget} />
+          <FindingsPanel
+            lines={outputLines}
+            scanStatus={scanStatus}
+            onLoadVulnScan={handleLoadVulnScan}
+          />
           <IntelPanel lines={outputLines} scanStatus={scanStatus} />
           <FollowUpPanel
             lines={outputLines}
@@ -599,6 +617,7 @@ export default function App() {
             scannedTarget={scannedTarget}
             onLoadCommand={handleLoadCommand}
           />
+          </div>
 
           {/* History */}
           <ScanHistory history={scanHistory} onLoad={handleLoadFromHistory} />
