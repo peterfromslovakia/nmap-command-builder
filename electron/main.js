@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const { detectNetworks } = require('./network');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -188,6 +189,12 @@ ipcMain.handle('nmap:check', (event) => {
       resolve({ available: false, version: '' });
     });
   });
+});
+
+// ─── IPC: Detect local networks ──────────────────────────────────────────────
+ipcMain.handle('net:detect', (event) => {
+  if (!isTrusted(event)) return [];
+  try { return detectNetworks(); } catch (_) { return []; }
 });
 
 // ─── IPC: Run nmap scan ───────────────────────────────────────────────────────

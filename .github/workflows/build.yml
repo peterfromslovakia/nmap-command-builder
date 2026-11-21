@@ -35,6 +35,9 @@ jobs:
         env:
           CI: "true"
 
+      - name: Run main-process tests
+        run: npm run test:main
+
       - name: Build React app
         run: npm run build
 

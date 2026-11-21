@@ -6,6 +6,9 @@ import FlagCategory from './FlagCategory';
 export default function BuilderTab({
   target,
   onTargetChange,
+  networks = [],
+  onUseNetwork,
+  onRefreshNetworks,
   flagSelections,
   onFlagChange,
   advancedMode,
@@ -54,6 +57,33 @@ export default function BuilderTab({
           />
         </div>
         {targetError && <div className="target-error">⚠ {targetError}</div>}
+
+        {/* Detected local networks */}
+        <div className="net-detect">
+          <span className="net-detect__label">
+            {networks.length > 0 ? 'DETECTED NETWORK' : 'NO NETWORK DETECTED'}
+          </span>
+          {networks.map((n) => (
+            <button
+              key={`${n.iface}-${n.address}`}
+              type="button"
+              className={`net-chip ${target === n.suggested ? 'net-chip--active' : ''} ${n.virtual ? 'net-chip--virtual' : ''}`}
+              onClick={() => onUseNetwork && onUseNetwork(n.suggested)}
+              title={`${n.iface}: you are ${n.address}, network ${n.cidr}`}
+            >
+              {n.iface} · {n.suggested}
+              <span className="net-chip__ip"> (you {n.address})</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="net-chip net-chip--refresh"
+            onClick={() => onRefreshNetworks && onRefreshNetworks()}
+            title="Re-detect network"
+          >
+            ⟳
+          </button>
+        </div>
       </div>
 
       {/* Search */}

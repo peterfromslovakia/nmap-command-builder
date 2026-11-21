@@ -43,6 +43,8 @@ export default function App() {
 
   // ── Builder state ──────────────────────────────────────────────────────────
   const [target, setTarget] = useState('');
+  const [networks, setNetworks] = useState([]);
+  const targetTouchedRef = useRef(false); // true ak uzivatel upravil target rucne
   const [flagSelections, setFlagSelections] = useState({});
   const [advancedMode, setAdvancedMode] = useState(false);
 
@@ -71,6 +73,34 @@ export default function App() {
     flagSelections,
     advancedMode
   );
+
+  // ── Detect local network (on mount + whenever the window regains focus) ───
+  const refreshNetworks = useCallback(async () => {
+    if (!window.electronAPI || !window.electronAPI.detectNetworks) return;
+    const list = await window.electronAPI.detectNetworks();
+    setNetworks(list);
+    // Auto-predefine target, kym ho uzivatel nezmenil rucne
+    if (list.length > 0 && !targetTouchedRef.current) {
+      setTarget(list[0].suggested);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshNetworks();
+    window.addEventListener('focus', refreshNetworks);
+    return () => window.removeEventListener('focus', refreshNetworks);
+  }, [refreshNetworks]);
+
+  // Rucna uprava targetu vypne automaticke prepisovanie
+  const handleTargetChange = useCallback((v) => {
+    targetTouchedRef.current = true;
+    setTarget(v);
+  }, []);
+
+  const handleUseNetwork = useCallback((cidr) => {
+    targetTouchedRef.current = false; // vyber zo zoznamu = znova automaticky rezim
+    setTarget(cidr);
+  }, []);
 
   // ── Check nmap on mount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -158,20 +188,27 @@ export default function App() {
   }, [command]);
 
   const handleClear = useCallback(() => {
+    targetTouchedRef.current = false;
     setTarget('');
     setFlagSelections({});
     setSearchQuery('');
-  }, []);
+    refreshNetworks(); // po vycisteni sa target znova predvyplni detegovanou sietou
+  }, [refreshNetworks]);
 
   const handleLoadPreset = useCallback((preset) => {
     setFlagSelections(preset.flags || {});
-    if (preset.target) setTarget(preset.target);
+    // Predvoleny target z presetu (napr. 192.168.1.0/24) len ako zaloha:
+    // ak mame detegovanu siet, ostava ta (napr. 192.168.50.0/24).
+    if (preset.target && networks.length === 0) {
+      targetTouchedRef.current = true;
+      setTarget(preset.target);
+    }
     setActiveTab('builder');
-  }, []);
+  }, [networks]);
 
   const handleLoadFromHistory = useCallback((entry) => {
     const t = parseCommandToTarget(entry.command);
-    if (t) setTarget(t);
+    if (t) { targetTouchedRef.current = true; setTarget(t); }
     setActiveTab('builder');
   }, []);
 
@@ -281,7 +318,7 @@ export default function App() {
     // Extract the last non-flag token as the target
     const parts = cmd.replace(/^nmap\s+/, '').trim().split(/\s+/);
     const t = [...parts].reverse().find((p) => !p.startsWith('-'));
-    if (t && t !== '<target>') setTarget(t);
+    if (t && t !== '<target>') { targetTouchedRef.current = true; setTarget(t); }
     setActiveTab('builder');
   }, []);
 
@@ -413,7 +450,10 @@ export default function App() {
             {activeTab === 'builder' && (
               <BuilderTab
                 target={target}
-                onTargetChange={setTarget}
+                onTargetChange={handleTargetChange}
+                networks={networks}
+                onUseNetwork={handleUseNetwork}
+                onRefreshNetworks={refreshNetworks}
                 flagSelections={flagSelections}
                 onFlagChange={handleFlagChange}
                 advancedMode={advancedMode}
