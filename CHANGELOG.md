@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.8.0 — 2026-11-21
 
 ### New
-- **Run as administrator without Terminal** — when a scan needs root (`-sS`, `-O`, `-sU`…), *🔒 RUN AS ADMINISTRATOR* runs the same command with administrator rights. macOS shows the system password dialog, Linux a graphical password / polkit dialog; the app never sees the password. Administrator runs refuse options that read or write files (`-oN/-oX/-oG`, `-iL`, script files, paths in script arguments)
+- **Run as administrator without Terminal** — when a scan needs root (`-sS`, `-O`, `-sU`…), *🔒 RUN AS ADMINISTRATOR* runs the same command with administrator rights. macOS shows the system password dialog, Linux a graphical password / polkit dialog; the app never sees the password. Administrator runs refuse options that read or write files (`-oN/-oX/-oG`, `-iL`, script files, paths in script arguments). Verified on macOS with the real password dialog
 - **Help → Open Data Folder** and **Help → Delete All Saved Data…** (saved scans, presets, report details, monitoring, vulnerability cache, settings; after confirmation). README lists where the data lives on each system
 
 ### Fixed
