@@ -40,10 +40,10 @@ jobs:
       - name: Build React app
         run: npm run build
 
+      # electron-builder len zostavuje; vydanie vytvara az job "release" nizsie
+      # (inak electron-builder vytvori vlastne vydanie a subory su tam 2x).
       - name: Build distributable app
-        run: npm run dist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist -- --publish never
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
@@ -53,8 +53,6 @@ jobs:
             dist/*.dmg
             dist/*.exe
             dist/*.AppImage
-            dist/*.blockmap
-            dist/latest*.yml
           if-no-files-found: ignore
 
   release:
@@ -85,12 +83,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ github.ref_name }}
           files: |
             release-artifacts/**/*.dmg
             release-artifacts/**/*.exe
             release-artifacts/**/*.AppImage
-            release-artifacts/**/*.blockmap
-            release-artifacts/**/latest*.yml
           body_path: release-notes.md
           generate_release_notes: true
           overwrite_files: true
