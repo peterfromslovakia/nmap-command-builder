@@ -140,10 +140,10 @@ learn and use Nmap effectively without memorising hundreds of flags.
 
 | Requirement | Version |
 |---|---|
-| Node.js | 18+ |
-| Nmap | 7.x or newer |
 | OS | macOS · Windows · Linux |
-| Runtime | Electron |
+| Node.js | 18+ *(only when running from source)* |
+
+**Nmap is bundled** — the installer includes nmap directly, so no separate installation is required. On Windows, the first time you run a privileged scan (SYN, OS detection, UDP) the app offers to install **Npcap** (the Windows packet-capture driver), which requires a one-time administrator confirmation.
 
 The app scans **IPv4** networks and hosts (addresses, CIDR ranges, address ranges, host names). IPv6 scanning is intentionally not included: an IPv6 network (/64) has 18 quintillion addresses and cannot be swept, and devices on home and office networks are normally reachable over IPv4 as well.
 
@@ -168,7 +168,7 @@ Available builds:
 
 Every release is built for all platforms above. The app checks for a new version on start (at most every 12 hours) and shows a banner with a download button for your system; *Help → Check for Updates…* checks on demand. Download the new installer and install it over the old version — your saved presets, scans and settings are kept. The check only reads the public GitHub releases page and can be turned off in the banner (*don't check automatically*).
 
-No Node.js installation required.
+No Node.js installation required. Nmap is bundled — no separate nmap download needed.
 
 ### macOS: first launch
 
@@ -202,15 +202,14 @@ Install dependencies:
 
     npm install
 
-Install Nmap if needed.
+Install dependencies and start:
 
-### macOS (Homebrew)
+    npm run dev
 
-    brew install nmap
+Nmap must be available on PATH when running from source. Install it if needed:
 
-### Debian / Ubuntu
-
-    sudo apt install nmap
+    brew install nmap          # macOS
+    sudo apt install nmap      # Debian / Ubuntu
 
 ---
 

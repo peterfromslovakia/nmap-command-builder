@@ -40,6 +40,41 @@ jobs:
       - name: Build React app
         run: npm run build
 
+      # Bundluje nmap binárku (a Npcap inštalátor na Windows) do extraResources/bin/
+      # pred buildом — electron-builder ich zahrnie do inštalátora automaticky.
+      - name: Bundle nmap (macOS universal binary)
+        if: runner.os == 'macOS'
+        run: |
+          brew install nmap
+          arch -x86_64 brew install nmap || true
+          mkdir -p extraResources/bin
+          ARM="$(brew --prefix nmap)/bin/nmap"
+          X64="$(arch -x86_64 brew --prefix nmap 2>/dev/null)/bin/nmap"
+          if [ -f "$X64" ]; then
+            lipo -create -output extraResources/bin/nmap "$ARM" "$X64"
+          else
+            cp "$ARM" extraResources/bin/nmap
+          fi
+          chmod +x extraResources/bin/nmap
+
+      - name: Bundle nmap (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y nmap
+          mkdir -p extraResources/bin
+          cp "$(which nmap)" extraResources/bin/nmap
+          chmod +x extraResources/bin/nmap
+
+      - name: Bundle nmap + Npcap installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path extraResources\bin | Out-Null
+          Invoke-WebRequest "https://nmap.org/dist/nmap-7.95-setup.exe" -OutFile nmap-setup.exe
+          Start-Process nmap-setup.exe -ArgumentList "/S","/D=$((Get-Location).Path)\nmap-tmp" -Wait
+          Copy-Item "nmap-tmp\nmap.exe" "extraResources\bin\"
+          Invoke-WebRequest "https://npcap.com/dist/npcap-1.79.exe" -OutFile "extraResources\bin\Npcap-installer.exe"
+
       # electron-builder len zostavuje; vydanie vytvara az job "release" nizsie
       # (inak electron-builder vytvori vlastne vydanie a subory su tam 2x).
       - name: Build distributable app

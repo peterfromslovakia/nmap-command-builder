@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Bundled nmap — no installation required** — nmap is included directly in the installer (.dmg / .exe / .AppImage). macOS ships a universal binary (arm64 + x64), Linux the x64 binary, Windows nmap.exe together with the Npcap driver installer. Users install the app and can scan immediately — no separate nmap download needed. If Npcap is missing on Windows, a banner offers one-click installation
+- **TOOLS tab** — four network tools with no additional software required:
+  - **WHOIS** — who owns a public IP or domain (registrar, country, ASN, name servers); follows WHOIS server referrals automatically
+  - **DNS Lookup** — query A, AAAA, MX, NS, TXT, CNAME, SOA or PTR records (or all at once) using the system resolver
+  - **SSL Certificate** — connect to any host/port and inspect the certificate: subject, issuer, validity, SANs, SHA-256 fingerprint, days remaining; expired and soon-to-expire certificates highlighted
+  - **IP Information** — geolocation and ISP details for any public IP via ipinfo.io (free, no registration, no API key)
+- Keyboard shortcut **⌘6 / Ctrl+6** switches to the TOOLS tab
+
 ## 1.9.0 — 2026-11-21
 
 ### New

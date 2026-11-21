@@ -68,4 +68,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('scan:error', handler);
     return () => ipcRenderer.removeListener('scan:error', handler);
   },
+
+  // TOOLS tab: WHOIS, DNS, SSL, IP info, Npcap install
+  toolsWhois: (query) => ipcRenderer.invoke('tools:whois', { query }),
+  toolsDns: (host, type) => ipcRenderer.invoke('tools:dns', { host, type }),
+  toolsSsl: (host, port) => ipcRenderer.invoke('tools:ssl', { host, port }),
+  toolsIpinfo: (ip) => ipcRenderer.invoke('tools:ipinfo', { ip }),
+  installNpcap: () => ipcRenderer.invoke('tools:install-npcap'),
 });

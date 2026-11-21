@@ -39,6 +39,7 @@ import { collectCves, applyIntel, loadIntelEnabled, saveIntelEnabled } from './u
 import MonitorBar from './components/MonitorBar';
 import { loadMonitor, saveMonitor, startMonitor, monitorDue, markRun, monitorChanges } from './utils/monitor';
 import InventoryPanel from './components/InventoryPanel';
+import ToolsTab from './components/ToolsTab';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 
@@ -846,6 +847,21 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Windows: Npcap chýba (potrebný pre SYN / OS / UDP skeny) ─────── */}
+      {nmapStatus.npcapMissing && (
+        <div className="nmap-warn-bar nmap-warn-bar--npcap">
+          ⚠ {t('Npcap is required for privileged scans on Windows.')}
+          {nmapStatus.npcapInstallerBundled && (
+            <button className="btn btn--xs noroot-notice__btn" style={{ marginLeft: 10 }}
+              onClick={async () => {
+                await window.electronAPI.installNpcap();
+              }}>
+              {t('Install Npcap')}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Command Preview Bar ───────────────────────────────────────────── */}
       <CommandPreview
         command={command}
@@ -896,6 +912,13 @@ export default function App() {
               title={t('Legal notice, ethical usage guide, root-required scans')}
             >
               {t('ETHICS')}
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'tools' ? 'tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('tools')}
+              title={t('Network tools: WHOIS, DNS, SSL, IP info')}
+            >
+              {t('TOOLS')}
             </button>
 
             {/* Safe / Advanced toggle */}
@@ -964,6 +987,9 @@ export default function App() {
             )}
             {activeTab === 'ethics' && (
               <EthicsTab />
+            )}
+            {activeTab === 'tools' && (
+              <ToolsTab />
             )}
           </div>
         </div>

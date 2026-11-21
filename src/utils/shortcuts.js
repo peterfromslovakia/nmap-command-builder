@@ -2,7 +2,7 @@
 // Mod = ⌘ na macOS, Ctrl inde. Zastavenie skenu je ⌘. / Ctrl+. (nie Esc),
 // aby sa sken nedal ukoncit omylom pri zatvarani menu alebo vyhladavania.
 
-export const TAB_ORDER = ['builder', 'cheatsheet', 'presets', 'scripts', 'ethics'];
+export const TAB_ORDER = ['builder', 'cheatsheet', 'presets', 'scripts', 'ethics', 'tools'];
 
 /**
  * @param {{ key: string, metaKey?: boolean, ctrlKey?: boolean, shiftKey?: boolean, altKey?: boolean }} e

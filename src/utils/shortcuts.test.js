@@ -16,7 +16,7 @@ test('all actions', () => {
   expect(mac('F')).toEqual({ action: 'search' });
   expect(mac('C', { shiftKey: true })).toEqual({ action: 'copy' });
   expect(win('3')).toEqual({ action: 'tab', tab: 'presets' });
-  expect(win(String(TAB_ORDER.length))).toEqual({ action: 'tab', tab: 'ethics' });
+  expect(win(String(TAB_ORDER.length))).toEqual({ action: 'tab', tab: 'tools' });
 });
 
 test('plain keys, Escape, Alt combos and normal copy/paste are not captured', () => {

@@ -373,5 +373,16 @@ const UI_SK = {
   'Running with administrator rights — enter your password in the system dialog.': 'Spúšťa sa s právami správcu — zadajte heslo v systémovom okne.',
   // ── vlastne menovky zariadeni ──
   'Edit device label': 'Upraviť menovku zariadenia',
+  // ── nastroje (TOOLS založka) ──
+  'TOOLS': 'NÁSTROJE',
+  'WHOIS': 'WHOIS',
+  'Network tools: WHOIS, DNS, SSL, IP info': 'Sieťové nástroje: WHOIS, DNS, SSL, info o IP',
+  'DNS Lookup': 'DNS vyhľadávanie',
+  'SSL Certificate': 'SSL certifikát',
+  'IP Information': 'Informácie o IP',
+  'Run': 'Spustiť',
+  'Record type': 'Typ záznamu',
+  'Install Npcap': 'Nainštalovať Npcap',
+  'Npcap is required for privileged scans on Windows.': 'Npcap je potrebný pre privilegované skenovanie vo Windows.',
 };
 export default UI_SK;

@@ -13,8 +13,33 @@ const {
   validateElevatedArgs, which, elevationMethod, writeAskpass, elevatedCommand, explainElevationError, msg: elevateMsg,
 } = require('./elevate');
 const { VulnIntel } = require('./vulnIntel');
+const tools = require('./tools');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
+
+// Preferuje bundlovanú binárku v resources/bin/, fallback na PATH.
+function resolveNmap() {
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  try {
+    const bundled = path.join(process.resourcesPath, 'bin', `nmap${ext}`);
+    if (fs.existsSync(bundled)) return bundled;
+  } catch (_) { /* resourcesPath nie je dostupné v dev mode */ }
+  return which('nmap') || 'nmap';
+}
+
+// Windows: overí či je Npcap nainštalovaný (potrebný pre raw skeny).
+function isNpcapInstalled() {
+  if (process.platform !== 'win32') return true;
+  try {
+    const { execSync } = require('child_process');
+    execSync('reg query "HKLM\\SOFTWARE\\Npcap"', { stdio: 'pipe' });
+    return true;
+  } catch (_) { return false; }
+}
+
+function npcapInstallerPath() {
+  try { return path.join(process.resourcesPath, 'bin', 'Npcap-installer.exe'); } catch (_) { return null; }
+}
 
 // ─── Suppress GPU / EGL log spam ─────────────────────────────────────────────
 // Disables hardware acceleration to suppress EGL driver messages that appear
@@ -215,6 +240,24 @@ ipcMain.handle('app:setLang', (event, lang) => {
   return true;
 });
 
+// ─── TOOLS záložka (WHOIS, DNS, SSL, IP info) ────────────────────────────────
+tools.register(ipcMain, isTrusted);
+
+// Windows: inštalácia Npcap drivera (potrebný pre SYN / OS / UDP skeny)
+ipcMain.handle('tools:install-npcap', async (event) => {
+  if (!isTrusted(event)) return { success: false };
+  const installer = npcapInstallerPath();
+  if (!installer || !fs.existsSync(installer)) return { success: false, error: 'Npcap installer not found in app bundle.' };
+  try {
+    const { execFile } = require('child_process');
+    // Spustí inštalátor — Windows si vyžiada UAC prompt sám (PE manifest)
+    execFile(installer, [], { windowsHide: false });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 app.whenReady().then(() => {
   // Appka nepotrebuje kameru, mikrofon, polohu ani notifikacie.
   const { session } = require('electron');
@@ -250,7 +293,8 @@ app.on('activate', () => {
 ipcMain.handle('nmap:check', (event) => {
   if (!isTrusted(event)) return { available: false, version: '' };
   return new Promise((resolve) => {
-    const proc = spawn('nmap', ['--version']);
+    const nmapBin = resolveNmap();
+    const proc = spawn(nmapBin, ['--version']);
     let output = '';
     proc.stdout.on('data', (d) => { output += d.toString(); });
     proc.on('close', (code) => {
@@ -258,13 +302,14 @@ ipcMain.handle('nmap:check', (event) => {
         available: code === 0,
         version: output.split('\n')[0]?.trim() || '',
         privileged: isPrivileged(),
-        // Moznost spustit sken s pravami spravcu (systemove okno na heslo)
         canElevate: !isPrivileged() && Boolean(elevationMethod()),
         platform: process.platform,
+        npcapMissing: process.platform === 'win32' && !isNpcapInstalled(),
+        npcapInstallerBundled: process.platform === 'win32' && Boolean(npcapInstallerPath() && fs.existsSync(npcapInstallerPath())),
       });
     });
     proc.on('error', () => {
-      resolve({ available: false, version: '' });
+      resolve({ available: false, version: '', npcapMissing: process.platform === 'win32' && !isNpcapInstalled() });
     });
   });
 });
@@ -333,7 +378,7 @@ ipcMain.handle('nmap:run', (event, payload) => {
   }
 
   // Beh s pravami spravcu: prisnejsia kontrola + sudo/pkexec s grafickym oknom.
-  let cmd = 'nmap';
+  let cmd = resolveNmap();
   let cmdArgs = args;
   let env = process.env;
   if (elevated) {
@@ -341,8 +386,8 @@ ipcMain.handle('nmap:run', (event, payload) => {
     if (!how) return { success: false, error: elevateMsg(uiLang, 'unavailable') };
     const strictError = validateElevatedArgs(args);
     if (strictError) return { success: false, error: strictError };
-    const nmapPath = which('nmap');
-    if (!nmapPath) return { success: false, error: 'nmap not found' };
+    const nmapPath = resolveNmap();
+    if (!nmapPath || nmapPath === 'nmap') return { success: false, error: 'nmap not found' };
     try {
       const c = elevatedCommand({
         method: how.method,
