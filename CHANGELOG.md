@@ -3,10 +3,11 @@
 ## Unreleased
 
 ### New
-- **Scans work without root** — when the app is not running as root, the command is adjusted automatically: `-sS` → `-sT`, `-A` → `-sV -sC`, `-O` → `-sV`; techniques with no unprivileged equivalent (UDP, ACK/NULL/FIN/Xmas, idle scan, UDP ping, traceroute, evasion) are removed. A notice explains every change and the preview shows the exact command that runs.
+- **Root notice** — when the app runs without root, a notice lists the selected flags that need root and what Nmap will do (stop or ignore the option), with tips for unprivileged alternatives. The command itself is never changed.
 
 ### Fixed
 - `--traceroute`, `-PU` and `--badsum` are now marked as requiring root
+- `-A` is no longer marked as requiring root — it runs without root, only OS detection and traceroute are skipped (verified with Nmap 7.99)
 
 ## 1.1.0 — 2026-11-21
 

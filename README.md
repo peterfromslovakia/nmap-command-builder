@@ -193,22 +193,24 @@ Examples include:
 - UDP scan (`-sU`)
 - advanced stealth techniques
 
-When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions. **The command is then adjusted automatically** so the scan still runs instead of failing with *"requires root privileges. QUITTING!"*:
+When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions. The command is **never changed** — instead, a notice above the terminal shows which selected flags need root and what Nmap will do without it.
 
-| Needs root | Without root |
+Verified with Nmap 7.99 without root:
+
+| Flags | Without root |
 |---|---|
-| `-sS` SYN scan | replaced by `-sT` (TCP connect) — finds the same open ports, only more visible in target logs |
-| `-A` aggressive | replaced by `-sV -sC` — versions and default scripts still run, OS detection and traceroute are skipped |
-| `-O` OS detection | replaced by `-sV` — the OS is often reported in the *Service Info* line |
-| `-sU`, `-sA`, `-sN`, `-sF`, `-sX`, `-sI`, `-PU`, `--traceroute`, evasion (`-f`, `--mtu`, `-D`, `-S`, `--spoof-mac`, `--data-length`, `--badsum`) | removed — no unprivileged equivalent exists |
+| `-sS` `-sU` `-sA` `-sN` `-sF` `-sX` `-sI` `-O` `-f` `--mtu` `-D` `-S` `-PU` `--traceroute` | Nmap stops: *"requires root privileges. QUITTING!"* |
+| `--spoof-mac` `--data-length` `--badsum` | the scan runs, but Nmap ignores the option |
+| `-A` | **works** — version detection and default scripts run; only the OS detection and traceroute parts are skipped |
+| `-sT` `-sV` `-sC` `--script` `-PS` `-PA` `-p` `-T*` … | work normally |
 
-The command preview always shows the exact command that will run, and a notice above the terminal lists every change and why.
+Tip: `-sT` (TCP connect scan) finds the same open ports as `-sS` without root, and `-sV` often reports the operating system in the *Service Info* line.
 
-For UDP scans, OS fingerprinting and firewall / evasion techniques, launch the application with root privileges:
+To use root-only techniques, launch the application from Terminal with root privileges:
 
     sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
 
-When running as root, nothing is adjusted. On Windows, Nmap uses Npcap and raw scans work without running the app as administrator, so no adjustment is made there either.
+On Windows, Nmap uses Npcap, so raw scans work without running the app as administrator.
 
 ---
 

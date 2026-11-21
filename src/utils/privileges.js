@@ -1,80 +1,40 @@
-// ─── Beh bez root opravneni ───────────────────────────────────────────────────
+// ─── Root opravnenia ──────────────────────────────────────────────────────────
 //
-// Techniky, ktore posielaju vlastne (raw) pakety, potrebuju root. Ak aplikacia
-// bezi bez rootu, prikaz sa automaticky upravi:
-//   - kde existuje rovnocenna nahrada, flag sa nahradi (napr. -sS → -sT)
-//   - kde nahrada neexistuje, flag sa odstrani a pouzivatel dostane vysvetlenie
-// Nahlad prikazu vzdy ukazuje presne to, co sa spusti.
+// Overene s nmap 7.99 na macOS bez rootu. Prikaz sa NEMENI — pouzivatel len
+// vidi, ktore flagy root potrebuju a co s nimi nmap bez rootu spravi.
+//   quits   — nmap skonci: "requires root privileges. QUITTING!"
+//   ignored — sken prebehne, ale volbu nmap ignoruje ("will not be honored")
 
-// Nahrady: flag → { add: [flagy na zapnutie], remove: [dalsie flagy na vypnutie], note }
-const REPLACE = {
-  ss: {
-    add: ['st'],
-    from: '-sS', to: '-sT',
-    note: 'TCP connect scan finds the same open ports, it only completes the handshake (more visible in target logs)',
-  },
-  aggressive: {
-    add: ['sv', 'sc'],
-    from: '-A', to: '-sV -sC',
-    note: 'version detection and default scripts still run; OS detection and traceroute are skipped',
-  },
-  os_detect: {
-    add: ['sv'],
-    remove: ['osscan_limit', 'osscan_guess'],
-    from: '-O', to: '-sV',
-    note: 'OS fingerprinting needs raw packets; -sV often reports the OS in the "Service Info" line',
-  },
+const ROOT_EFFECTS = {
+  ss: { flag: '-sS', effect: 'quits', tip: '-sT (TCP connect) finds the same open ports without root' },
+  su: { flag: '-sU', effect: 'quits' },
+  sa: { flag: '-sA', effect: 'quits' },
+  sn_null: { flag: '-sN', effect: 'quits' },
+  sf: { flag: '-sF', effect: 'quits' },
+  sx: { flag: '-sX', effect: 'quits' },
+  idle_scan: { flag: '-sI', effect: 'quits' },
+  os_detect: { flag: '-O', effect: 'quits', tip: '-sV often reports the OS in the "Service Info" line without root' },
+  fragment: { flag: '-f', effect: 'quits' },
+  mtu: { flag: '--mtu', effect: 'quits' },
+  decoy: { flag: '-D', effect: 'quits' },
+  spoof_ip: { flag: '-S', effect: 'quits' },
+  pu: { flag: '-PU', effect: 'quits', tip: '-PS / -PA ping work without root' },
+  traceroute: { flag: '--traceroute', effect: 'quits' },
+  spoof_mac: { flag: '--spoof-mac', effect: 'ignored' },
+  data_length: { flag: '--data-length', effect: 'ignored' },
+  badsum: { flag: '--badsum', effect: 'ignored' },
 };
 
-// Bez nahrady — odstrania sa.
-const DROP = {
-  su: { from: '-sU', note: 'UDP scanning is not possible without root — only TCP ports will be scanned' },
-  sa: { from: '-sA', note: 'ACK firewall mapping needs raw packets' },
-  sn_null: { from: '-sN', note: 'NULL scan needs raw packets' },
-  sf: { from: '-sF', note: 'FIN scan needs raw packets' },
-  sx: { from: '-sX', note: 'Xmas scan needs raw packets' },
-  idle_scan: { from: '-sI', note: 'idle (zombie) scan needs raw packets' },
-  pu: { from: '-PU', note: 'UDP ping needs raw packets' },
-  traceroute: { from: '--traceroute', note: 'traceroute needs raw packets' },
-  fragment: { from: '-f', note: 'packet fragmentation needs raw packets' },
-  mtu: { from: '--mtu', note: 'custom MTU needs raw packets' },
-  decoy: { from: '-D', note: 'decoys need raw packets' },
-  spoof_ip: { from: '-S', note: 'source IP spoofing needs raw packets' },
-  spoof_mac: { from: '--spoof-mac', note: 'MAC spoofing needs raw packets' },
-  data_length: { from: '--data-length', note: 'custom packet length needs raw packets' },
-  badsum: { from: '--badsum', note: 'bad checksums need raw packets' },
-};
+export const ROOT_FLAG_IDS = Object.keys(ROOT_EFFECTS);
 
 const isOn = (v) => !(v === false || v === null || v === undefined || v === '');
 
 /**
- * Upravi vyber flagov pre beh bez rootu.
- * @returns {{ flags: Object, changes: Array<{ from, to, note, kind: 'replaced'|'removed' }> }}
+ * Ktore z vybranych flagov potrebuju root a co sa bez rootu stane.
+ * @returns {Array<{ id, flag, effect: 'quits'|'ignored', tip? }>}
  */
-export function adjustForNoRoot(flagSelections) {
-  const flags = { ...flagSelections };
-  const changes = [];
-
-  for (const [id, rule] of Object.entries(REPLACE)) {
-    if (!isOn(flags[id])) continue;
-    delete flags[id];
-    (rule.remove || []).forEach((r) => delete flags[r]);
-    rule.add.forEach((a) => { if (!isOn(flags[a])) flags[a] = true; });
-    changes.push({ kind: 'replaced', from: rule.from, to: rule.to, note: rule.note });
-  }
-
-  for (const [id, rule] of Object.entries(DROP)) {
-    if (!isOn(flags[id])) continue;
-    delete flags[id];
-    changes.push({ kind: 'removed', from: rule.from, to: '', note: rule.note });
-  }
-
-  return { flags, changes };
-}
-
-/** Jednoriadkovy popis zmien (pre tooltip a terminal). */
-export function describeChanges(changes) {
-  return changes
-    .map((c) => (c.kind === 'replaced' ? `${c.from} → ${c.to}: ${c.note}` : `${c.from} removed: ${c.note}`))
-    .join('\n');
+export function rootRequirements(flagSelections) {
+  return Object.entries(ROOT_EFFECTS)
+    .filter(([id]) => isOn(flagSelections[id]))
+    .map(([id, r]) => ({ id, ...r }));
 }

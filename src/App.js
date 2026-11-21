@@ -6,7 +6,7 @@ import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 import { buildReportModel, toMarkdown, toHtml } from './utils/report';
-import { adjustForNoRoot, describeChanges } from './utils/privileges';
+import { rootRequirements } from './utils/privileges';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -80,17 +80,17 @@ export default function App() {
   useEffect(() => { targetRef.current = target; }, [target]);
 
   // ── Derived: build the current command ────────────────────────────────────
-  // Bez rootu sa prikaz automaticky upravi (napr. -sS → -sT). Nahlad ukazuje
-  // presne prikaz, ktory sa spusti.
-  const noRoot = nmapStatus.checked && nmapStatus.privileged === false;
-  const { flags: effectiveFlags, changes: rootChanges } = useMemo(
-    () => (noRoot ? adjustForNoRoot(flagSelections) : { flags: flagSelections, changes: [] }),
-    [noRoot, flagSelections]
-  );
   const { args, command, warnings, requiresRoot, hasTarget } = buildCommand(
     target,
-    effectiveFlags,
+    flagSelections,
     advancedMode
+  );
+
+  // Bez rootu sa prikaz NEMENI, len sa ukaze, ktore flagy root potrebuju.
+  const noRoot = nmapStatus.checked && nmapStatus.privileged === false;
+  const rootNeeds = useMemo(
+    () => (noRoot ? rootRequirements(flagSelections) : []),
+    [noRoot, flagSelections]
   );
 
   // macOS: semafor okna (hiddenInset) prekryva lavu cast hlavicky
@@ -268,8 +268,8 @@ export default function App() {
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${command}\n` },
-      ...(rootChanges.length
-        ? [{ id: Date.now() + 1, type: 'system', text: `[i] Running without root, command adjusted:\n${describeChanges(rootChanges).replace(/^/gm, '    ')}\n` }]
+      ...(rootNeeds.some((r) => r.effect === 'quits')
+        ? [{ id: Date.now() + 1, type: 'error', text: `[!] Not running as root: ${rootNeeds.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ')} need root, nmap will stop. Start the app with sudo.\n` }]
         : []),
     ]);
 
@@ -281,7 +281,7 @@ export default function App() {
         { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
       ]);
     }
-  }, [scanStatus, target, command, args, rootChanges]);
+  }, [scanStatus, target, command, args, rootNeeds]);
 
   const handleKillScan = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -616,18 +616,23 @@ export default function App() {
             )}
           </div>
 
-          {rootChanges.length > 0 && (
+          {rootNeeds.length > 0 && (
             <div className="noroot-notice">
               <div className="noroot-notice__title">
-                ℹ RUNNING WITHOUT ROOT — COMMAND ADJUSTED
+                ⚠ THIS SCAN NEEDS ROOT — the app is running without root
               </div>
-              {rootChanges.map((c) => (
-                <div key={c.from} className={`noroot-notice__row noroot-notice__row--${c.kind}`}>
-                  <code>{c.from}</code>
-                  {c.kind === 'replaced' ? <> → <code>{c.to}</code></> : <span className="noroot-notice__removed"> removed</span>}
-                  <span className="noroot-notice__note">{c.note}</span>
+              {rootNeeds.map((r) => (
+                <div key={r.id} className={`noroot-notice__row noroot-notice__row--${r.effect}`}>
+                  <code>{r.flag}</code>
+                  <span className="noroot-notice__effect">
+                    {r.effect === 'quits' ? 'nmap will stop' : 'ignored by nmap'}
+                  </span>
+                  {r.tip && <span className="noroot-notice__note">tip: {r.tip}</span>}
                 </div>
               ))}
+              <div className="noroot-notice__how">
+                Start the app with <code>sudo</code> (see README → Root Privileges).
+              </div>
             </div>
           )}
 
