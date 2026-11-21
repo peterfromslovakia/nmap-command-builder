@@ -22,7 +22,6 @@ import EthicsTab from './components/EthicsTab';
 import TerminalOutput from './components/TerminalOutput';
 import ScanHistory from './components/ScanHistory';
 import PortsPanel from './components/PortsPanel';
-import HostDiscoveryPanel from './components/HostDiscoveryPanel';
 import HostInfoPanel from './components/HostInfoPanel';
 import NetworkMap from './components/NetworkMap';
 import FollowUpPanel from './components/FollowUpPanel';
@@ -32,6 +31,8 @@ import DiffPanel from './components/DiffPanel';
 import { loadUserPresets, saveUserPreset, deleteUserPreset } from './utils/userPresets';
 import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
+import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
+import InventoryPanel from './components/InventoryPanel';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 
@@ -89,6 +90,9 @@ export default function App() {
   const [update, setUpdate] = useState(null);
   const [reportDialog, setReportDialog] = useState(null); // 'pdf' | 'md' | null
   const [reportMeta, setReportMeta] = useState(() => loadReportMeta());
+  const [inventory, setInventory] = useState(null);
+  const [discoverMode, setDiscoverMode] = useState('quick'); // zariadenia po skene siete
+  const scanKindRef = useRef('scan');
   const [userPresets, setUserPresets] = useState(() => loadUserPresets());
   const [diffBaselineId, setDiffBaselineId] = useState(null); // null = najnovsi predchadzajuci sken
   useEffect(() => { setDiffBaselineId(null); }, [currentSnapshot]);
@@ -298,28 +302,29 @@ export default function App() {
     setActiveTab('builder');
   }, []);
 
-  const handleRunScan = useCallback(async () => {
+  // Spolocne spustenie skenu (RUN SCAN aj PREHLADAT SIET).
+  const startScan = useCallback(async ({ args: scanArgs, command: scanCommand, target: scanTarget, kind = 'scan', needs = [] }) => {
     if (!window.electronAPI) return;
     if (scanStatus === 'scanning') return;
-
-    const vResult = validateTarget(target);
-    if (!vResult.valid) return;
+    if (!validateTarget(scanTarget).valid) return;
 
     setScanStatus('scanning');
     scanIdRef.current = Date.now();
+    scanKindRef.current = kind;
+    setInventory(null);
     setCurrentSnapshot(null);
-    currentCommandRef.current = command;
-    setScannedTarget(target);
+    currentCommandRef.current = scanCommand;
+    setScannedTarget(scanTarget);
 
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
-      { id: Date.now(), type: 'system', text: `[${ts}] $ ${command}\n` },
-      ...(rootNeeds.some((r) => r.effect === 'quits')
-        ? [{ id: Date.now() + 1, type: 'error', text: `[!] Not running as root: ${rootNeeds.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ')} need root, nmap will stop. Start the app with sudo.\n` }]
+      { id: Date.now(), type: 'system', text: `[${ts}] $ ${scanCommand}\n` },
+      ...(needs.some((r) => r.effect === 'quits')
+        ? [{ id: Date.now() + 1, type: 'error', text: `[!] Not running as root: ${needs.filter((r) => r.effect === 'quits').map((r) => r.flag).join(' ')} need root, nmap will stop. Start the app with sudo.\n` }]
         : []),
     ]);
 
-    const res = await window.electronAPI.runScan(args);
+    const res = await window.electronAPI.runScan(scanArgs);
     if (res && res.success === false) {
       setScanStatus('error');
       setOutputLines((prev) => [
@@ -327,7 +332,30 @@ export default function App() {
         { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
       ]);
     }
-  }, [scanStatus, target, command, args, rootNeeds]);
+  }, [scanStatus]);
+
+  const handleRunScan = useCallback(
+    () => startScan({ args, command, target, needs: rootNeeds }),
+    [startScan, args, command, target, rootNeeds]
+  );
+
+  // ── Prehladat siet jednym tlacidlom ──────────────────────────────────────
+  // Ciel: aktualny ciel, ak je to rozsah (CIDR / interval); inak detegovana siet.
+  const discoveryTarget = useMemo(() => {
+    const t = target.trim();
+    if (t && /[/-]/.test(t) && validateTarget(t).valid) return t;
+    return networks[0]?.suggested || '';
+  }, [target, networks]);
+
+  const handleDiscoverNetwork = useCallback((mode) => {
+    const flags = DISCOVERY_MODES[mode].flags;
+    const built = buildCommand(discoveryTarget, flags, advancedMode);
+    targetTouchedRef.current = true;
+    setTarget(discoveryTarget);
+    setFlagSelections(flags);
+    setActiveTab('builder');
+    startScan({ args: built.args, command: built.command, target: discoveryTarget, kind: 'discovery' });
+  }, [discoveryTarget, advancedMode, startScan]);
 
   const handleKillScan = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -350,6 +378,20 @@ export default function App() {
     setSnapshots(saveSnapshot(snap));
     setCurrentSnapshot(snap);
   }, [scanStatus, outputLines, scannedTarget]);
+
+  // Po skene: inventar zariadeni (+ MAC / vyrobca z ARP tabulky systemu).
+  useEffect(() => {
+    if (scanStatus !== 'done' && scanStatus !== 'killed') return undefined;
+    const text = outputLines.map((l) => l.text || '').join('');
+    const base = buildInventory(text);
+    if (base.length === 0 || (base.length < 2 && scanKindRef.current !== 'discovery')) return undefined;
+    let alive = true;
+    setInventory(base);
+    (window.electronAPI?.getArpDevices?.() || Promise.resolve([])).then((arp) => {
+      if (alive) setInventory(buildInventory(text, arp));
+    });
+    return () => { alive = false; };
+  }, [scanStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- staci pri zmene stavu skenu
 
   const handleClearSnapshots = useCallback(() => {
     setSnapshots(clearSnapshots());
@@ -740,6 +782,26 @@ export default function App() {
               ⊗ KILL
             </button>
 
+            <div className="discover-group" title={discoveryTarget ? `Find all active devices in ${discoveryTarget}` : 'No network detected — enter a range (e.g. 192.168.1.0/24) as the target'}>
+              <button
+                className="btn btn--discover"
+                onClick={() => handleDiscoverNetwork(discoverMode)}
+                disabled={!nmapStatus.available || !discoveryTarget || scanStatus === 'scanning'}
+              >
+                ⌖ SCAN NETWORK
+              </button>
+              <select
+                className="discover-mode"
+                value={discoverMode}
+                onChange={(e) => setDiscoverMode(e.target.value)}
+                disabled={scanStatus === 'scanning'}
+                aria-label="Network scan mode"
+              >
+                <option value="quick">quick · devices only (~30 s)</option>
+                <option value="standard">detailed · ports + services (minutes)</option>
+              </select>
+            </div>
+
             {requiresRoot && (
               <span className="badge badge--root" title="This scan requires root / sudo privileges">
                 ⚠ REQUIRES ROOT
@@ -782,6 +844,16 @@ export default function App() {
 
           {/* Results panels — shown after scan completes (spolocne rolovanie) */}
           <div className="results-area">
+          {inventory && (
+            <InventoryPanel
+              devices={inventory}
+              target={scannedTarget}
+              onScanDevice={(ip) => { targetTouchedRef.current = true; setTarget(ip); setActiveTab('presets'); }}
+              onExportCsv={() => window.electronAPI.exportResult(
+                inventoryCsv(inventory), `network-devices-${Date.now()}.csv`, [{ name: 'CSV', extensions: ['csv'] }]
+              )}
+            />
+          )}
           <DiffPanel
             current={currentSnapshot}
             snapshots={snapshots}
@@ -795,7 +867,6 @@ export default function App() {
             onLoadCommand={handleLoadCommand}
           />
           <HostInfoPanel lines={outputLines} scanStatus={scanStatus} />
-          <HostDiscoveryPanel lines={outputLines} scanStatus={scanStatus} />
           <NetworkMap lines={outputLines} scanStatus={scanStatus} scannedTarget={scannedTarget} />
           <FindingsPanel
             lines={outputLines}

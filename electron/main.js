@@ -7,6 +7,7 @@ const { validateArgs } = require('./argsValidator');
 const { readState, resolveBounds, writeState } = require('./windowState');
 const { buildMenuTemplate } = require('./menu');
 const { checkForUpdate, isDownloadUrl } = require('./updates');
+const { arpDevices } = require('./arp');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -190,6 +191,12 @@ function isPrivileged() {
 }
 
 // ─── IPC: Detect local networks ──────────────────────────────────────────────
+// MAC adresy + vyrobcovia z ARP tabulky (po skene siete; funguje bez root).
+ipcMain.handle('net:arp', async (event) => {
+  if (!isTrusted(event)) return [];
+  try { return await arpDevices(); } catch (_) { return []; }
+});
+
 ipcMain.handle('net:detect', (event) => {
   if (!isTrusted(event)) return [];
   try { return detectNetworks(); } catch (_) { return []; }

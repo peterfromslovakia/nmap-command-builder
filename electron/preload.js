@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // ARP table (MAC + vendor) for the device inventory
+  getArpDevices: () => ipcRenderer.invoke('net:arp'),
+
   // Update check (GitHub releases) and opening the download page
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   openDownload: (url) => ipcRenderer.invoke('update:open', url),
