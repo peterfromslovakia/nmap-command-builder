@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.9.0 — 2026-11-21
 
 ### New
 - **Custom device labels** — assign your own name to any device (e.g. *My NAS*, *Work PC*). The label is tied to the MAC address, so it stays correct even when the IP changes. Labels are shown in the device list (click ✏ to edit), network map, PDF/Markdown reports, and CSV export. Stored locally on this computer
