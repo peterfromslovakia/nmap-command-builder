@@ -66,9 +66,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path extraResources\bin | Out-Null
-          Invoke-WebRequest "https://nmap.org/dist/nmap-7.95-setup.exe" -OutFile nmap-setup.exe
-          Start-Process nmap-setup.exe -ArgumentList "/S","/D=$((Get-Location).Path)\nmap-tmp" -Wait
-          Copy-Item "nmap-tmp\nmap.exe" "extraResources\bin\"
+          # Zip distribúcia (~6 MB) — žiadny inštalátor, nmap.exe je priamo vo vnútri
+          Invoke-WebRequest "https://nmap.org/dist/nmap-7.95-win32.zip" -OutFile nmap-win32.zip
+          Expand-Archive nmap-win32.zip -DestinationPath nmap-tmp
+          Copy-Item "nmap-tmp\nmap-7.95\nmap.exe" "extraResources\bin\"
           Invoke-WebRequest "https://npcap.com/dist/npcap-1.79.exe" -OutFile "extraResources\bin\Npcap-installer.exe"
 
       # electron-builder len zostavuje; vydanie vytvara az job "release" nizsie
