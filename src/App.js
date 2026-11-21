@@ -7,6 +7,7 @@ import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 import { buildReportModel, toMarkdown, toHtml } from './utils/report';
 import { rootRequirements } from './utils/privileges';
+import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots } from './utils/scanDiff';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -23,6 +24,7 @@ import NetworkMap from './components/NetworkMap';
 import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
 import FindingsPanel from './components/FindingsPanel';
+import DiffPanel from './components/DiffPanel';
 
 // ─── Initial state for expanded categories ────────────────────────────────────
 const initExpanded = () => {
@@ -71,6 +73,12 @@ export default function App() {
   const [outputLines, setOutputLines] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
   const [scannedTarget, setScannedTarget] = useState('');
+
+  // ── Saved scan snapshots (for "changes since previous scan") ─────────────
+  const [snapshots, setSnapshots] = useState(() => loadSnapshots());
+  const [currentSnapshot, setCurrentSnapshot] = useState(null);
+  const scanIdRef = useRef(0);
+  const savedScanIdRef = useRef(0);
 
   // ── Refs for closures in IPC callbacks ────────────────────────────────────
   const currentCommandRef = useRef('');
@@ -262,6 +270,8 @@ export default function App() {
     if (!vResult.valid) return;
 
     setScanStatus('scanning');
+    scanIdRef.current = Date.now();
+    setCurrentSnapshot(null);
     currentCommandRef.current = command;
     setScannedTarget(target);
 
@@ -287,6 +297,27 @@ export default function App() {
     if (!window.electronAPI) return;
     setScanStatus('killed');
     await window.electronAPI.killScan();
+  }, []);
+
+  // Po dokonceni skenu ulozi snimku vysledkov (len ak nasiel nejake hosty).
+  useEffect(() => {
+    if (scanStatus !== 'done' || savedScanIdRef.current === scanIdRef.current || !scanIdRef.current) return;
+    savedScanIdRef.current = scanIdRef.current;
+    const snap = makeSnapshot({
+      id: scanIdRef.current,
+      time: new Date().toISOString(),
+      target: scannedTarget,
+      command: currentCommandRef.current,
+      text: outputLines.map((l) => l.text || '').join(''),
+    });
+    if (snap.hosts.length === 0) return;
+    setSnapshots(saveSnapshot(snap));
+    setCurrentSnapshot(snap);
+  }, [scanStatus, outputLines, scannedTarget]);
+
+  const handleClearSnapshots = useCallback(() => {
+    setSnapshots(clearSnapshots());
+    setCurrentSnapshot(null);
   }, []);
 
   // ── Unified export handler — supports txt / json / csv ────────────────────
@@ -643,6 +674,7 @@ export default function App() {
             onExport={handleExport}
             onClear={() => {
               setOutputLines([]);
+              setCurrentSnapshot(null);
               setScanStatus('idle');
               setScannedTarget('');
             }}
@@ -650,6 +682,11 @@ export default function App() {
 
           {/* Results panels — shown after scan completes (spolocne rolovanie) */}
           <div className="results-area">
+          <DiffPanel
+            current={currentSnapshot}
+            snapshots={snapshots}
+            onClearSaved={handleClearSnapshots}
+          />
           <PortsPanel
             lines={outputLines}
             scanStatus={scanStatus}
@@ -684,7 +721,7 @@ export default function App() {
           Created by <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.1.0</span>
+        <span className="app-footer__item">Nmap Command Builder v1.2.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Use responsibly &amp; ethically</span>
       </footer>

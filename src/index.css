@@ -67,3 +67,21 @@ body {
 
 /* ─── Input reset ────────────────────────────────────────────────────────── */
 input, select, textarea, button { font-family: var(--font-mono); }
+
+/* ─── Adaptive UI scale ──────────────────────────────────────────────────────
+   Rozhranie pouziva pevne px velkosti. Na velkych monitoroch (Full HD, 1440p,
+   4K pri 100 % skalovani) by bolo vsetko drobne, preto sa cele UI zvacsi podla
+   sirky okna; v malom okne sa mierne zmensi. Media query sa vyhodnocuje na
+   skutocnu sirku okna, nie na zoomovanu, takze prepinanie je stabilne. */
+html { --ui-zoom: 1; zoom: var(--ui-zoom); }
+@media (max-width: 1199px), (max-height: 759px) { html { --ui-zoom: 0.92; } }
+@media (min-width: 1760px) and (min-height: 900px) { html { --ui-zoom: 1.1; } }
+@media (min-width: 2200px) and (min-height: 1100px) { html { --ui-zoom: 1.25; } }
+@media (min-width: 2800px) and (min-height: 1400px) { html { --ui-zoom: 1.5; } }
+@media (min-width: 3600px) and (min-height: 1900px) { html { --ui-zoom: 1.85; } }
+
+/* Zoom zvacsi aj vysku/sirku → aplikacia ma presne velkost okna. */
+#root {
+  width: calc(100vw / var(--ui-zoom));
+  height: calc(100vh / var(--ui-zoom));
+}

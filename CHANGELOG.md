@@ -1,13 +1,19 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — 2026-11-21
 
 ### New
+- **Changes since previous scan** — after each scan the results are compared with the previous scan of the same target: new and disappeared hosts, newly opened and closed ports, version changes, new and fixed vulnerabilities. Any older scan can be picked as the baseline. Results (hosts, ports, findings — not the raw output) are stored locally in the app, max. 30 scans; "forget saved scans" deletes them.
 - **Root notice** — when the app runs without root, a notice lists the selected flags that need root and what Nmap will do (stop or ignore the option), with tips for unprivileged alternatives. The command itself is never changed.
+- **Adaptive UI scale** — the whole interface scales with the window size, from small laptop screens (1100×700) up to 1440p and 4K monitors
+
+### Improved
+- Result panels share one scroll area (no nested scrollbars); the terminal is taller on tall screens
 
 ### Fixed
-- `--traceroute`, `-PU` and `--badsum` are now marked as requiring root
+- **macOS: "app is damaged and can't be opened"** — the app is now ad-hoc signed during the build
 - `-A` is no longer marked as requiring root — it runs without root, only OS detection and traceroute are skipped (verified with Nmap 7.99)
+- `--traceroute`, `-PU` and `--badsum` are now marked as requiring root
 
 ## 1.1.0 — 2026-11-21
 

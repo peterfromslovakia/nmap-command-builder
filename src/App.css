@@ -27,14 +27,14 @@
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   background: var(--bg-0);
 }
 
 /* ─── No Electron fallback ──────────────────────────────────────────────────── */
 .no-electron {
-  height: 100vh;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -673,7 +673,7 @@
   overflow: hidden;
   background: var(--bg-input);
   border-bottom: 1px solid var(--border);
-  min-height: 200px;
+  min-height: clamp(180px, 26vh, 380px);
 }
 
 /* Vysledkove panely pod terminalom: spolocne rolovanie, terminal ostava viditelny */
@@ -2280,3 +2280,39 @@
 .noroot-notice__note { color: var(--text-200); }
 .noroot-notice__how { margin-top: 3px; color: var(--text-300); }
 .noroot-notice__how code { color: var(--cyan); }
+
+/* ─── Changes since previous scan ────────────────────────────────────────────── */
+.diff-panel { flex-shrink: 0; border-top: 1px solid rgba(0,255,255,0.25); background: var(--bg-2); }
+.diff-panel__title { font-size: 10.5px; font-weight: 700; letter-spacing: 2px; color: var(--cyan); text-shadow: 0 0 6px rgba(0,255,255,0.3); }
+.diff-panel__body { padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 6px; }
+.diff-panel__body .findings-empty { padding: 4px 0; }
+.diff-baseline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 11.5px; color: var(--text-300); }
+.diff-baseline .flag-select { width: auto; max-width: min(520px, 100%); margin-left: 4px; }
+.diff-warn { color: var(--yellow); font-size: 11px; }
+.diff-badge--ok {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; padding: 1px 6px; border-radius: 2px;
+  color: var(--green-100); border: 1px solid var(--border-hi); background: rgba(0,255,65,0.1);
+}
+.diff-section { border-left: 2px solid var(--border-mid); padding-left: 10px; }
+.diff-section--bad  { border-left-color: rgba(255,51,51,0.6); }
+.diff-section--good { border-left-color: rgba(0,255,65,0.5); }
+.diff-section--info { border-left-color: rgba(0,255,255,0.4); }
+.diff-section__title { font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; color: var(--text-200); margin-bottom: 2px; }
+.diff-section--bad .diff-section__title { color: var(--red); }
+.diff-section--good .diff-section__title { color: var(--green-200); }
+.diff-section__count { color: var(--text-300); font-weight: 400; }
+.diff-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; font-size: 12px; color: var(--text-100); line-height: 1.5; }
+.diff-row code { color: var(--green-100); }
+.diff-svc { color: var(--cyan); }
+.diff-ver { color: var(--text-200); }
+.diff-host { color: var(--text-300); margin-left: auto; }
+.diff-forget { align-self: flex-end; font-size: 10.5px; color: var(--text-300); }
+
+/* Vo vysledkovej oblasti sa roluje len raz — panely nemaju vlastny posuvnik */
+.results-area > .ports-panel,
+.results-area > .hosts-panel,
+.results-area > .followup-panel,
+.results-area > .intel-panel {
+  max-height: none;
+  overflow: visible;
+}
