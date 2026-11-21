@@ -1,5 +1,5 @@
 import { FLAG_MAP } from '../data/flags';
-import { sanitizeArg } from './validator';
+import { sanitizeArg, validateFlagValue } from './validator';
 
 /**
  * Build the nmap args array from user selections.
@@ -40,6 +40,8 @@ export function buildCommand(target, flagSelections, advancedMode) {
 
       case 'text':
       case 'number': {
+        // Neplatna hodnota (napr. zacina "-") sa do prikazu vobec nedostane.
+        if (!validateFlagValue(def, value).valid) break;
         const clean = sanitizeArg(String(value));
         if (clean) {
           // -PS/-PA/-PU port lists are appended without space in nmap convention

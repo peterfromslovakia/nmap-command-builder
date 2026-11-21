@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Run unit tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: "true"
+
+      - name: Run main-process tests
+        run: npm run test:main
+
       - name: Build React app
         run: npm run build
 

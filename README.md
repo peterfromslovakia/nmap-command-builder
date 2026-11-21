@@ -63,6 +63,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live command preview
 - Safe / Advanced mode toggle
 - Built-in scan presets
+- Automatic local network detection (e.g. `192.168.50.0/24`) pre-fills the target and refreshes when the window regains focus
 - Searchable Nmap cheatsheet
 
 ## Scan Execution
@@ -230,6 +231,12 @@ Security design decisions used in the application:
 - user input validated before execution
 - `spawn` used instead of `exec`
 - no shell interpolation allowed
+- renderer sandbox enabled (`sandbox: true`)
+- IPC calls accepted only from the app window
+- nmap flags are checked against a whitelist in the main process
+- `--script` accepts script names and categories only, not file paths
+- navigation, new windows, webviews and permission requests are blocked
+- exports limited to `.txt`, `.json` and `.csv`
 
 These measures help prevent command injection and improve runtime security.
 

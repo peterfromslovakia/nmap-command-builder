@@ -2057,3 +2057,20 @@
 }
 .node--workstation .netmap-node__icon { color: var(--green-200); }
 .node--workstation .netmap-node__type { color: var(--green-200); }
+
+/* ── Detected network chips ───────────────────────────────────────────────── */
+.net-detect { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.net-detect__label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; }
+.net-chip {
+  font-family: inherit; font-size: 11px; cursor: pointer;
+  color: var(--green-300); background: transparent;
+  border: 1px solid rgba(80, 255, 120, 0.3); border-radius: 3px; padding: 2px 8px;
+}
+.net-chip:hover { border-color: var(--green-300); }
+.net-chip--active { background: rgba(80, 255, 120, 0.12); border-color: var(--green-300); }
+.net-chip--virtual { opacity: 0.6; }
+.net-chip__ip { color: var(--text-dim); }
+.net-chip--refresh { padding: 2px 7px; }
+
+/* macOS traffic lights */
+.platform-mac .app-header__left { padding-left: 78px; }

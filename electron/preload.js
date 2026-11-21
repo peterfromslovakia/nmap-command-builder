@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Check if nmap is installed and get version
   checkNmap: () => ipcRenderer.invoke('nmap:check'),
 
+  // Detect local IPv4 networks (interface, address, CIDR)
+  detectNetworks: () => ipcRenderer.invoke('net:detect'),
+
   // Run a scan with the given args array
   runScan: (args) => ipcRenderer.invoke('nmap:run', { args }),
 

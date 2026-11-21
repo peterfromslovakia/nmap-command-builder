@@ -3,9 +3,24 @@ import { FLAG_CATEGORIES } from '../data/flags';
 import { validateTarget } from '../utils/validator';
 import FlagCategory from './FlagCategory';
 
+// Viac rozhrani v tej istej sieti (napr. Wi-Fi + Ethernet) = jedno tlacidlo.
+function groupNetworks(networks) {
+  const map = new Map();
+  for (const n of networks) {
+    const g = map.get(n.suggested) || { suggested: n.suggested, virtual: true, members: [] };
+    g.members.push(n);
+    g.virtual = g.virtual && n.virtual;
+    map.set(n.suggested, g);
+  }
+  return Array.from(map.values());
+}
+
 export default function BuilderTab({
   target,
   onTargetChange,
+  networks = [],
+  onUseNetwork,
+  onRefreshNetworks,
   flagSelections,
   onFlagChange,
   advancedMode,
@@ -54,6 +69,33 @@ export default function BuilderTab({
           />
         </div>
         {targetError && <div className="target-error">⚠ {targetError}</div>}
+
+        {/* Detected local networks */}
+        <div className="net-detect">
+          <span className="net-detect__label">
+            {networks.length > 0 ? 'DETECTED NETWORK' : 'NO NETWORK DETECTED'}
+          </span>
+          {groupNetworks(networks).map((g) => (
+            <button
+              key={g.suggested}
+              type="button"
+              className={`net-chip ${target === g.suggested ? 'net-chip--active' : ''} ${g.virtual ? 'net-chip--virtual' : ''}`}
+              onClick={() => onUseNetwork && onUseNetwork(g.suggested)}
+              title={g.members.map((m) => `${m.iface}: you are ${m.address} (network ${m.cidr})`).join('\n')}
+            >
+              {g.members.map((m) => m.iface).join(' + ')} · {g.suggested}
+              <span className="net-chip__ip"> (you {g.members.map((m) => m.address).join(', ')})</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="net-chip net-chip--refresh"
+            onClick={() => onRefreshNetworks && onRefreshNetworks()}
+            title="Re-detect network"
+          >
+            ⟳
+          </button>
+        </div>
       </div>
 
       {/* Search */}
