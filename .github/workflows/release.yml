@@ -42,19 +42,15 @@ jobs:
 
       # Bundluje nmap binárku (a Npcap inštalátor na Windows) do extraResources/bin/
       # pred buildом — electron-builder ich zahrnie do inštalátora automaticky.
-      - name: Bundle nmap (macOS universal binary)
+      - name: Bundle nmap (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: |
           brew install nmap
-          arch -x86_64 brew install nmap || true
           mkdir -p extraResources/bin
-          ARM="$(brew --prefix nmap)/bin/nmap"
-          X64="$(arch -x86_64 brew --prefix nmap 2>/dev/null)/bin/nmap"
-          if [ -f "$X64" ]; then
-            lipo -create -output extraResources/bin/nmap "$ARM" "$X64"
-          else
-            cp "$ARM" extraResources/bin/nmap
-          fi
+          cp "$(which nmap)" extraResources/bin/nmap
           chmod +x extraResources/bin/nmap
 
       - name: Bundle nmap (Linux)
