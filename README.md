@@ -193,17 +193,22 @@ Examples include:
 - UDP scan (`-sU`)
 - advanced stealth techniques
 
-When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions.
+When the application is launched normally (for example from Finder, Launchpad, or a desktop icon), it runs with standard user permissions. **The command is then adjusted automatically** so the scan still runs instead of failing with *"requires root privileges. QUITTING!"*:
 
-This means some advanced scan techniques may not work correctly.
+| Needs root | Without root |
+|---|---|
+| `-sS` SYN scan | replaced by `-sT` (TCP connect) — finds the same open ports, only more visible in target logs |
+| `-A` aggressive | replaced by `-sV -sC` — versions and default scripts still run, OS detection and traceroute are skipped |
+| `-O` OS detection | replaced by `-sV` — the OS is often reported in the *Service Info* line |
+| `-sU`, `-sA`, `-sN`, `-sF`, `-sX`, `-sI`, `-PU`, `--traceroute`, evasion (`-f`, `--mtu`, `-D`, `-S`, `--spoof-mac`, `--data-length`, `--badsum`) | removed — no unprivileged equivalent exists |
 
-To enable full functionality, launch the application from Terminal using:
+The command preview always shows the exact command that will run, and a notice above the terminal lists every change and why.
+
+For UDP scans, OS fingerprinting and firewall / evasion techniques, launch the application with root privileges:
 
     sudo "/Applications/Nmap Command Builder.app/Contents/MacOS/Nmap Command Builder"
 
-This allows Nmap to perform raw packet operations required for advanced scan techniques.
-
-Basic scans such as `-sT` (TCP Connect Scan) work without root privileges.
+When running as root, nothing is adjusted. On Windows, Nmap uses Npcap and raw scans work without running the app as administrator, so no adjustment is made there either.
 
 ---
 

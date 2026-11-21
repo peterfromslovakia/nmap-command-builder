@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './App.css';
 
 import { FLAG_CATEGORIES } from './data/flags';
@@ -6,6 +6,7 @@ import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 import { buildReportModel, toMarkdown, toHtml } from './utils/report';
+import { adjustForNoRoot, describeChanges } from './utils/privileges';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -79,9 +80,16 @@ export default function App() {
   useEffect(() => { targetRef.current = target; }, [target]);
 
   // ── Derived: build the current command ────────────────────────────────────
+  // Bez rootu sa prikaz automaticky upravi (napr. -sS → -sT). Nahlad ukazuje
+  // presne prikaz, ktory sa spusti.
+  const noRoot = nmapStatus.checked && nmapStatus.privileged === false;
+  const { flags: effectiveFlags, changes: rootChanges } = useMemo(
+    () => (noRoot ? adjustForNoRoot(flagSelections) : { flags: flagSelections, changes: [] }),
+    [noRoot, flagSelections]
+  );
   const { args, command, warnings, requiresRoot, hasTarget } = buildCommand(
     target,
-    flagSelections,
+    effectiveFlags,
     advancedMode
   );
 
@@ -260,6 +268,9 @@ export default function App() {
     const ts = new Date().toLocaleTimeString();
     setOutputLines([
       { id: Date.now(), type: 'system', text: `[${ts}] $ ${command}\n` },
+      ...(rootChanges.length
+        ? [{ id: Date.now() + 1, type: 'system', text: `[i] Running without root, command adjusted:\n${describeChanges(rootChanges).replace(/^/gm, '    ')}\n` }]
+        : []),
     ]);
 
     const res = await window.electronAPI.runScan(args);
@@ -270,7 +281,7 @@ export default function App() {
         { id: Date.now(), type: 'error', text: `\n[✗ Scan not started: ${res.error}]` },
       ]);
     }
-  }, [scanStatus, target, command, args]);
+  }, [scanStatus, target, command, args, rootChanges]);
 
   const handleKillScan = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -604,6 +615,21 @@ export default function App() {
               </span>
             )}
           </div>
+
+          {rootChanges.length > 0 && (
+            <div className="noroot-notice">
+              <div className="noroot-notice__title">
+                ℹ RUNNING WITHOUT ROOT — COMMAND ADJUSTED
+              </div>
+              {rootChanges.map((c) => (
+                <div key={c.from} className={`noroot-notice__row noroot-notice__row--${c.kind}`}>
+                  <code>{c.from}</code>
+                  {c.kind === 'replaced' ? <> → <code>{c.to}</code></> : <span className="noroot-notice__removed"> removed</span>}
+                  <span className="noroot-notice__note">{c.note}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Terminal */}
           <TerminalOutput

@@ -2261,3 +2261,21 @@
   background: transparent; color: var(--cyan); border: 1px solid rgba(0,255,255,0.3);
 }
 .findings-export:hover { background: rgba(0,255,255,0.08); }
+
+/* ─── Running without root: auto-adjusted command ───────────────────────────── */
+.noroot-notice {
+  flex-shrink: 0;
+  padding: 6px 12px 8px;
+  background: rgba(0,255,255,0.04);
+  border-bottom: 1px solid rgba(0,255,255,0.2);
+  font-size: 11.5px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.noroot-notice__title { font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; color: var(--cyan); margin-bottom: 3px; }
+.noroot-notice__row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; color: var(--text-100); line-height: 1.5; }
+.noroot-notice__row code { color: var(--green-100); }
+.noroot-notice__row--removed code { color: var(--orange); text-decoration: line-through; }
+.noroot-notice__removed { color: var(--orange); }
+.noroot-notice__note { color: var(--text-300); }
+.noroot-notice__note::before { content: '— '; }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Scans work without root** — when the app is not running as root, the command is adjusted automatically: `-sS` → `-sT`, `-A` → `-sV -sC`, `-O` → `-sV`; techniques with no unprivileged equivalent (UDP, ACK/NULL/FIN/Xmas, idle scan, UDP ping, traceroute, evasion) are removed. A notice explains every change and the preview shows the exact command that runs.
+
+### Fixed
+- `--traceroute`, `-PU` and `--badsum` are now marked as requiring root
+
 ## 1.1.0 — 2026-11-21
 
 ### New
