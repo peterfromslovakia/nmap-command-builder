@@ -575,6 +575,8 @@ export default function App() {
       findings: scanText === rawText ? findings : undefined,
       intelMeta: intelEnabled && intelData ? intelData.meta : null,
       inventory,
+      gatewayIp: gateway,
+      localIps,
       comparison: cmp && {
         baselineTime: new Date(cmp.baseline.time).toLocaleString(),
         baselineCommand: cmp.baseline.command,

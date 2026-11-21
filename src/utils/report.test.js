@@ -213,3 +213,34 @@ test('table of contents numbers every section explicitly (10+ must not be clippe
   expect(nums.length).toBeGreaterThan(3);
   expect(nums).toEqual(nums.map((_, i) => i + 1));
 });
+
+describe('network map appendix', () => {
+  const { buildReportModel: b, toHtml: h, toMarkdown: md, reportSections: rs } = require('./report');
+  const dev = (ip, type, ports = [], extra = {}) => ({ ip, type, hostname: '', mac: '', vendor: '', os: '', ports: ports.map((port) => ({ port, proto: 'tcp', service: 's', version: '' })), ...extra });
+  const inventory = [dev('10.0.0.1', 'router', [53, 80], { hostname: 'gw.lan' }), dev('10.0.0.5', 'windows', [445]), dev('10.0.0.9', 'linux', [22])];
+  const findings = [{ id: 'x', title: 'EternalBlue', host: 'pc (10.0.0.5)', severity: 'critical', exploited: true, fix: [], refs: [] }];
+
+  test('appendix A before raw output, refs and KEV on the device, own computer marked', () => {
+    const m = b({ text: '', command: 'nmap -sn 10.0.0.0/24', target: '10.0.0.0/24', timestamp: 't', inventory, findings, gatewayIp: '10.0.0.1', localIps: ['10.0.0.9'], meta: { lang: 'en' } });
+    const ids = rs(m).map((x) => x.id);
+    expect(ids.slice(-2)).toEqual(['map', 'raw']);
+    expect(m.map.gateway.ip).toBe('10.0.0.1');
+    const win = m.map.groups.find((g) => g.type === 'windows').devices[0];
+    expect(win).toMatchObject({ refs: ['F-01'], risk: { level: 'critical', exploited: true } });
+    const html = h(m);
+    expect(html).toContain('Appendix A — network map');
+    expect(html).toMatch(/nm-node nm-critical[\s\S]*10\.0\.0\.5[\s\S]*F-01[\s\S]*CISA KEV/);
+    expect(html).toContain('scanning computer');
+    const text = md(m);
+    expect(text).toMatch(/└─ Router \/ gateway: 10\.0\.0\.1 gw\.lan/);
+    expect(text).toMatch(/10\.0\.0\.5 — Critical vulnerability F-01 CISA KEV/);
+    expect(text).toMatch(/```\n\n## \d+\. Appendix B/);
+  });
+
+  test('Slovak labels and no map for single host scans', () => {
+    const m = b({ text: '', command: 'nmap x', target: 'x', timestamp: 't', inventory, findings, meta: { lang: 'sk' } });
+    expect(h(m)).toContain('Príloha A — mapa siete');
+    expect(h(m)).toContain('3 zariadenia');
+    expect(b({ text: '', command: 'nmap x', target: 'x', timestamp: 't', inventory: [inventory[0]] }).map).toBeNull();
+  });
+});

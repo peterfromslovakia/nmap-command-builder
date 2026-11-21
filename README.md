@@ -97,7 +97,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live streaming terminal output
 - Kill button for long scans
 - Export results as `.txt`, `.json`, `.csv`
-- **Penetration-test style reports** as PDF or Markdown, in **English or Slovak**: cover page and document control (tester, organisation, client, authorisation reference, classification), table of contents, executive summary with overall risk and priority actions, scope and methodology (derived from the actual command), risk rating with remediation timeframes, findings **F-01…** with affected asset, CVSS vector, EPSS, CWE, CISA KEV status, impact, NIST description and fix, asset inventory from the network scan, changes since the previous scan, hardening recommendations, sign-off table and raw output
+- **Penetration-test style reports** as PDF or Markdown, in **English or Slovak**: cover page and document control (tester, organisation, client, authorisation reference, classification), table of contents, executive summary with overall risk and priority actions, scope and methodology (derived from the actual command), risk rating with remediation timeframes, findings **F-01…** with affected asset, CVSS vector, EPSS, CWE, CISA KEV status, impact, NIST description and fix, asset inventory and **network map** (appendix) from the network scan, changes since the previous scan, hardening recommendations, sign-off table and raw output
 - Scan history with quick reload
 - Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
 

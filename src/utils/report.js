@@ -1,4 +1,5 @@
 import { parseFindings, SEVERITY_ORDER } from './findings';
+import { buildTopology, hostIp } from './topology';
 import { applyIntel } from './intel';
 import { getPortRisk } from '../data/portRisk';
 import { getPortIntel } from '../data/portIntel';
@@ -112,8 +113,17 @@ const timeframeKey = (f) => (f.exploited ? 'exploited' : f.severity);
  * Datovy model reportu — spolocny pre Markdown aj HTML/PDF.
  * findings: obohatene nalezy (applyIntel); ak chyba, vyparsuju sa z textu.
  */
+/** Topologia pre report: ku kazdemu zariadeniu aj cisla nalezov (F-01…). */
+function reportMap(devices, findings, gatewayIp, localIps) {
+  const topo = buildTopology({ devices, gatewayIp, localIps, findings });
+  const refs = (ip) => findings.filter((f) => hostIp(f.host) === ip).map((f) => f.ref);
+  const add = (d) => d && { ...d, refs: refs(d.ip) };
+  return { ...topo, gateway: add(topo.gateway), groups: topo.groups.map((g) => ({ ...g, devices: g.devices.map(add) })) };
+}
+
 export function buildReportModel({
   text, command, target, timestamp, nmapVersion, comparison, meta, findings: given, intelMeta, inventory, generatedAt,
+  gatewayIp = null, localIps = [],
 }) {
   const m = normalizeMeta(meta);
   const L = labels(m.lang);
@@ -174,6 +184,8 @@ export function buildReportModel({
     techniques: describeTechniques(command, L, { intel: usedIntel }),
     intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
     inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
+    // Mapa siete (priloha A) — len pri skene siete s aspon 2 zariadeniami
+    map: Array.isArray(inventory) && inventory.length > 1 ? reportMap(inventory, findings, gatewayIp, localIps) : null,
     // comparison: { baselineTime, baselineCommand, sameCommand, sections }
     comparison: comparison && comparison.diff ? {
       baselineTime: comparison.baselineTime,
@@ -200,6 +212,7 @@ export function reportSections(m) {
     ['ports', L.openPortsTitle],
     m.portAdvice.length > 0 && ['hardening', L.hardening],
     ['signoff', L.signOff],
+    m.map && ['map', L.networkMap],
     ['raw', L.rawOutput],
   ].filter(Boolean).map(([id, title], i) => ({ id, title, no: i + 1 }));
 }
@@ -346,6 +359,24 @@ export function toMarkdown(m) {
   out.push(`| | ${L.colName} | ${L.signDate} | ${L.signature} |`, '|---|---|---|---|');
   out.push(`| ${L.signPreparedBy} | ${mdCell(m.tester || ' ')} | ${m.generatedAt} | |`);
   out.push(`| ${L.signApprovedBy} | | | |`, '');
+
+  if (m.map) {
+    const mp = m.map;
+    const devLine = (d) => [
+      d.ip, d.hostname, `— ${L.mapRisk[d.risk.level]}`, d.refs.length ? d.refs.join(', ') : '',
+      d.risk.exploited ? 'CISA KEV' : '', d.isSelf ? `(${L.mapYou})` : '', d.ports.length ? `· ${L.mapPorts(d.ports.length)}` : '',
+    ].filter(Boolean).join(' ');
+    out.push('', h2('map'), '', L.mapIntro, '', '```');
+    out.push(L.mapInternet);
+    out.push(`└─ ${mp.gateway ? `${L.deviceTypes.router}: ${devLine(mp.gateway)}${mp.gateway.synthetic ? ` (${L.mapGatewayNote})` : ''}` : L.mapNoGateway}`);
+    out.push(`   └─ ${L.mapLocalNet} ${m.target} · ${L.mapDevices(mp.total)}`);
+    mp.groups.forEach((g, gi) => {
+      const lastG = gi === mp.groups.length - 1;
+      out.push(`      ${lastG ? '└─' : '├─'} ${L.deviceTypes[g.type] || g.type} (${g.devices.length})`);
+      g.devices.forEach((d, di) => out.push(`      ${lastG ? '  ' : '│ '}  ${di === g.devices.length - 1 ? '└─' : '├─'} ${devLine(d)}`));
+    });
+    out.push('```', '');
+  }
 
   out.push(h2('raw'), '', '```', m.raw.replace(/```/g, "'''"), '```', '');
   out.push('---', `_${L.footer}${m.tester ? ` · ${m.tester}` : ''} · ${m.generatedAt}${m.intelMeta ? ` · ${L.dataSources(m.intelMeta.kevVersion)}` : ''}_`, '');
@@ -516,6 +547,39 @@ export function toHtml(m) {
     </tbody>
   </table>`;
 
+  const mapNode = (d, extra = '') => `
+      <div class="nm-node nm-${e(d.risk.level)}">
+        <div><b>${e(d.ip)}</b>${d.hostname ? ` <span class="nm-name">${e(d.hostname)}</span>` : ''}${extra}</div>
+        <div class="nm-sub">${[
+    e(L.mapRisk[d.risk.level]),
+    d.refs.length ? `<b>${e(d.refs.join(', '))}</b>` : '',
+    d.risk.exploited ? '<span class="nm-kev">CISA KEV</span>' : '',
+    d.ports.length ? e(L.mapPorts(d.ports.length)) : '',
+    d.isSelf ? `<i>${e(L.mapYou)}</i>` : '',
+  ].filter(Boolean).join(' · ')}</div>
+      </div>`;
+  const map = !m.map ? '' : `
+  <section class="nm">
+  ${h2('map')}
+  <p class="muted">${e(L.mapIntro)}</p>
+  <div class="nm-legend">${['critical', 'high', 'medium', 'exposed', 'ok'].filter((l) => m.map.counts[l] > 0 || l === 'ok')
+    .map((l) => `<span class="nm-${l}"><i></i>${e(L.mapRisk[l])}: ${m.map.counts[l]}</span>`).join('')}</div>
+  <div class="nm-spine">
+    <div class="nm-cloud">${e(L.mapInternet)}</div><div class="nm-wire"></div>
+    ${m.map.gateway ? `<div class="nm-gw"><div class="nm-gw__type">${e(L.deviceTypes.router)}</div>${mapNode(m.map.gateway, m.map.gateway.synthetic ? ` <span class="nm-name">(${e(L.mapGatewayNote)})</span>` : '')}</div>` : `<div class="nm-cloud">${e(L.mapNoGateway)}</div>`}
+    <div class="nm-wire"></div>
+  </div>
+  <div class="nm-seg">
+    <div class="nm-seg__label">${e(L.mapLocalNet)} ${e(m.target)} · ${e(L.mapDevices(m.map.total))}</div>
+    <div class="nm-groups">${m.map.groups.map((g) => `
+      <div class="nm-group">
+        <div class="nm-group__h">${e(L.deviceTypes[g.type] || g.type)} <span>${g.devices.length}</span></div>
+        ${g.devices.map((d) => mapNode(d)).join('')}
+      </div>`).join('')}
+    </div>
+  </div>
+  </section>`;
+
   const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : m.hosts.map((h) => `
     <h3>${e(h.host)}</h3>
     ${h.ports.length === 0 ? `<p class="muted">${e(L.noOpenPorts)}</p>` : `
@@ -565,6 +629,24 @@ export function toHtml(m) {
   .cover__meta td { border: none; padding: 3px 18px 3px 0; font-size: 11pt; vertical-align: top; } .cover__meta td:first-child { color: #666; }
   .cover__risk { display: inline-block; align-self: flex-start; border: 2px solid; border-radius: 6px; padding: 6px 14px; font-size: 13pt; margin-bottom: 12mm; }
   .keep { page-break-inside: avoid; }
+  .nm { page-break-before: always; page-break-after: always; }
+  .nm-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 8.5pt; margin: 6px 0 10px; }
+  .nm-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; background: var(--c); vertical-align: middle; }
+  .nm-spine { display: flex; flex-direction: column; align-items: center; }
+  .nm-wire { width: 2px; height: 12px; background: #9aa89a; }
+  .nm-cloud { border: 1px dashed #9aa89a; border-radius: 12px; padding: 3px 16px; font-size: 9pt; color: #444; }
+  .nm-gw { width: 62mm; } .nm-gw__type { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px; color: #666; text-align: center; margin-bottom: 2px; }
+  .nm-seg { position: relative; border: 1px dashed #9aa89a; border-radius: 5px; padding: 16px 8px 8px; margin-top: 0; }
+  .nm-seg__label { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 8px; font-size: 8pt; color: #555; white-space: nowrap; }
+  .nm-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: start; }
+  .nm-group { border: 1px solid #d5ddd5; border-radius: 3px; padding: 5px; background: #fafcfa; }
+  .nm-group__h { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px; color: #10351a; font-weight: 700; margin-bottom: 4px; display: flex; page-break-after: avoid; }
+  .nm-group__h span { margin-left: auto; color: #6a8f6a; }
+  .nm-node { border: 1px solid #d5ddd5; border-left: 4px solid var(--c); background: #fff; padding: 3px 6px; margin-top: 4px; font-size: 8.5pt; page-break-inside: avoid; }
+  .nm-node.nm-critical, .nm-node.nm-high { background: #fff4f2; }
+  .nm-name { color: #555; } .nm-sub { font-size: 7.5pt; color: #555; margin-top: 1px; }
+  .nm-kev { color: #fff; background: #b71c1c; padding: 0 4px; border-radius: 2px; font-weight: 700; }
+  .nm-critical { --c: #b71c1c; } .nm-high { --c: #e64a19; } .nm-medium { --c: #f57c00; } .nm-low, .nm-exposed { --c: #d4a600; } .nm-ok { --c: #2e7d32; }
   .toc { page-break-after: always; } .toc ol { font-size: 11pt; line-height: 1.9; list-style: none; margin-left: 0; } .toc__n { display: inline-block; min-width: 2.2em; }
   .confidential { border: 1px solid #9b0018; color: #9b0018; font-size: 8.5pt; font-weight: 700; padding: 5px 9px; }
   .kv { width: auto; border: none; margin: 4px 0; } .kv td { border: none; padding: 2px 16px 2px 0; font-size: 9.6pt; vertical-align: top; }
@@ -608,6 +690,7 @@ export function toHtml(m) {
   ${hosts}
   ${advice}
   ${signoff}
+  ${map}
   ${h2('raw')}
   <pre>${e(m.raw)}</pre>
 
