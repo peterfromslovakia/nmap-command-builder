@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.0 — 2026-11-21
+
+### New
+- **Scan network with one button** — *⌖ SCAN NETWORK* finds all active devices in the detected network (or the range you enter), *quick* or *detailed*. The new **Network devices** table shows the device type (router, firewall, printer, NAS, camera, Windows / Apple / Linux computer, phone, TV, IoT, access point), IP, name, OS, MAC address and vendor (from the system ARP table, so it works without root; randomised phone MACs are marked), open ports and latency, with filter, sort, CSV export and one-click *SCAN ›* per device
+- **Live vulnerability intelligence without registration** — CVEs from the scan are checked against CISA KEV (actively exploited, ransomware use), FIRST EPSS (exploit probability) and NIST NVD (CVSS vector, CWE, description). Actively exploited findings are marked, raised to at least High and listed first. Only CVE numbers are sent; results are cached for offline use; can be turned off
+- **Penetration-test style report** — cover page, document control, contents, executive summary with priority actions, scope & methodology from the actual command, risk rating with remediation timeframes, findings F-01… with CVSS / EPSS / CWE / KEV, impact and NIST description, asset inventory, sign-off table; English and Slovak
+- **Slovak interface** — the whole app (panels, flags, presets, scripts, cheatsheet, ethics page, menu, dialogs, notifications) in English or Slovak, switch in the header
+- **Monitoring** — repeat a scan every 15 min / 1 h / 6 h / 24 h and get a system notification about new devices, open ports or vulnerabilities
+
+### Improved
+- Report dialog starts in the interface language; scan date in reports is the time of the scan, not of the export
+- Scan buttons adapt to narrow windows
+- Two scans can no longer be started at the same time
+- Ethics page: correct Slovak law reference (§ 247 Criminal Code)
+
+### Removed
+- The old *Host Discovery* panel (replaced by *Network devices*)
+
 ## 1.4.0 — 2026-11-21
 
 ### New

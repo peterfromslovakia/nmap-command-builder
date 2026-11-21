@@ -2,7 +2,7 @@
 
 ![Build](https://github.com/peterfromslovakia/nmap-command-builder/actions/workflows/build.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Nmap](https://img.shields.io/badge/tool-nmap-red)
 ![Electron](https://img.shields.io/badge/built%20with-Electron-47848F)
 ![Last commit](https://img.shields.io/github/last-commit/peterfromslovakia/nmap-command-builder)
@@ -10,7 +10,7 @@
 [![Release](https://img.shields.io/github/v/release/peterfromslovakia/nmap-command-builder)](https://github.com/peterfromslovakia/nmap-command-builder/releases)
 [![Downloads](https://img.shields.io/github/downloads/peterfromslovakia/nmap-command-builder/total)](https://github.com/peterfromslovakia/nmap-command-builder/releases)
 
-A desktop cybersecurity tool for building, executing, and analysing **Nmap scans** through a graphical interface — no command-line experience required.
+A desktop cybersecurity tool for building, executing, and analysing **Nmap scans** through a graphical interface — no command-line experience required. Interface in **English and Slovak**.
 
 Built with **Electron + React** and designed for system administrators, cybersecurity students, and network engineers.
 
@@ -59,8 +59,27 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 # Features
 
+## Network Scan with One Button
+
+- **⌖ SCAN NETWORK** finds all active devices in your network (or any range you enter) — *quick* (devices only, ~30 s) or *detailed* (open ports and services)
+- **Network devices** table: device type (router, firewall, printer, NAS, camera, Windows / Apple / Linux computer, phone, TV, IoT, Wi-Fi AP / switch), IP, name, operating system, **MAC address and vendor** (also without root, from the system ARP table; private / randomised phone MACs are marked), open ports and latency
+- Filter by type, search, sort, export to CSV (Excel) and **SCAN ›** any device with one click
+- Works without root (TCP connect ping on common ports finds devices that ignore ping)
+
+## Live Vulnerability Intelligence (no registration)
+
+- Every CVE found by `vulners` / `vuln` scripts is checked against **CISA KEV** (vulnerabilities attackers are exploiting right now, incl. ransomware use), **FIRST EPSS** (probability of exploitation in the next 30 days) and **NIST NVD** (CVSS vector, CWE, description)
+- Actively exploited findings are marked **ACTIVELY EXPLOITED**, raised to at least *High* and listed first
+- No account or API key; only CVE numbers are sent (never IP addresses, host names or scan output); results are cached so the app also works offline; can be turned off
+
+## Monitoring
+
+- **Repeat a scan every 15 min / 1 h / 6 h / 24 h** and get a **system notification** when a new device, open port or vulnerability appears (compared with the previous scan of the same target)
+- Status bar with the next run, last result, *run now* and *stop*; the schedule survives an app restart and runs only while the app is open
+
 ## Command Builder
 
+- **English / Slovak** interface (EN | SK switch in the header, remembered; starts in Slovak on Slovak / Czech systems)
 - Visual flag selector organised into collapsible categories
 - Live command preview
 - Safe / Advanced mode toggle
@@ -76,7 +95,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live streaming terminal output
 - Kill button for long scans
 - Export results as `.txt`, `.json`, `.csv`
-- **Professional scan reports** as PDF or Markdown, in **English or Slovak**: who performed the test (tester, organisation, client, authorisation reference), overall risk rating and executive summary, findings overview, changes since the previous scan, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
+- **Penetration-test style reports** as PDF or Markdown, in **English or Slovak**: cover page and document control (tester, organisation, client, authorisation reference, classification), table of contents, executive summary with overall risk and priority actions, scope and methodology (derived from the actual command), risk rating with remediation timeframes, findings **F-01…** with affected asset, CVSS vector, EPSS, CWE, CISA KEV status, impact, NIST description and fix, asset inventory from the network scan, changes since the previous scan, hardening recommendations, sign-off table and raw output
 - Scan history with quick reload
 - Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
 
@@ -87,7 +106,6 @@ The application will start as an Electron desktop app with the Nmap command buil
 - "How to fix" hardening steps for every risky open port in Security Intel
 - Open Ports Panel with risk classification
 - Host Info Panel (IP, hostname, MAC, vendor)
-- Host Discovery Panel
 - Network Map visualisation
 - Security Intel Panel
 - Follow-up scan suggestions
@@ -123,7 +141,7 @@ learn and use Nmap effectively without memorising hundreds of flags.
 |---|---|
 | Node.js | 18+ |
 | Nmap | 7.x or newer |
-| OS | macOS · Linux |
+| OS | macOS · Windows · Linux |
 | Runtime | Electron |
 
 ---
@@ -221,7 +239,16 @@ The **Help** menu links to the Nmap reference guide, NSE script documentation, t
 
 ## Where data is stored
 
-Saved scan results (for the comparison), your presets and report details (tester name, organisation, …) are stored only locally in the app's data folder — nothing is sent anywhere. The only network request the app makes on its own is the optional update check to the public GitHub releases API. Untick *Remember these details* in the report dialog to keep only the report language. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
+Saved scan results (for the comparison), your presets, the monitoring schedule, the interface language and report details (tester name, organisation, …) are stored only locally in the app's data folder. The app makes these network requests on its own, all without an account or API key:
+
+| Service | When | What is sent |
+|---|---|---|
+| GitHub releases API | update check (max. every 12 h, can be turned off) | nothing but the request |
+| CISA KEV catalogue | after a scan with CVEs (max. once a day) | nothing — the whole public list is downloaded |
+| FIRST EPSS API | after a scan with CVEs | CVE numbers only |
+| NIST NVD API | after a scan with CVEs (details for up to 25 CVEs) | CVE numbers only |
+
+IP addresses, host names and scan output never leave your computer. Turn the vulnerability lookups off with *turn off* in the Vulnerabilities panel. Untick *Remember these details* in the report dialog to keep only the report language. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
 
 ---
 

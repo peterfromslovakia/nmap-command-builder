@@ -2399,7 +2399,7 @@
 }
 .btn--discover:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 8px rgba(0,255,255,0.25); }
 .discover-mode {
-  font-family: var(--font-mono); font-size: 11.5px; max-width: 210px;
+  font-family: var(--font-mono); font-size: 11.5px; max-width: 250px;
   background: var(--bg-input); color: var(--text-200);
   border: 1px solid rgba(0,255,255,0.45); border-left: none; border-radius: 0 var(--radius) var(--radius) 0; padding: 0 6px;
 }

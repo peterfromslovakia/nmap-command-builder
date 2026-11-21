@@ -61,3 +61,13 @@ describe('release', () => {
     ['mac', 'nsis', 'linux'].forEach((k) => expect(pkg.build[k].artifactName).not.toMatch(/\s|\$\{productName\}/));
   });
 });
+
+describe('version', () => {
+  test('footer version matches package.json', () => {
+    expect(read('src/App.js')).toContain(`Nmap Command Builder v${pkg.version}<`);
+  });
+
+  test('CHANGELOG has a section for the current version (used as release notes)', () => {
+    expect(read('CHANGELOG.md')).toMatch(new RegExp(`^## ${pkg.version.replace(/\./g, '\\.')} — \\d{4}-\\d{2}-\\d{2}$`, 'm'));
+  });
+});
