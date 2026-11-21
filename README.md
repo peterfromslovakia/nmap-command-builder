@@ -31,6 +31,7 @@ Built with **Electron + React** and designed for system administrators, cybersec
 - [Security Model](#security-model)
 - [Dependency Security Notes](#dependency-security-notes)
 - [Responsible Use](#responsible-use)
+- [Changelog](CHANGELOG.md)
 - [Roadmap](#roadmap)
 - [Author](#author)
 - [License](#license)

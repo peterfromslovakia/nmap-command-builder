@@ -63,6 +63,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository (for CHANGELOG)
+        uses: actions/checkout@v4
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '/^## /{p = ($2 == v)} p' CHANGELOG.md > release-notes.md
+          [ -s release-notes.md ] || echo "Release $GITHUB_REF_NAME" > release-notes.md
+          cat release-notes.md
+
       - name: Download all release artifacts
         uses: actions/download-artifact@v4
         with:
@@ -81,5 +91,6 @@ jobs:
             release-artifacts/**/*.AppImage
             release-artifacts/**/*.blockmap
             release-artifacts/**/latest*.yml
+          body_path: release-notes.md
           generate_release_notes: true
           overwrite_files: true
