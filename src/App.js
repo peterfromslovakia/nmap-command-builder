@@ -5,7 +5,11 @@ import { FLAG_CATEGORIES } from './data/flags';
 import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
-import { buildReportModel, toMarkdown, toHtml } from './utils/report';
+import { buildReportModel, toMarkdown, toHtml, pdfFooterLabel } from './utils/report';
+import { loadReportMeta, saveReportMeta } from './utils/reportMeta';
+import ReportDialog from './components/ReportDialog';
+import UpdateBanner from './components/UpdateBanner';
+import { loadUpdatePrefs, saveUpdatePrefs, shouldAutoCheck, shouldShowBanner } from './utils/updatePrefs';
 import { rootRequirements } from './utils/privileges';
 import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots, comparisonFor } from './utils/scanDiff';
 
@@ -82,6 +86,9 @@ export default function App() {
   // ── Saved scan snapshots (for "changes since previous scan") ─────────────
   const [snapshots, setSnapshots] = useState(() => loadSnapshots());
   const [currentSnapshot, setCurrentSnapshot] = useState(null);
+  const [update, setUpdate] = useState(null);
+  const [reportDialog, setReportDialog] = useState(null); // 'pdf' | 'md' | null
+  const [reportMeta, setReportMeta] = useState(() => loadReportMeta());
   const [userPresets, setUserPresets] = useState(() => loadUserPresets());
   const [diffBaselineId, setDiffBaselineId] = useState(null); // null = najnovsi predchadzajuci sken
   useEffect(() => { setDiffBaselineId(null); }, [currentSnapshot]);
@@ -350,8 +357,10 @@ export default function App() {
   }, []);
 
   // ── Unified export handler — supports txt / json / csv ────────────────────
-  const handleExport = useCallback(async (format = 'txt') => {
+  const handleExport = useCallback(async (format = 'txt', meta = null) => {
     if (!window.electronAPI) return;
+    // Report (PDF / MD): najprv udaje o teste a jazyk.
+    if ((format === 'pdf' || format === 'md') && !meta) { setReportDialog(format); return; }
 
     const rawText = outputLines.map((l) => l.text || '').join('');
     const { openPorts } = parseScanSummary(outputLines);
@@ -367,6 +376,7 @@ export default function App() {
         target: scannedTarget || targetRef.current,
         timestamp: new Date().toLocaleString(),
         nmapVersion: nmapStatus.version,
+        meta,
         comparison: comparison && {
           baselineTime: new Date(comparison.baseline.time).toLocaleString(),
           baselineCommand: comparison.baseline.command,
@@ -374,7 +384,7 @@ export default function App() {
         },
       });
       if (format === 'pdf') {
-        const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${stamp}.pdf`);
+        const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${model.lang}-${stamp}.pdf`, pdfFooterLabel(model));
         setOutputLines((prev) => [
           ...prev,
           res.success
@@ -384,7 +394,7 @@ export default function App() {
         return;
       }
       content = toMarkdown(model);
-      filename = `nmap-report-${stamp}.md`;
+      filename = `nmap-report-${model.lang}-${stamp}.md`;
       filters = [{ name: 'Markdown', extensions: ['md'] }];
     } else if (format === 'json') {
       const data = {
@@ -486,13 +496,32 @@ export default function App() {
   useEffect(() => {
     const onKey = (e) => {
       const m = matchShortcut(e, IS_MAC);
-      if (!m) return;
+      if (!m || document.querySelector('.modal-backdrop')) return; // dialog ma vlastne klavesy
       e.preventDefault();
       shortcutRef.current[m.action]?.(m.tab);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // ── Kontrola novej verzie pri spusteni (max. raz za 12 h, da sa vypnut) ───
+  useEffect(() => {
+    if (!window.electronAPI?.checkUpdate) return undefined;
+    const prefs = loadUpdatePrefs();
+    if (!shouldAutoCheck(prefs)) return undefined;
+    const timer = setTimeout(async () => {
+      const r = await window.electronAPI.checkUpdate();
+      if (r && r.ok) saveUpdatePrefs({ ...loadUpdatePrefs(), lastCheck: Date.now() });
+      if (shouldShowBanner(r, loadUpdatePrefs())) setUpdate(r);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const dismissUpdate = useCallback((disableAuto = false) => {
+    const prefs = loadUpdatePrefs();
+    saveUpdatePrefs({ ...prefs, dismissed: update?.latest || prefs.dismissed, ...(disableAuto ? { auto: false } : {}) });
+    setUpdate(null);
+  }, [update]);
 
   // ── Status indicator label ────────────────────────────────────────────────
   const statusMap = {
@@ -537,6 +566,15 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {update && (
+        <UpdateBanner
+          update={update}
+          onDownload={(url) => window.electronAPI.openDownload(url)}
+          onLater={() => dismissUpdate(false)}
+          onDisableAuto={() => dismissUpdate(true)}
+        />
+      )}
 
       {/* ── nmap not found warning ────────────────────────────────────────── */}
       {nmapStatus.checked && !nmapStatus.available && (
@@ -780,12 +818,26 @@ export default function App() {
       </div>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
+      {reportDialog && (
+        <ReportDialog
+          format={reportDialog}
+          initial={reportMeta}
+          onCancel={() => setReportDialog(null)}
+          onGenerate={(meta) => {
+            saveReportMeta(meta);
+            setReportMeta(meta);
+            setReportDialog(null);
+            handleExport(reportDialog, meta);
+          }}
+        />
+      )}
+
       <footer className="app-footer">
         <span className="app-footer__text">
           Created by <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.3.0</span>
+        <span className="app-footer__item">Nmap Command Builder v1.4.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Use responsibly &amp; ethically</span>
         <span className="app-footer__sep app-footer__keys-sep">·</span>

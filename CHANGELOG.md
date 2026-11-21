@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — 2026-11-21
+
+### New
+- **Professional vulnerability report in English or Slovak** — before exporting a PDF / Markdown report you choose the language and fill in who performed the test, organisation, client / system owner and authorisation reference (remembered for next time, optional). The report now has a confidentiality notice, an overall risk rating with an executive summary, a findings overview table, a scope & limitations section and page numbers with the tester's name in the PDF footer. All remediation steps and risk notes are translated
+- **Update check** — on start (at most every 12 hours) the app checks GitHub for a newer version and offers the installer for your system (macOS Apple Silicon / Intel, Windows, Linux). *Help → Check for Updates…* checks on demand. The check only reads the public releases page, can be turned off, and the app never installs anything by itself
+- **macOS Intel build** — releases now include `-x64.dmg` for Intel Macs next to `-arm64.dmg` for Apple Silicon
+
 ## 1.3.0 — 2026-11-21
 
 ### New
