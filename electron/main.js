@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen, net, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -140,8 +140,35 @@ function setMenu(lang) {
     openUrl: (url) => shell.openExternal(url),
     showAbout: () => app.showAboutPanel(),
     checkUpdates: () => checkUpdatesInteractive(),
+    openDataFolder: () => shell.openPath(app.getPath('userData')),
+    clearData: () => clearAllData(),
     lang,
   })));
+}
+
+// Vymazanie vsetkych ulozenych dat aplikacie (po potvrdeni). Exporty sa nemenia.
+async function clearAllData() {
+  const T = menuText(uiLang);
+  const r = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: [T.clearYes, T.cancel],
+    defaultId: 1,
+    cancelId: 1,
+    message: T.clearTitle,
+    detail: T.clearDetail,
+  });
+  if (r.response !== 0) return;
+  if (currentScanProcess) { try { currentScanProcess.kill('SIGTERM'); } catch (_) {} }
+  const dir = app.getPath('userData');
+  ['intel', 'bin'].forEach((d) => fs.rmSync(path.join(dir, d), { recursive: true, force: true }));
+  ['monitor-reports.json', 'window-state.json'].forEach((f) => fs.rmSync(path.join(dir, f), { force: true }));
+  vulnIntel = null;
+  await session.defaultSession.clearStorageData();
+  await session.defaultSession.clearCache();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.reload();
+    dialog.showMessageBox(mainWindow, { type: 'info', message: T.cleared });
+  }
 }
 
 // Systemove upozornenie (monitorovanie). Text je obycajny retazec s obmedzenou dlzkou;

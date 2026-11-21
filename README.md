@@ -240,6 +240,16 @@ The **Help** menu links to the Nmap reference guide, NSE script documentation, t
 
 ## Where data is stored
 
+The app needs no administrator rights or special permissions for its data — it uses the standard per-user application folder that every desktop app gets:
+
+| System | Folder |
+|---|---|
+| macOS | `~/Library/Application Support/Nmap Command Builder` |
+| Windows | `%APPDATA%\Nmap Command Builder` |
+| Linux | `~/.config/Nmap Command Builder` |
+
+Typical size is 5–30 MB (mostly Electron's own cache; the vulnerability database cache is under 1 MB). PDF reports are rendered through a temporary file that is deleted immediately. *Help → Open Data Folder* shows the folder, *Help → Delete All Saved Data…* removes everything after a confirmation (exported reports are not touched).
+
 Saved scan results (for the comparison), your presets, the monitoring schedule, the interface language and report details (tester name, organisation, …) are stored only locally in the app's data folder. The app makes these network requests on its own, all without an account or API key:
 
 | Service | When | What is sent |

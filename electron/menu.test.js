@@ -50,3 +50,13 @@ test('menu labels follow the UI language (en / sk), unknown falls back to Englis
   assert.strictEqual(labels('de'), labels('en'));
   assert.deepStrictEqual(Object.keys(menuText('sk')).sort(), Object.keys(menuText('en')).sort());
 });
+
+test('Help menu: open data folder and delete all data call their handlers', () => {
+  const calls = [];
+  const tpl = buildMenuTemplate({ isMac: true, isDev: false, appName: 'X', openUrl: () => {}, showAbout: () => {}, checkUpdates: () => {},
+    openDataFolder: () => calls.push('open'), clearData: () => calls.push('clear'), lang: 'sk' });
+  const help = tpl.find((m) => m.role === 'help').submenu;
+  help.find((i) => i.label === 'Otvoriť priečinok s dátami').click();
+  help.find((i) => i.label === 'Vymazať všetky uložené dáta…').click();
+  assert.deepStrictEqual(calls, ['open', 'clear']);
+});
