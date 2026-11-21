@@ -6,6 +6,7 @@ import { getPortIntel } from '../data/portIntel';
 import { getPortFixes } from '../data/remediation';
 import { getLabel } from './deviceLabels';
 import { labels, tr } from '../i18n/report';
+import { isDiscoveryScan } from './scanMeta';
 
 const RE_HOST = /^Nmap scan report for (.+)$/;
 const RE_PORT = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered)\s+(\S+)(?:\s+(.*))?$/;
@@ -53,11 +54,23 @@ export function changeSections(diff, lang = 'en') {
     .map(([key, tone, items]) => ({ key, title: L.changeTitles[key], tone, items }));
 }
 
+/** Vráti true ak diff obsahuje časti, ktoré nemožno spoľahlivo porovnať. */
+export function diffHasMethodWarning(diff) {
+  return Boolean(diff && diff.methodDiffers);
+}
+
 /**
  * Celkove riziko: najzavaznejsi nalez; bez nalezov aspon "medium" pri rizikovom
  * spristupnenom porte (napr. Telnet, SMB, RDP) a "low" pri porte na kontrolu.
+ *
+ * Pre discovery sken (-sn) vráti 'not_assessed' — porty a zraniteľnosti sa netestovali.
+ * Pre port-only sken bez nálezov vráti 'not_assessed' ak command obsahuje iba port scan
+ * (žiadne vuln skripty) — nemáme dôvod tvrdiť "nič sa nenašlo" bez testov.
  */
-export function overallRisk(findings, hosts) {
+export function overallRisk(findings, hosts, command) {
+  // Discovery sken: netestovali sa porty ani zraniteľnosti — nemôžeme hodnotiť
+  if (isDiscoveryScan(command)) return 'not_assessed';
+
   for (const sev of ['critical', 'high', 'medium']) {
     if (findings.some((f) => f.severity === sev)) return sev;
   }
@@ -189,18 +202,19 @@ export function buildReportModel({
     generatedAt: generatedAt || timestamp,
     hosts, findings, portAdvice, counts, actions,
     exploitedCount: findings.filter((f) => f.exploited).length,
-    risk: overallRisk(findings, hosts),
+    risk: overallRisk(findings, hosts, command),
     techniques: describeTechniques(command, L, { intel: usedIntel }),
     intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
     inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
     deviceLabels: deviceLabels || null,
     // Mapa siete (priloha A) — len pri skene siete s aspon 2 zariadeniami
     map: Array.isArray(inventory) && inventory.length > 1 ? reportMap(inventory, findings, gatewayIp, localIps, target) : null,
-    // comparison: { baselineTime, baselineCommand, sameCommand, sections }
+    // comparison: { baselineTime, baselineCommand, sameCommand, methodDiffers, sections }
     comparison: comparison && comparison.diff ? {
       baselineTime: comparison.baselineTime,
       baselineCommand: comparison.baselineCommand,
       sameCommand: comparison.diff.sameCommand,
+      methodDiffers: Boolean(comparison.diff.methodDiffers),
       sections: changeSections(comparison.diff, m.lang),
     } : null,
     openPortCount: hosts.reduce((n, h) => n + h.ports.length, 0),

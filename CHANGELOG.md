@@ -11,6 +11,12 @@
   - **IP Information** — geolocation and ISP details for any public IP via ipinfo.io (free, no registration, no API key)
 - Keyboard shortcut **⌘6 / Ctrl+6** switches to the TOOLS tab
 
+### Fixed
+- **Scan diff: false "closed ports" after discovery scan** — comparing a previous full scan (`-sV`) against a discovery-only scan (`-sn`) no longer marks all previously open ports as "closed". Ports that were simply not tested are skipped; only genuine methodology-compatible comparisons are shown
+- **Scan diff: false "fixed vulnerabilities" after methodology change** — findings are marked as resolved only when both scans ran the same type of scripts; a port-only scan cannot "fix" vulnerabilities found by vuln scripts
+- **Report risk: "NOT ASSESSED" for discovery scans** — a `-sn` ping scan now shows "Risk: NOT ASSESSED" in reports instead of "Risk: NONE". The difference matters: *none* means "tested and found nothing", *not assessed* means "no vulnerability testing was performed"
+- **Scan history: crash vs kill** — a scan terminated by a crash signal (SIGSEGV, SIGABRT etc.) is now recorded with status `crashed` instead of `killed` in the scan history
+
 ## 1.9.0 — 2026-11-21
 
 ### New

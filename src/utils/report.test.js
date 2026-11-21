@@ -112,11 +112,17 @@ describe('report details, overall risk and language', () => {
   });
 
   test('overall risk follows the worst finding, then risky ports', () => {
-    expect(overallRisk([{ severity: 'low' }, { severity: 'critical' }], [])).toBe('critical');
-    expect(overallRisk([], [{ ports: [{ risk: 'high' }] }])).toBe('medium');
-    expect(overallRisk([], [{ ports: [{ risk: 'medium' }] }])).toBe('low');
-    expect(overallRisk([], [{ ports: [{ risk: 'safe' }] }])).toBe('none');
+    const cmd = 'nmap -sV 192.168.1.1';
+    expect(overallRisk([{ severity: 'low' }, { severity: 'critical' }], [], cmd)).toBe('critical');
+    expect(overallRisk([], [{ ports: [{ risk: 'high' }] }], cmd)).toBe('medium');
+    expect(overallRisk([], [{ ports: [{ risk: 'medium' }] }], cmd)).toBe('low');
+    expect(overallRisk([], [{ ports: [{ risk: 'safe' }] }], cmd)).toBe('none');
     expect(model.risk).toBe('high');
+  });
+
+  test('overall risk is not_assessed for discovery scans', () => {
+    expect(overallRisk([{ severity: 'low' }], [{ ports: [{ risk: 'high' }] }], 'nmap -sn 192.168.1.0/24')).toBe('not_assessed');
+    expect(overallRisk([], [], 'nmap -sn 192.168.1.0/24')).toBe('not_assessed');
   });
 
   test('Slovak markdown: labels, translated findings and fixes, tester details', () => {

@@ -107,3 +107,53 @@ test('comparisonFor picks the chosen baseline, falls back to the newest', () => 
   expect(comparisonFor([a], a)).toBeNull();
   expect(comparisonFor(list, null)).toBeNull();
 });
+
+describe('discovery scan vs port scan diff', () => {
+  // Discovery sken našiel len 192.168.1.20; 192.168.1.30 nebolo dostupné
+  const SN_OUTPUT = `Nmap scan report for fileserver.lan (192.168.1.20)
+`;
+  const snapSn = (id, time) =>
+    makeSnapshot({ id, time, target: '192.168.1.0/24', command: 'nmap -sn 192.168.1.0/24', text: SN_OUTPUT });
+  const snapFull = (id, time) =>
+    makeSnapshot({ id, time, target: '192.168.1.0/24', command: 'nmap -sV 192.168.1.0/24', text: OLD });
+
+  test('snapshot ukladá scanType', () => {
+    expect(snapSn(1, '2026-11-20T10:00:00Z').scanType).toBe('discovery');
+    expect(snapFull(1, '2026-11-20T10:00:00Z').scanType).toBe('service');
+  });
+
+  test('snapshot ukladá exitCode a signal', () => {
+    const s = makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: '192.168.1.0/24', command: 'nmap -sn 192.168.1.0/24', text: '', exitCode: 0, signal: null });
+    expect(s.exitCode).toBe(0);
+    expect(s.signal).toBeUndefined();
+  });
+
+  test('discovery vs port scan: žiadne closedPorts ani resolvedFindings', () => {
+    const prev = snapFull(1, '2026-11-20T10:00:00Z'); // mal otvorené porty
+    const curr = snapSn(2, '2026-11-21T10:00:00Z');   // discovery: žiadne porty
+    const d = diffScans(prev, curr);
+    expect(d.closedPorts).toEqual([]);
+    expect(d.resolvedFindings).toEqual([]);
+    expect(d.portsComparable).toBe(false);
+    expect(d.methodDiffers).toBe(true);
+  });
+
+  test('discovery vs port scan: noví/stratení hostitelia sa stále detegujú', () => {
+    const prev = snapFull(1, '2026-11-20T10:00:00Z');
+    const curr = snapSn(2, '2026-11-21T10:00:00Z');
+    const d = diffScans(prev, curr);
+    // 192.168.1.30 bol v prev, ale nie v curr (SN výstup ho neobsahuje)
+    expect(d.goneHosts.map((h) => h.host)).toContain('192.168.1.30');
+  });
+
+  test('rovnaké port skeny: closedPorts a resolvedFindings fungujú normálne', () => {
+    const prev = snapFull(1, '2026-11-20T10:00:00Z');
+    // Porovnanie pomocou NEW výstupu
+    const currNew = makeSnapshot({ id: 2, time: '2026-11-21T10:00:00Z', target: '192.168.1.0/24', command: 'nmap -sV 192.168.1.0/24', text: NEW });
+    const d = diffScans(prev, currNew);
+    expect(d.portsComparable).toBe(true);
+    expect(d.methodDiffers).toBe(false);
+    expect(d.closedPorts.map((p) => p.port)).toContain('21');
+    expect(d.resolvedFindings.map((f) => f.id)).toContain('ftp-anon');
+  });
+});

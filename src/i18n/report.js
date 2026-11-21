@@ -20,6 +20,7 @@ export const LABELS = {
       medium: 'Medium-severity issues or risky exposed services were found. Fix them in the next maintenance window.',
       low: 'Only low-severity issues were found. Review the recommendations below.',
       none: 'No vulnerabilities were detected by the scripts that ran. This does not prove the systems are secure — see the scope note below.',
+      not_assessed: 'No vulnerability testing was performed — this scan only checked which hosts are online (host discovery). To assess security, run a scan with port scanning and vulnerability scripts.',
     },
     hostsUp: 'Hosts up', openPorts: 'Open ports', findingsCount: 'Findings',
     sev: { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', none: 'None', safe: 'Standard' },
@@ -28,6 +29,7 @@ export const LABELS = {
     changes: 'Changes since previous scan',
     comparedWith: (time, cmd) => `Compared with the scan from ${time} (${cmd}).`,
     differentCommand: 'Different command — some differences may come from different options.',
+    methodWarning: 'Scan types differ significantly (e.g. one was discovery-only, the other scanned ports). Port and vulnerability changes are not shown — they were not tested in both scans.',
     noChanges: 'No changes.',
     changeTitles: {
       'New vulnerabilities': 'New vulnerabilities', 'New open ports': 'New open ports', 'New hosts': 'New hosts',
@@ -136,6 +138,7 @@ export const LABELS = {
       medium: 'Boli nájdené stredne závažné problémy alebo rizikové sprístupnené služby. Opravte ich pri najbližšej údržbe.',
       low: 'Boli nájdené len menej závažné problémy. Prejdite si odporúčania nižšie.',
       none: 'Spustené skripty nenašli žiadne zraniteľnosti. To nedokazuje, že systémy sú bezpečné — pozrite rozsah a obmedzenia nižšie.',
+      not_assessed: 'Netestovali sa zraniteľnosti — tento sken len zistil, ktoré zariadenia sú online (host discovery). Pre hodnotenie bezpečnosti spustite sken s testovaním portov a vulnerability skriptmi.',
     },
     hostsUp: 'Aktívne zariadenia', openPorts: 'Otvorené porty', findingsCount: 'Nálezy',
     sev: { critical: 'Kritické', high: 'Vysoké', medium: 'Stredné', low: 'Nízke', none: 'Žiadne', safe: 'Bežné' },
@@ -144,6 +147,7 @@ export const LABELS = {
     changes: 'Zmeny od predchádzajúceho skenu',
     comparedWith: (time, cmd) => `Porovnané so skenom z ${time} (${cmd}).`,
     differentCommand: 'Iný príkaz — časť rozdielov môže byť spôsobená inými voľbami.',
+    methodWarning: 'Typy skenov sa výrazne líšia (napr. jeden bol len discovery, druhý skenoval porty). Zmeny portov a zraniteľností sa nezobrazujú — neboli testované v oboch skenoch.',
     noChanges: 'Bez zmien.',
     changeTitles: {
       'New vulnerabilities': 'Nové zraniteľnosti', 'New open ports': 'Novo otvorené porty', 'New hosts': 'Nové zariadenia',

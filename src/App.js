@@ -118,6 +118,7 @@ export default function App() {
   const [discoverMode, setDiscoverMode] = useState('quick'); // zariadenia po skene siete
   const scanKindRef = useRef('scan');
   const lastScanRef = useRef(null); // { args, command, target } posledneho spusteneho skenu
+  const lastExitRef = useRef({ code: null, signal: null }); // exit info posledneho skenu
   const [monitor, setMonitor] = useState(() => loadMonitor());
   const [clock, setClock] = useState(() => Date.now());
   const monitorHandledRef = useRef(0);
@@ -218,6 +219,7 @@ export default function App() {
 
     const cleanDone = window.electronAPI.onScanDone((data) => {
       busyRef.current = false;
+      lastExitRef.current = { code: data.code, signal: data.signal || null };
       setScanStatus(data.signal ? 'killed' : 'done');
       const statusMsg = data.signal
         ? `\n[⊗ ${tRef.current('Scan killed — signal: {signal}', { signal: data.signal })}]`
@@ -226,13 +228,14 @@ export default function App() {
         ...prev,
         { id: Date.now(), type: 'system', text: statusMsg },
       ]);
+      const isCrash = data.signal && data.signal !== 'SIGTERM' && data.signal !== 'SIGKILL';
       setScanHistory((prev) => [
         {
           command: currentCommandRef.current,
           time: new Date().toISOString(),
           exitCode: data.code,
           signal: data.signal,
-          status: data.signal ? 'killed' : data.code === 0 ? 'success' : 'error',
+          status: isCrash ? 'crashed' : data.signal ? 'killed' : data.code === 0 ? 'success' : 'error',
         },
         ...prev,
       ].slice(0, 10));
@@ -448,6 +451,8 @@ export default function App() {
       target: scannedTarget,
       command: currentCommandRef.current,
       text: scanText,
+      exitCode: lastExitRef.current.code,
+      signal: lastExitRef.current.signal,
     });
     if (snap.hosts.length === 0) { emptyScanIdRef.current = scanIdRef.current; return; }
     setSnapshots(saveSnapshot(snap));
