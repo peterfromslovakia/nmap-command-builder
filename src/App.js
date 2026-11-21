@@ -653,7 +653,7 @@ export default function App() {
           Created by <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.0.0</span>
+        <span className="app-footer__item">Nmap Command Builder v1.1.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Use responsibly &amp; ethically</span>
       </footer>
