@@ -7,7 +7,7 @@ const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
  * Zranitelnosti a nebezpecne konfiguracie najdene NSE skriptami + ako ich opravit.
  * Ak sken nespustal skripty, ponukne tip ako ich spustit.
  */
-export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan }) {
+export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport }) {
   const text = useMemo(() => lines.map((l) => l.text || '').join(''), [lines]);
   const findings = useMemo(() => parseFindings(text), [text]);
   const ranScripts = useMemo(() => /^\|[_ ]/m.test(text), [text]);
@@ -46,6 +46,16 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan }) {
                 {counts[s]} {SEV_LABEL[s]}
               </span>
             ) : null
+          )}
+          {onExport && (
+            <>
+              <button className="findings-export" onClick={() => onExport('pdf')} title="Save report as PDF">
+                ↓ PDF
+              </button>
+              <button className="findings-export" onClick={() => onExport('md')} title="Save report as Markdown">
+                ↓ MD
+              </button>
+            </>
           )}
         </div>
       </div>

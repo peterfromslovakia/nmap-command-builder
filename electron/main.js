@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const { detectNetworks } = require('./network');
+const { validateArgs } = require('./argsValidator');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -25,46 +26,7 @@ let currentScanProcess = null;
 
 // ─── Security helpers ────────────────────────────────────────────────────────
 
-// Povolene prepinace nmapu = presne tie, ktore pozna UI (src/data/flags.js).
-// Akykolvek iny prepinac (--datadir, --resume, --script-args-file, ...) sa
-// zahodi v main procese, aj keby ho renderer poslal.
-const ALLOWED_FLAGS = new Set([
-  '-iL', '--exclude', '-Pn', '-sL', '-sn', '-n', '--traceroute',
-  '-sS', '-sT', '-sU', '-sA', '-sN', '-sF', '-sX',
-  '-p', '-F', '--top-ports', '-p-',
-  '-sV', '--version-intensity', '--version-light', '--version-all',
-  '-O', '--osscan-limit', '--osscan-guess',
-  '-sC', '--script', '--script-args',
-  '--min-rate', '--max-rate', '--max-retries', '--host-timeout',
-  '-v', '-vv', '--open', '--reason', '-oN', '-oX', '-oG', '--stats-every',
-  '-A', '-f', '--mtu', '-D', '-S', '--spoof-mac', '--data-length', '--badsum',
-  '-sI', '-b', '--proxies',
-]);
-const ATTACHED_FLAG_RES = [/^-P[SAU][\d,-]*$/, /^-T[0-5]$/];
-const SCRIPT_VALUE_RE = /^[A-Za-z0-9_,*.+() -]+$/; // nazvy/kategorie, nie cesty
-
-function validateArgs(args) {
-  if (!Array.isArray(args) || args.length === 0 || args.length > 64) {
-    return 'Invalid argument format.';
-  }
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (typeof a !== 'string' || a.length === 0 || a.length > 1024) return 'Invalid argument format.';
-    if (/[\u0000-\u001f\u007f]/.test(a)) return 'Invalid characters in argument.';
-    if (a.startsWith('-')) {
-      if (!ALLOWED_FLAGS.has(a) && !ATTACHED_FLAG_RES.some((re) => re.test(a))) {
-        return `Flag not allowed: "${a}"`;
-      }
-      if (a === '--script') {
-        const v = args[i + 1];
-        if (typeof v !== 'string' || !SCRIPT_VALUE_RE.test(v)) {
-          return '--script accepts only script names/categories, not file paths.';
-        }
-      }
-    }
-  }
-  return null;
-}
+// Whitelist prepinacov a validacia argumentov: pozri ./argsValidator.js
 
 // IPC smie volat len nase vlastne okno (nie iny frame ani cudzi web content).
 function isTrusted(event) {
@@ -76,7 +38,7 @@ function isTrusted(event) {
 }
 
 const EXPORT_MAX_BYTES = 20 * 1024 * 1024;
-const EXPORT_EXTS = new Set(['.txt', '.json', '.csv']);
+const EXPORT_EXTS = new Set(['.txt', '.json', '.csv', '.md']);
 
 // Rozdeli stream na cele riadky; nedokonceny zvysok drzi, kym nepride dalsi chunk.
 function createLineBuffer(emit) {
@@ -283,17 +245,59 @@ ipcMain.handle('nmap:export', async (event, payload) => {
   const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
     defaultPath: safeName,
     filters: [
-      { name: 'Text / JSON / CSV', extensions: ['txt', 'json', 'csv'] },
+      { name: 'Text / JSON / CSV / Markdown', extensions: ['txt', 'json', 'csv', 'md'] },
     ],
   });
   if (canceled || !filePath) return { success: false, cancelled: true };
   if (!EXPORT_EXTS.has(path.extname(filePath).toLowerCase())) {
-    return { success: false, error: 'Only .txt, .json and .csv exports are allowed.' };
+    return { success: false, error: 'Only .txt, .json, .csv and .md exports are allowed.' };
   }
   try {
     fs.writeFileSync(filePath, content, 'utf8');
     return { success: true, filePath };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+// ─── IPC: Export report as PDF ────────────────────────────────────────────────
+// Renderer posle hotove HTML reportu (hodnoty uz escapovane). Vykresli sa v
+// skrytom okne bez JavaScriptu, bez preloadu a bez moznosti navigacie; HTML
+// ma CSP default-src 'none', takze nenacita nic zo siete.
+ipcMain.handle('report:pdf', async (event, payload) => {
+  if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
+  const { html, defaultFilename } = payload || {};
+  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > EXPORT_MAX_BYTES) {
+    return { success: false, error: 'Invalid or too large report.' };
+  }
+  const safeName = path.basename(String(defaultFilename || 'nmap-report.pdf'));
+  const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: safeName,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (canceled || !filePath) return { success: false, cancelled: true };
+  if (path.extname(filePath).toLowerCase() !== '.pdf') {
+    return { success: false, error: 'Only .pdf files are allowed.' };
+  }
+
+  const tmpFile = path.join(app.getPath('temp'), `nmap-report-${process.pid}-${Date.now()}.html`);
+  let win = null;
+  try {
+    fs.writeFileSync(tmpFile, html, 'utf8');
+    win = new BrowserWindow({
+      show: false,
+      webPreferences: { javascript: false, sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    win.webContents.on('will-navigate', (e) => e.preventDefault());
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    await win.loadFile(tmpFile);
+    const pdf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
+    fs.writeFileSync(filePath, pdf);
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    if (win && !win.isDestroyed()) win.destroy();
+    fs.rm(tmpFile, { force: true }, () => {});
   }
 });

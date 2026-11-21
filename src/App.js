@@ -5,6 +5,7 @@ import { FLAG_CATEGORIES } from './data/flags';
 import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
+import { buildReportModel, toMarkdown, toHtml } from './utils/report';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -288,7 +289,28 @@ export default function App() {
 
     let content, filename, filters;
 
-    if (format === 'json') {
+    if (format === 'md' || format === 'pdf') {
+      const model = buildReportModel({
+        text: rawText,
+        command: currentCommandRef.current,
+        target: scannedTarget || targetRef.current,
+        timestamp: new Date().toLocaleString(),
+        nmapVersion: nmapStatus.version,
+      });
+      if (format === 'pdf') {
+        const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${stamp}.pdf`);
+        setOutputLines((prev) => [
+          ...prev,
+          res.success
+            ? { id: Date.now(), type: 'system', text: `\n[✓ PDF report saved to: ${res.filePath}]` }
+            : res.cancelled ? null : { id: Date.now(), type: 'error', text: `\n[✗ PDF export failed: ${res.error}]` },
+        ].filter(Boolean));
+        return;
+      }
+      content = toMarkdown(model);
+      filename = `nmap-report-${stamp}.md`;
+      filters = [{ name: 'Markdown', extensions: ['md'] }];
+    } else if (format === 'json') {
       const data = {
         command: currentCommandRef.current,
         target: targetRef.current,
@@ -334,7 +356,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines]);
+  }, [outputLines, scannedTarget, nmapStatus.version]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
@@ -609,6 +631,7 @@ export default function App() {
             lines={outputLines}
             scanStatus={scanStatus}
             onLoadVulnScan={handleLoadVulnScan}
+            onExport={handleExport}
           />
           <IntelPanel lines={outputLines} scanStatus={scanStatus} />
           <FollowUpPanel

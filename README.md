@@ -26,6 +26,7 @@ Built with **Electron + React** and designed for system administrators, cybersec
 - [Installation](#installation)
 - [Usage](#usage)
 - [Root Privileges](#root-privileges)
+- [Testing](#testing)
 - [Production Build](#production-build)
 - [Security Model](#security-model)
 - [Dependency Security Notes](#dependency-security-notes)
@@ -62,10 +63,10 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Visual flag selector organised into collapsible categories
 - Live command preview
 - Safe / Advanced mode toggle
-- Built-in scan presets
+- 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
 - Automatic local network detection (e.g. `192.168.50.0/24`) pre-fills the target and refreshes when the window regains focus
 - Searchable Nmap cheatsheet
-- NSE script library: ~70 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
+- NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
 
 ## Scan Execution
 
@@ -73,6 +74,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live streaming terminal output
 - Kill button for long scans
 - Export results as `.txt`, `.json`, `.csv`
+- **Scan reports** as PDF or Markdown: summary, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
 - Scan history with quick reload
 
 ## Post-Scan Intelligence
@@ -204,6 +206,15 @@ Basic scans such as `-sT` (TCP Connect Scan) work without root privileges.
 
 ---
 
+# Testing
+
+    npm test            # renderer: validators, NSE selection, findings parser, reports, presets
+    npm run test:main   # main process: network detection, argument whitelist
+
+The preset tests check that every preset only uses known flags, produces a command the main-process whitelist accepts, and is labelled at least as risky as the NSE scripts it runs (intrusive → NOISY, `vuln` → INTRUSIVE, brute / exploit / dos → INTRUSIVE and Advanced-only).
+
+---
+
 # Production Build
 
 Create optimized build:
@@ -239,7 +250,8 @@ Security design decisions used in the application:
 - nmap flags are checked against a whitelist in the main process
 - `--script` accepts script names and categories only, not file paths
 - navigation, new windows, webviews and permission requests are blocked
-- exports limited to `.txt`, `.json` and `.csv`
+- exports limited to `.txt`, `.json`, `.csv`, `.md` and `.pdf`
+- PDF reports are rendered in a hidden window with JavaScript disabled, a strict CSP (`default-src 'none'`) and all scan data HTML-escaped
 
 These measures help prevent command injection and improve runtime security.
 
@@ -280,11 +292,10 @@ Always follow responsible disclosure and legal guidelines when performing securi
 
 Future improvements planned:
 
-- improved scan presets
-- export reports to Markdown / PDF
 - improved network topology visualisation
-- automated GitHub release builds
 - optional root privilege helper for advanced scans
+- compare two scans (new / closed ports, new findings)
+- user-defined custom presets
 
 ---
 
