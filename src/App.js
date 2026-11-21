@@ -4,11 +4,13 @@ import './App.css';
 import { FLAG_CATEGORIES } from './data/flags';
 import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
+import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
 import CheatsheetTab from './components/CheatsheetTab';
 import PresetsTab from './components/PresetsTab';
+import ScriptsTab from './components/ScriptsTab';
 import EthicsTab from './components/EthicsTab';
 import TerminalOutput from './components/TerminalOutput';
 import ScanHistory from './components/ScanHistory';
@@ -27,6 +29,13 @@ const initExpanded = () => {
 };
 
 const MAX_OUTPUT_CHUNKS = 5000; // strop pamate pri dlhych skenoch (-p-)
+
+// Nastavi/odstrani jednu hodnotu flagu (prazdna hodnota = flag sa odstrani).
+function setFlagValue(selections, id, value) {
+  const next = { ...selections };
+  if (value) next[id] = value; else delete next[id];
+  return next;
+}
 
 // ─── Parse target from a saved command string (for history reload) ────────────
 function parseCommandToTarget(command) {
@@ -179,6 +188,24 @@ export default function App() {
       }
       return { ...prev, [flagId]: value };
     });
+  }, []);
+
+  // ── NSE script library: upravuje hodnoty flagov 'script' a 'script_args' ──
+  const handleToggleScript = useCallback((name) => {
+    setFlagSelections((prev) => setFlagValue(prev, 'script', toggleScript(prev.script, name)));
+  }, []);
+
+  const handleRemoveScripts = useCallback((names) => {
+    setFlagSelections((prev) => setFlagValue(prev, 'script', removeScripts(prev.script, names)));
+  }, []);
+
+  const handleClearScripts = useCallback(() => {
+    setFlagSelections((prev) => setFlagValue(setFlagValue(prev, 'script', ''), 'script_args', ''));
+  }, []);
+
+  const handleAddScriptArg = useCallback((key, example) => {
+    setFlagSelections((prev) =>
+      setFlagValue(prev, 'script_args', addScriptArg(prev.script_args, key, example)));
   }, []);
 
   const handleToggleCategory = useCallback((catId) => {
@@ -424,6 +451,13 @@ export default function App() {
               PRESETS
             </button>
             <button
+              className={`tab-btn ${activeTab === 'scripts' ? 'tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('scripts')}
+              title="NSE script library"
+            >
+              SCRIPTS
+            </button>
+            <button
               className={`tab-btn tab-btn--ethics ${activeTab === 'ethics' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('ethics')}
               title="Legal notice, ethical usage guide, root-required scans"
@@ -475,6 +509,17 @@ export default function App() {
               <PresetsTab
                 onLoadPreset={handleLoadPreset}
                 advancedMode={advancedMode}
+              />
+            )}
+            {activeTab === 'scripts' && (
+              <ScriptsTab
+                scriptValue={flagSelections.script}
+                scriptArgsValue={flagSelections.script_args}
+                advancedMode={advancedMode}
+                onToggleScript={handleToggleScript}
+                onAddScriptArg={handleAddScriptArg}
+                onRemoveScripts={handleRemoveScripts}
+                onClearScripts={handleClearScripts}
               />
             )}
             {activeTab === 'ethics' && (

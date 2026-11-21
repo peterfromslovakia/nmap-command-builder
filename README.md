@@ -65,6 +65,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Built-in scan presets
 - Automatic local network detection (e.g. `192.168.50.0/24`) pre-fills the target and refreshes when the window regains focus
 - Searchable Nmap cheatsheet
+- NSE script library: ~70 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
 
 ## Scan Execution
 
@@ -278,7 +279,6 @@ Always follow responsible disclosure and legal guidelines when performing securi
 Future improvements planned:
 
 - improved scan presets
-- integrated Nmap script library
 - vulnerability hints based on detected services
 - export reports to Markdown / PDF
 - improved network topology visualisation
