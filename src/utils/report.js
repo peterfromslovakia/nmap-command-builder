@@ -4,6 +4,7 @@ import { applyIntel } from './intel';
 import { getPortRisk } from '../data/portRisk';
 import { getPortIntel } from '../data/portIntel';
 import { getPortFixes } from '../data/remediation';
+import { getLabel } from './deviceLabels';
 import { labels, tr } from '../i18n/report';
 
 const RE_HOST = /^Nmap scan report for (.+)$/;
@@ -131,7 +132,7 @@ function rawAppendix(raw) {
 
 export function buildReportModel({
   text, command, target, timestamp, nmapVersion, comparison, meta, findings: given, intelMeta, inventory, generatedAt,
-  gatewayIp = null, localIps = [],
+  gatewayIp = null, localIps = [], labels: deviceLabels = null,
 }) {
   const m = normalizeMeta(meta);
   const L = labels(m.lang);
@@ -192,6 +193,7 @@ export function buildReportModel({
     techniques: describeTechniques(command, L, { intel: usedIntel }),
     intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
     inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
+    deviceLabels: deviceLabels || null,
     // Mapa siete (priloha A) — len pri skene siete s aspon 2 zariadeniami
     map: Array.isArray(inventory) && inventory.length > 1 ? reportMap(inventory, findings, gatewayIp, localIps, target) : null,
     // comparison: { baselineTime, baselineCommand, sameCommand, sections }
@@ -335,10 +337,19 @@ export function toMarkdown(m) {
 
   if (m.inventory) {
     out.push('', h2('inventory'), '');
-    out.push(`| ${L.colIp} | ${L.colType} | ${L.colName} | ${L.colMac} | ${L.colOpenPorts} |`, '|---|---|---|---|---|');
-    m.inventory.forEach((d) => out.push(
-      `| ${d.ip} | ${L.deviceTypes[d.type] || d.type} | ${mdCell(d.hostname || '—')} | ${mdCell([d.mac, d.randomizedMac ? L.randomMac : d.vendor].filter(Boolean).join(' · ') || '—')} | ${mdCell(d.ports.map((p) => p.port).join(', ') || '—')} |`
-    ));
+    const mdInvLabel = (d) => getLabel(d.mac, d.ip, m.deviceLabels);
+    const mdHasLabels = m.deviceLabels && m.inventory.some(mdInvLabel);
+    if (mdHasLabels) {
+      out.push(`| ${L.colIp} | ${L.colType} | ${L.colLabel || 'Label'} | ${L.colName} | ${L.colMac} | ${L.colOpenPorts} |`, '|---|---|---|---|---|---|');
+      m.inventory.forEach((d) => out.push(
+        `| ${d.ip} | ${L.deviceTypes[d.type] || d.type} | ${mdCell(mdInvLabel(d) || '—')} | ${mdCell(d.hostname || '—')} | ${mdCell([d.mac, d.randomizedMac ? L.randomMac : d.vendor].filter(Boolean).join(' · ') || '—')} | ${mdCell(d.ports.map((p) => p.port).join(', ') || '—')} |`
+      ));
+    } else {
+      out.push(`| ${L.colIp} | ${L.colType} | ${L.colName} | ${L.colMac} | ${L.colOpenPorts} |`, '|---|---|---|---|---|');
+      m.inventory.forEach((d) => out.push(
+        `| ${d.ip} | ${L.deviceTypes[d.type] || d.type} | ${mdCell(d.hostname || '—')} | ${mdCell([d.mac, d.randomizedMac ? L.randomMac : d.vendor].filter(Boolean).join(' · ') || '—')} | ${mdCell(d.ports.map((p) => p.port).join(', ') || '—')} |`
+      ));
+    }
   }
 
   out.push('', h2('ports'), '');
@@ -551,20 +562,25 @@ export function toHtml(m) {
       <ul>${s.items.map((it) => `<li>${e(it)}</li>`).join('')}</ul>
     </div>`).join('')}`;
 
+  const invLabel = (d) => getLabel(d.mac, d.ip, m.deviceLabels);
+  const hasInvLabels = m.inventory && m.deviceLabels && m.inventory.some(invLabel);
   const inventory = !m.inventory ? '' : `
   ${h2('inventory')}
   <table>
-    <thead><tr><th>${e(L.colIp)}</th><th>${e(L.colType)}</th><th>${e(L.colName)}</th><th>${e(L.colMac)}</th><th>${e(L.colOpenPorts)}</th></tr></thead>
+    <thead><tr><th>${e(L.colIp)}</th><th>${e(L.colType)}</th>${hasInvLabels ? `<th>${e(L.colLabel || 'Label')}</th>` : ''}<th>${e(L.colName)}</th><th>${e(L.colMac)}</th><th>${e(L.colOpenPorts)}</th></tr></thead>
     <tbody>${m.inventory.map((d) => `
-      <tr><td><b>${e(d.ip)}</b></td><td>${e(L.deviceTypes[d.type] || d.type)}</td><td>${e(d.hostname || '—')}${d.os ? `<br><span class="muted">${e(d.os)}</span>` : ''}</td>
+      <tr><td><b>${e(d.ip)}</b></td><td>${e(L.deviceTypes[d.type] || d.type)}</td>${hasInvLabels ? `<td>${e(invLabel(d) || '—')}</td>` : ''}<td>${e(d.hostname || '—')}${d.os ? `<br><span class="muted">${e(d.os)}</span>` : ''}</td>
       <td>${d.mac ? `<code>${e(d.mac)}</code>` : '—'}${(d.randomizedMac || d.vendor) ? `<br><span class="muted">${e(d.randomizedMac ? L.randomMac : d.vendor)}</span>` : ''}</td>
       <td>${e(d.ports.map((p) => p.port).join(', ') || '—')}</td></tr>`).join('')}
     </tbody>
   </table>`;
 
-  const mapNode = (d, extra = '') => `
+  const mapNode = (d, extra = '') => {
+    const dl = getLabel(d.mac, d.ip, m.deviceLabels);
+    const mapName = dl || d.hostname;
+    return `
       <div class="nm-node nm-${e(d.risk.level)}">
-        <div><b>${e(d.ip)}</b>${d.hostname ? ` <span class="nm-name">${e(d.hostname)}</span>` : ''}${extra}</div>
+        <div><b>${e(d.ip)}</b>${mapName ? ` <span class="nm-name${dl ? ' nm-label' : ''}">${e(mapName)}</span>` : ''}${extra}</div>
         <div class="nm-sub">${[
     e(L.mapRisk[d.risk.level]),
     d.refs.length ? `<b>${e(d.refs.join(', '))}</b>` : '',
@@ -573,6 +589,7 @@ export function toHtml(m) {
     d.isSelf ? `<i>${e(L.mapYou)}</i>` : '',
   ].filter(Boolean).join(' · ')}</div>
       </div>`;
+  };
   const map = !m.map ? '' : `
   <section class="nm">
   ${h2('map')}
@@ -660,7 +677,7 @@ export function toHtml(m) {
   .nm-group__h span { margin-left: auto; color: #6a8f6a; }
   .nm-node { border: 1px solid #d5ddd5; border-left: 4px solid var(--c); background: #fff; padding: 3px 6px; margin-top: 4px; font-size: 8.5pt; page-break-inside: avoid; }
   .nm-node.nm-critical, .nm-node.nm-high { background: #fff4f2; }
-  .nm-name { color: #555; } .nm-sub { font-size: 7.5pt; color: #555; margin-top: 1px; }
+  .nm-name { color: #555; } .nm-label { color: #0073aa; font-weight: 600; } .nm-sub { font-size: 7.5pt; color: #555; margin-top: 1px; }
   .nm-kev { color: #fff; background: #b71c1c; padding: 0 4px; border-radius: 2px; font-weight: 700; }
   .nm-critical { --c: #b71c1c; } .nm-high { --c: #e64a19; } .nm-medium { --c: #f57c00; } .nm-low, .nm-exposed { --c: #d4a600; } .nm-ok { --c: #2e7d32; }
   .toc { page-break-after: always; } .toc ol { font-size: 11pt; line-height: 1.9; list-style: none; margin-left: 0; } .toc__n { display: inline-block; min-width: 2.2em; }

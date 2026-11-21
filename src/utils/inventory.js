@@ -1,4 +1,5 @@
 // ─── Inventar zariadeni v sieti ───────────────────────────────────────────────
+import { getLabel as _getLabel } from './deviceLabels';
 // Z vystupu nmapu (+ ARP tabulky systemu) zostavi zoznam zariadeni so zakladnymi
 // informaciami a odhadom typu zariadenia.
 
@@ -190,11 +191,19 @@ const csvCell = (v) => {
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export function inventoryCsv(devices) {
-  const head = ['IP', 'Hostname', 'MAC', 'Vendor', 'Type', 'OS', 'Open ports', 'Latency ms'];
-  const rows = devices.map((d) => [
-    d.ip, d.hostname, d.mac, d.randomizedMac ? 'randomized MAC' : d.vendor, DEVICE_TYPES[d.type]?.label || d.type, d.os,
-    d.ports.map((p) => `${p.port}/${p.proto} ${p.service}`).join(' | '), d.latencyMs ?? '',
-  ]);
+export function inventoryCsv(devices, labels) {
+  const getL = labels ? (d) => _getLabel(d.mac, d.ip, labels) : () => '';
+  const hasLabels = labels && devices.some((d) => getL(d));
+  const head = hasLabels
+    ? ['IP', 'Label', 'Hostname', 'MAC', 'Vendor', 'Type', 'OS', 'Open ports', 'Latency ms']
+    : ['IP', 'Hostname', 'MAC', 'Vendor', 'Type', 'OS', 'Open ports', 'Latency ms'];
+  const rows = devices.map((d) => {
+    const base = [
+      d.ip, d.hostname, d.mac, d.randomizedMac ? 'randomized MAC' : d.vendor,
+      DEVICE_TYPES[d.type]?.label || d.type, d.os,
+      d.ports.map((p) => `${p.port}/${p.proto} ${p.service}`).join(' | '), d.latencyMs ?? '',
+    ];
+    return hasLabels ? [d.ip, getL(d), ...base.slice(1)] : base;
+  });
   return [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
 }

@@ -2340,6 +2340,11 @@
 .inv-ports { display: flex; flex-wrap: wrap; gap: 3px; }
 .inv-port { font-size: 11px; padding: 0 5px; border: 1px solid var(--border-mid); border-radius: 2px; color: var(--yellow); }
 .inv-dim { color: var(--text-dim); }
+.inv-label { font-weight: 600; color: var(--cyan); display: block; }
+.inv-label-edit { background: var(--bg-1); border: 1px solid var(--cyan); color: var(--text-100); font-size: 12px; padding: 1px 5px; border-radius: 2px; width: 100%; max-width: 180px; outline: none; }
+.inv-label-edit:focus { box-shadow: 0 0 0 2px rgba(0,255,255,0.15); }
+.inv-edit-btn { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 11px; padding: 0 2px; margin-left: 3px; opacity: 0.5; vertical-align: middle; }
+.inv-edit-btn:hover { opacity: 1; color: var(--cyan); }
 .inventory-note { font-size: 10.5px; color: var(--text-dim); padding: 6px 12px 8px; }
 @media (max-width: 1400px) { .inv-type__label { display: none; } }
 
@@ -2477,6 +2482,8 @@
 .tmap-node__main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tmap-node__ip { font-size: 11.5px; font-weight: 700; }
 .tmap-node__name { font-size: 10.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmap-node__name--label { color: var(--cyan); font-weight: 600; }
+.tmap-detail__name--label { color: var(--cyan); font-weight: 600; }
 .tmap-node__tags { display: inline-flex; gap: 3px; flex-shrink: 0; }
 .tmap-tag { font-size: 9.5px; padding: 0 4px; border: 1px solid var(--border-mid); border-radius: 2px; color: var(--text-200); }
 .tmap-tag--self { color: var(--cyan); border-color: rgba(0,255,255,0.45); }

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { DEVICE_TYPES } from '../utils/inventory';
 import { buildTopology, hostIp } from '../utils/topology';
 import { getPortRisk } from '../data/portRisk';
+import { getLabel } from '../utils/deviceLabels';
 import { useLang } from '../i18n/ui';
 import { tr } from '../i18n/report';
 
@@ -17,9 +18,10 @@ const RISK_LABEL = {
 const LEGEND = ['critical', 'high', 'medium', 'exposed', 'ok'];
 const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
 
-function DeviceNode({ d, selected, onSelect, t }) {
+function DeviceNode({ d, selected, onSelect, t, labels }) {
   const type = DEVICE_TYPES[d.type] || DEVICE_TYPES.unknown;
-  const name = d.hostname || (d.randomizedMac ? '' : d.vendor);
+  const customLabel = getLabel(d.mac, d.ip, labels);
+  const name = customLabel || d.hostname || (d.randomizedMac ? '' : d.vendor);
   return (
     <button
       type="button"
@@ -30,7 +32,7 @@ function DeviceNode({ d, selected, onSelect, t }) {
       <span className="tmap-node__icon">{type.icon}</span>
       <span className="tmap-node__main">
         <span className="tmap-node__ip">{d.ip}</span>
-        {name && <span className="tmap-node__name">{name}</span>}
+        {name && <span className={`tmap-node__name${customLabel ? ' tmap-node__name--label' : ''}`}>{name}</span>}
       </span>
       <span className="tmap-node__tags">
         {d.isSelf && <span className="tmap-tag tmap-tag--self">{t('YOU')}</span>}
@@ -42,15 +44,17 @@ function DeviceNode({ d, selected, onSelect, t }) {
   );
 }
 
-function Detail({ d, findings, onScanDevice, onClose, t, lang }) {
+function Detail({ d, findings, onScanDevice, onClose, t, lang, labels }) {
   const type = DEVICE_TYPES[d.type] || DEVICE_TYPES.unknown;
   const own = findings.filter((f) => hostIp(f.host) === d.ip);
+  const customLabel = getLabel(d.mac, d.ip, labels);
   return (
     <div className={`tmap-detail tmap-detail--${d.risk.level}`}>
       <div className="tmap-detail__head">
         <span className="tmap-detail__icon">{type.icon}</span>
         <span className="tmap-detail__ip">{d.ip}</span>
-        {d.hostname && <span className="tmap-detail__name">{d.hostname}</span>}
+        {customLabel && <span className="tmap-detail__name tmap-detail__name--label">{customLabel}</span>}
+        {d.hostname && d.hostname !== customLabel && <span className="tmap-detail__name">{d.hostname}</span>}
         <span className="tmap-detail__type">{t(type.label)}</span>
         <span className="tmap-detail__risk">{t(RISK_LABEL[d.risk.level])}</span>
         <span className="tmap-detail__actions">
@@ -89,7 +93,7 @@ function Detail({ d, findings, onScanDevice, onClose, t, lang }) {
 }
 
 /** Mapa siete: internet → router → skupiny zariadeni podla typu, farba podla rizika. */
-export default function NetworkMap({ devices, findings = [], gatewayIp, localIps, target, onScanDevice }) {
+export default function NetworkMap({ devices, findings = [], gatewayIp, localIps, target, onScanDevice, labels }) {
   const { t, lang } = useLang();
   const [selected, setSelected] = useState(null);
   const [onlyRisky, setOnlyRisky] = useState(false);
@@ -129,7 +133,7 @@ export default function NetworkMap({ devices, findings = [], gatewayIp, localIps
           <div className="tmap-cloud">☁ {t('Internet')}</div>
           <div className="tmap__wire" />
           {topo.gateway ? (
-            <DeviceNode d={topo.gateway} selected={selected === topo.gateway.ip} onSelect={setSelected} t={t} />
+            <DeviceNode d={topo.gateway} selected={selected === topo.gateway.ip} onSelect={setSelected} t={t} labels={labels} />
           ) : (
             <div className="tmap-cloud tmap-cloud--net" title={t('The router was not found in this scan')}>⇄ {target}</div>
           )}
@@ -154,7 +158,7 @@ export default function NetworkMap({ devices, findings = [], gatewayIp, localIps
                       {t(type.label)} <span className="tmap-group__n">{g.devices.length}</span>
                     </div>
                     <div className="tmap-group__list">
-                      {list.map((d) => <DeviceNode key={d.ip} d={d} selected={selected === d.ip} onSelect={setSelected} t={t} />)}
+                      {list.map((d) => <DeviceNode key={d.ip} d={d} selected={selected === d.ip} onSelect={setSelected} t={t} labels={labels} />)}
                       {!open && (
                         <button className="link-btn tmap-group__more" onClick={() => setExpanded((e) => ({ ...e, [key]: true }))}>
                           {t('+ {n} more', { n: g.devices.length - GROUP_LIMIT })}
@@ -170,7 +174,7 @@ export default function NetworkMap({ devices, findings = [], gatewayIp, localIps
         </div>
       </div>
 
-      {sel && <Detail d={sel} findings={findings} onScanDevice={onScanDevice} onClose={() => setSelected(null)} t={t} lang={lang} />}
+      {sel && <Detail d={sel} findings={findings} onScanDevice={onScanDevice} onClose={() => setSelected(null)} t={t} lang={lang} labels={labels} />}
       <div className="tmap__hint">
         {t('Click a device for details. The layout is logical (devices grouped by type behind the router), not the physical cabling.')}
       </div>

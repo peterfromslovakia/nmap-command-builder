@@ -29,6 +29,7 @@ import IntelPanel from './components/IntelPanel';
 import FindingsPanel from './components/FindingsPanel';
 import DiffPanel from './components/DiffPanel';
 import { loadUserPresets, saveUserPreset, deleteUserPreset, exportUserPresets, importUserPresets } from './utils/userPresets';
+import { loadLabels, saveLabels, setLabel } from './utils/deviceLabels';
 import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
 import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
@@ -106,6 +107,7 @@ export default function App() {
   const [reportDialog, setReportDialog] = useState(null); // 'pdf' | 'md' | null
   const [reportMeta, setReportMeta] = useState(() => loadReportMeta());
   const [inventory, setInventory] = useState(null);
+  const [deviceLabels, setDeviceLabels] = useState(() => { try { return loadLabels(); } catch (_) { return { byMac: {}, byIp: {} }; } });
   const [gateway, setGateway] = useState(null); // predvolena brana systemu (mapa siete)
   // Aktualne informacie o zranitelnostiach k nalezom posledneho skenu.
   const [intelEnabled, setIntelEnabled] = useState(() => loadIntelEnabled());
@@ -601,6 +603,7 @@ export default function App() {
       findings: scanText === rawText ? findings : undefined,
       intelMeta: intelEnabled && intelData ? intelData.meta : null,
       inventory,
+      labels: deviceLabels,
       gatewayIp: gateway,
       localIps,
       comparison: cmp && {
@@ -610,6 +613,14 @@ export default function App() {
       },
     });
   };
+
+  const handleLabelChange = useCallback((mac, ip, name) => {
+    setDeviceLabels((prev) => {
+      const next = setLabel(mac, ip, name, prev);
+      saveLabels(next);
+      return next;
+    });
+  }, []);
 
   // ── Unified export handler — supports txt / json / csv ────────────────────
   const handleExport = useCallback(async (format = 'txt', meta = null) => {
@@ -1093,8 +1104,10 @@ export default function App() {
               // Bez rootu macOS / Linux MAC adresy casto neda → rychle prehladanie ako spravca (ARP)
               onFindMacs={nmapStatus.canElevate && scanStatus !== 'scanning' ? () => handleDiscoverNetwork('quick', { elevated: true }) : undefined}
               onExportCsv={() => window.electronAPI.exportResult(
-                inventoryCsv(inventory), `network-devices-${Date.now()}.csv`, [{ name: 'CSV', extensions: ['csv'] }]
+                inventoryCsv(inventory, deviceLabels), `network-devices-${Date.now()}.csv`, [{ name: 'CSV', extensions: ['csv'] }]
               )}
+              labels={deviceLabels}
+              onLabelChange={handleLabelChange}
             />
           )}
           {inventory && (
@@ -1105,6 +1118,7 @@ export default function App() {
               localIps={localIps}
               target={scannedTarget}
               onScanDevice={handleScanDevice}
+              labels={deviceLabels}
             />
           )}
           <DiffPanel
