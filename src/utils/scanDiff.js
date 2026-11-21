@@ -112,3 +112,11 @@ export function clearSnapshots(storage = defaultStorage()) {
 export function baselinesFor(snapshots, current) {
   return snapshots.filter((s) => s.id !== current.id && s.target === current.target && s.time < current.time);
 }
+
+/** Zvolena (alebo najnovsia) zakladna snimka pre aktualny sken + rozdiel; null ak nie je s cim porovnat. */
+export function comparisonFor(snapshots, current, baselineId = null) {
+  if (!current) return null;
+  const list = baselinesFor(snapshots, current);
+  const baseline = list.find((b) => b.id === baselineId) || list[0];
+  return baseline ? { baseline, diff: diffScans(baseline, current) } : null;
+}

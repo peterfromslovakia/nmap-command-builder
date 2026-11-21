@@ -7,7 +7,7 @@ import { validateTarget } from './utils/validator';
 import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
 import { buildReportModel, toMarkdown, toHtml } from './utils/report';
 import { rootRequirements } from './utils/privileges';
-import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots } from './utils/scanDiff';
+import { makeSnapshot, loadSnapshots, saveSnapshot, clearSnapshots, comparisonFor } from './utils/scanDiff';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
@@ -25,6 +25,11 @@ import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
 import FindingsPanel from './components/FindingsPanel';
 import DiffPanel from './components/DiffPanel';
+import { loadUserPresets, saveUserPreset, deleteUserPreset } from './utils/userPresets';
+import { FLAG_MAP } from './data/flags';
+import { matchShortcut, shortcutHints } from './utils/shortcuts';
+
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 
 // ─── Initial state for expanded categories ────────────────────────────────────
 const initExpanded = () => {
@@ -77,6 +82,13 @@ export default function App() {
   // ── Saved scan snapshots (for "changes since previous scan") ─────────────
   const [snapshots, setSnapshots] = useState(() => loadSnapshots());
   const [currentSnapshot, setCurrentSnapshot] = useState(null);
+  const [userPresets, setUserPresets] = useState(() => loadUserPresets());
+  const [diffBaselineId, setDiffBaselineId] = useState(null); // null = najnovsi predchadzajuci sken
+  useEffect(() => { setDiffBaselineId(null); }, [currentSnapshot]);
+  const comparison = useMemo(
+    () => comparisonFor(snapshots, currentSnapshot, diffBaselineId),
+    [snapshots, currentSnapshot, diffBaselineId]
+  );
   const scanIdRef = useRef(0);
   const savedScanIdRef = useRef(0);
 
@@ -247,6 +259,13 @@ export default function App() {
 
   const handleLoadPreset = useCallback((preset) => {
     setFlagSelections(preset.flags || {});
+    // Vlastny preset: ulozeny target ma prednost; ADV flagy si vyziadaju ADV rezim.
+    if (preset.created !== undefined) {
+      if (preset.target) { targetTouchedRef.current = true; setTarget(preset.target); }
+      if (Object.keys(preset.flags).some((id) => FLAG_MAP[id] && !FLAG_MAP[id].safe)) setAdvancedMode(true);
+      setActiveTab('builder');
+      return;
+    }
     // Predvoleny target z presetu (napr. 192.168.1.0/24) len ako zaloha:
     // ak mame detegovanu siet, ostava ta (napr. 192.168.50.0/24).
     if (preset.target && networks.length === 0) {
@@ -255,6 +274,16 @@ export default function App() {
     }
     setActiveTab('builder');
   }, [networks]);
+
+  const handleSaveUserPreset = useCallback((name, withTarget) => {
+    const r = saveUserPreset({ name, flags: flagSelections, target: withTarget ? target : '' });
+    setUserPresets(r.list);
+    return r;
+  }, [flagSelections, target]);
+
+  const handleDeleteUserPreset = useCallback((id) => {
+    setUserPresets(deleteUserPreset(id));
+  }, []);
 
   const handleLoadFromHistory = useCallback((entry) => {
     const t = parseCommandToTarget(entry.command);
@@ -338,6 +367,11 @@ export default function App() {
         target: scannedTarget || targetRef.current,
         timestamp: new Date().toLocaleString(),
         nmapVersion: nmapStatus.version,
+        comparison: comparison && {
+          baselineTime: new Date(comparison.baseline.time).toLocaleString(),
+          baselineCommand: comparison.baseline.command,
+          diff: comparison.diff,
+        },
       });
       if (format === 'pdf') {
         const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${stamp}.pdf`);
@@ -398,7 +432,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines, scannedTarget, nmapStatus.version]);
+  }, [outputLines, scannedTarget, nmapStatus.version, comparison]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
@@ -436,6 +470,29 @@ export default function App() {
     nmapStatus.available &&
     targetValid &&
     scanStatus !== 'scanning';
+
+  // ── Klavesove skratky (handlery cez ref, listener sa registruje raz) ──────
+  const shortcutRef = useRef({});
+  shortcutRef.current = {
+    run: () => { if (canRun) handleRunScan(); },
+    kill: () => { if (scanStatus === 'scanning') handleKillScan(); },
+    copy: handleCopy,
+    search: () => {
+      setActiveTab('builder');
+      setTimeout(() => document.querySelector('.builder-search .search-input')?.focus(), 0);
+    },
+    tab: (t) => setActiveTab(t),
+  };
+  useEffect(() => {
+    const onKey = (e) => {
+      const m = matchShortcut(e, IS_MAC);
+      if (!m) return;
+      e.preventDefault();
+      shortcutRef.current[m.action]?.(m.tab);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // ── Status indicator label ────────────────────────────────────────────────
   const statusMap = {
@@ -585,6 +642,11 @@ export default function App() {
               <PresetsTab
                 onLoadPreset={handleLoadPreset}
                 advancedMode={advancedMode}
+                userPresets={userPresets}
+                canSave={Object.values(flagSelections).some((v) => v !== false && v !== '' && v != null)}
+                currentTarget={target.trim()}
+                onSaveUserPreset={handleSaveUserPreset}
+                onDeleteUserPreset={handleDeleteUserPreset}
               />
             )}
             {activeTab === 'scripts' && (
@@ -619,7 +681,7 @@ export default function App() {
                   ? 'Enter a valid target first'
                   : scanStatus === 'scanning'
                   ? 'Scan already running'
-                  : 'Run nmap scan'
+                  : `Run nmap scan (${IS_MAC ? '⌘↵' : 'Ctrl+Enter'})`
               }
             >
               {scanStatus === 'scanning' ? (
@@ -635,7 +697,7 @@ export default function App() {
               className="btn btn--kill"
               onClick={handleKillScan}
               disabled={scanStatus !== 'scanning'}
-              title="Kill running scan (SIGTERM)"
+              title={`Kill running scan (${IS_MAC ? '⌘.' : 'Ctrl+.'})`}
             >
               ⊗ KILL
             </button>
@@ -685,6 +747,8 @@ export default function App() {
           <DiffPanel
             current={currentSnapshot}
             snapshots={snapshots}
+            baselineId={comparison?.baseline.id ?? null}
+            onBaselineChange={setDiffBaselineId}
             onClearSaved={handleClearSnapshots}
           />
           <PortsPanel
@@ -721,9 +785,15 @@ export default function App() {
           Created by <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.2.0</span>
+        <span className="app-footer__item">Nmap Command Builder v1.3.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">Use responsibly &amp; ethically</span>
+        <span className="app-footer__sep app-footer__keys-sep">·</span>
+        <span className="app-footer__keys" title="Keyboard shortcuts">
+          {shortcutHints(IS_MAC).map((h) => (
+            <span key={h.label}><kbd>{h.keys}</kbd> {h.label}</span>
+          ))}
+        </span>
       </footer>
     </div>
   );

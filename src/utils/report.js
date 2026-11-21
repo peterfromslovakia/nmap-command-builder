@@ -28,7 +28,26 @@ export function parseHosts(text) {
 /**
  * Datovy model reportu — spolocny pre Markdown aj HTML/PDF.
  */
-export function buildReportModel({ text, command, target, timestamp, nmapVersion }) {
+/**
+ * Zmeny oproti predchadzajucemu skenu ako jednoduche textove riadky
+ * (spolocne pre Markdown aj PDF). `diff` je vysledok diffScans().
+ */
+export function changeSections(diff) {
+  if (!diff) return [];
+  const port = (p) => `${p.port}/${p.proto} ${p.service}${p.version ? ` ${p.version}` : ''} — ${p.host}`;
+  const finding = (f) => `[${String(f.severity).toUpperCase()}] ${f.title} — ${f.host}${f.port ? ` · ${f.port}` : ''}`;
+  return [
+    { title: 'New vulnerabilities', tone: 'bad', items: diff.newFindings.map(finding) },
+    { title: 'New open ports', tone: 'bad', items: diff.openedPorts.map(port) },
+    { title: 'New hosts', tone: 'bad', items: diff.newHosts.map((h) => `${h.host} (${h.ports.map((p) => p.port).join(', ') || 'no open ports'})`) },
+    { title: 'Version changes', tone: 'info', items: diff.changedVersions.map((c) => `${c.port}/${c.proto} ${c.service}: ${c.from} → ${c.to} — ${c.host}`) },
+    { title: 'Fixed vulnerabilities', tone: 'good', items: diff.resolvedFindings.map(finding) },
+    { title: 'Closed ports', tone: 'good', items: diff.closedPorts.map(port) },
+    { title: 'Hosts not found', tone: 'info', items: diff.goneHosts.map((h) => `${h.host} (down or filtered)`) },
+  ].filter((sec) => sec.items.length > 0);
+}
+
+export function buildReportModel({ text, command, target, timestamp, nmapVersion, comparison }) {
   const hosts = parseHosts(text);
   const findings = parseFindings(text);
 
@@ -55,6 +74,13 @@ export function buildReportModel({ text, command, target, timestamp, nmapVersion
   return {
     command, target, timestamp, nmapVersion: nmapVersion || '',
     hosts, findings, portAdvice, counts,
+    // comparison: { baselineTime, baselineCommand, sameCommand, sections }
+    comparison: comparison && comparison.diff ? {
+      baselineTime: comparison.baselineTime,
+      baselineCommand: comparison.baselineCommand,
+      sameCommand: comparison.diff.sameCommand,
+      sections: changeSections(comparison.diff),
+    } : null,
     openPortCount: hosts.reduce((n, h) => n + h.ports.length, 0),
     raw: String(text || '').trim(),
   };
@@ -78,6 +104,18 @@ export function toMarkdown(m) {
     (m.findings.length
       ? ` (critical ${m.counts.critical}, high ${m.counts.high}, medium ${m.counts.medium}, low ${m.counts.low})`
       : ''));
+
+  if (m.comparison) {
+    const cmp = m.comparison;
+    out.push('', '## Changes Since Previous Scan', '');
+    out.push(`Compared with the scan from ${cmp.baselineTime} (\`${cmp.baselineCommand}\`).`);
+    if (!cmp.sameCommand) out.push('', '> Different command — some differences may come from different options.');
+    if (cmp.sections.length === 0) out.push('', '_No changes._');
+    cmp.sections.forEach((sec) => {
+      out.push('', `**${sec.title}**`, '');
+      sec.items.forEach((it) => out.push(`- ${mdCell(it)}`));
+    });
+  }
 
   out.push('', '## Vulnerabilities & Fixes', '');
   if (m.findings.length === 0) {
@@ -177,6 +215,17 @@ export function toHtml(m) {
       <ul>${a.fixes.map((s) => `<li>${e(s)}</li>`).join('')}</ul>
     </div>`).join('');
 
+  const cmp = m.comparison;
+  const comparison = !cmp ? '' : `
+  <h2>Changes Since Previous Scan</h2>
+  <p class="meta">Compared with the scan from ${e(cmp.baselineTime)} (<code>${e(cmp.baselineCommand)}</code>).</p>
+  ${cmp.sameCommand ? '' : '<p class="meta">⚠ Different command — some differences may come from different options.</p>'}
+  ${cmp.sections.length === 0 ? '<p class="muted">No changes.</p>' : cmp.sections.map((sec) => `
+    <div class="change change-${e(sec.tone)}">
+      <h3>${e(sec.title)} (${sec.items.length})</h3>
+      <ul>${sec.items.map((it) => `<li>${e(it)}</li>`).join('')}</ul>
+    </div>`).join('')}`;
+
   const c = m.counts;
   return `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -197,6 +246,8 @@ export function toHtml(m) {
   .finding, .advice { border-left: 4px solid #999; padding: 2px 0 4px 12px; margin: 10px 0; page-break-inside: avoid; }
   .sev-critical { border-color: ${SEV_COLOR.critical}; } .sev-high { border-color: ${SEV_COLOR.high}; }
   .sev-medium { border-color: ${SEV_COLOR.medium}; } .sev-low { border-color: ${SEV_COLOR.low}; }
+  .change { border-left: 4px solid #999; padding: 0 0 2px 12px; margin: 8px 0; page-break-inside: avoid; }
+  .change-bad { border-color: ${SEV_COLOR.high}; } .change-good { border-color: ${SEV_COLOR.safe}; } .change-info { border-color: #0b57d0; }
   .fix-title { font-weight: 700; color: #1b5e20; margin: 6px 0 2px; }
   ol, ul { margin: 2px 0 4px 18px; padding: 0; } .refs { font-size: 8.5pt; color: #0b57d0; word-break: break-all; }
   table { border-collapse: collapse; width: 100%; font-size: 10pt; margin-bottom: 8px; }
@@ -222,6 +273,8 @@ export function toHtml(m) {
     <div class="card">Medium<b style="color:${SEV_COLOR.medium}">${c.medium}</b></div>
     <div class="card">Low<b style="color:${SEV_COLOR.low}">${c.low}</b></div>
   </div>
+
+  ${comparison}
 
   <h2>Vulnerabilities &amp; Fixes</h2>
   ${findings}

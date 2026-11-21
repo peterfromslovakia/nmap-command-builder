@@ -2316,3 +2316,37 @@
   max-height: none;
   overflow: visible;
 }
+
+/* ─── My presets ─────────────────────────────────────────────────────────────── */
+.my-presets {
+  margin-bottom: 16px; padding: 10px 12px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.my-presets__title { font-size: 10.5px; letter-spacing: 1.5px; color: var(--text-300); font-weight: 700; margin-bottom: 8px; }
+.my-presets__form { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.my-presets__name { flex: 1 1 220px; min-width: 0; }
+.my-presets__target { font-size: 11.5px; color: var(--text-200); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.my-presets__target code { color: var(--cyan); }
+.my-presets__msg { font-size: 11.5px; margin-top: 6px; }
+.my-presets__msg--ok { color: var(--green-100); }
+.my-presets__msg--err { color: var(--red); }
+.my-presets__empty { font-size: 11.5px; color: var(--text-dim); margin: 8px 0 0; }
+.my-presets__list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.my-preset { display: flex; align-items: center; gap: 8px; }
+.my-preset__load {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer;
+  padding: 6px 8px; background: var(--bg-input); color: var(--text-100);
+  border: 1px solid var(--border); border-radius: 2px; font-family: var(--font-mono); transition: var(--transition);
+}
+.my-preset__load:hover { border-color: var(--border-hi); }
+.my-preset__name { font-size: 12.5px; color: var(--green-100); font-weight: 700; white-space: nowrap; }
+.my-preset__cmd { font-size: 11px; color: var(--text-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.my-preset__del { color: var(--red); text-decoration: none; font-size: 12px; }
+.my-preset__confirm { font-size: 11.5px; white-space: nowrap; color: var(--text-300); }
+
+.app-footer__keys { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; font-size: 10.5px; color: var(--text-dim); }
+.app-footer__keys kbd {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-200);
+  padding: 0 4px; border: 1px solid var(--border-mid); border-radius: 2px; background: var(--bg-input);
+}
+@media (max-width: 1499px) { .app-footer__keys, .app-footer__keys-sep { display: none; } }

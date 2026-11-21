@@ -1,5 +1,5 @@
 import {
-  makeSnapshot, diffScans, hostKey, loadSnapshots, saveSnapshot, clearSnapshots, baselinesFor, MAX_SNAPSHOTS,
+  makeSnapshot, diffScans, hostKey, comparisonFor, loadSnapshots, saveSnapshot, clearSnapshots, baselinesFor, MAX_SNAPSHOTS,
 } from './scanDiff';
 
 const OLD = `Nmap scan report for fileserver.lan (192.168.1.20)
@@ -96,4 +96,14 @@ describe('snapshot storage', () => {
     const list = [b, a, snap(9, '2026-11-19T00:00:00Z', OLD), { ...a, id: 7, target: '10.0.0.1' }];
     expect(baselinesFor(list, b).map((s) => s.id)).toEqual([1, 9]);
   });
+});
+
+test('comparisonFor picks the chosen baseline, falls back to the newest', () => {
+  const c = snap(3, '2026-11-22T00:00:00Z', NEW);
+  const list = [c, b, a];
+  expect(comparisonFor(list, c).baseline.id).toBe(2);
+  expect(comparisonFor(list, c, 1).baseline.id).toBe(1);
+  expect(comparisonFor(list, c, 999).baseline.id).toBe(2);
+  expect(comparisonFor([a], a)).toBeNull();
+  expect(comparisonFor(list, null)).toBeNull();
 });

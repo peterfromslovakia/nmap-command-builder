@@ -57,3 +57,39 @@ test('empty scan still renders', () => {
   expect(toMarkdown(m)).toContain('No hosts found');
   expect(toHtml(m)).toContain('No hosts found');
 });
+
+describe('comparison with the previous scan', () => {
+  // eslint-disable-next-line global-require
+  const { makeSnapshot, diffScans } = require('./scanDiff');
+  const before = makeSnapshot({ id: 1, time: 't1', target: 'x', command: 'nmap -sV x', text: OUT });
+  const after = makeSnapshot({
+    id: 2, time: 't2', target: 'x', command: 'nmap -sV x',
+    text: OUT.replace('| ftp-anon: Anonymous FTP login allowed (FTP code 230)\n', '')
+      .replace('445/tcp open  microsoft-ds', '445/tcp open  microsoft-ds\n3389/tcp open  ms-wbt-server <b>RDP</b>'),
+  });
+  const withCmp = (diff) => buildReportModel({
+    text: OUT, command: 'c', target: 'x', timestamp: 'now',
+    comparison: { baselineTime: '20. 11. 10:00', baselineCommand: 'nmap -sV x', diff },
+  });
+
+  test('model has no comparison unless one is passed', () => {
+    expect(model.comparison).toBeNull();
+    expect(toMarkdown(model)).not.toContain('Changes Since Previous Scan');
+  });
+
+  test('changes appear in markdown and escaped in html', () => {
+    const m = withCmp(diffScans(before, after));
+    expect(m.comparison.sections.map((s) => s.title)).toEqual(['New open ports', 'Fixed vulnerabilities']);
+    const md = toMarkdown(m);
+    expect(md).toContain('## Changes Since Previous Scan');
+    expect(md).toContain('3389/tcp ms-wbt-server');
+    expect(md.indexOf('Changes Since')).toBeLessThan(md.indexOf('Vulnerabilities & Fixes'));
+    const html = toHtml(m);
+    expect(html).toContain('&lt;b&gt;RDP&lt;/b&gt;');
+    expect(html).not.toContain('<b>RDP</b>');
+  });
+
+  test('identical scans report "No changes"', () => {
+    expect(toMarkdown(withCmp(diffScans(before, before)))).toContain('_No changes._');
+  });
+});
