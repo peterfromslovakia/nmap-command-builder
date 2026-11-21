@@ -157,4 +157,7 @@ test('device type from MAC vendor (administrator scan)', () => {
   expect(v('Netatmo')).toBe('iot');
   expect(v('Qnap Systems')).toBe('nas');
   expect(v('Realtek Semiconductor')).toBe('unknown'); // bezny sietovy cip — nic nehovori
+  // internetove radio: vyrobca cipu ma prednost pred chybnym odhadom nmapu "VoIP phone"
+  expect(classifyDevice({ ip: '192.168.1.9', hostname: '', vendor: 'Frontier Silicon', os: '', deviceHint: 'VoIP phone',
+    ports: [{ port: 80, proto: 'tcp', service: 'http', version: 'Mitel SIP DEC VoIP phone http config' }] })).toBe('media');
 });

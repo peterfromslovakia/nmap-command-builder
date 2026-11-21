@@ -138,7 +138,18 @@ const NMAP_DEVICE = [
 const NAME_FIRST = ['voip', 'camera', 'printer', 'nas', 'ap', 'router', 'phone', 'apple', 'media', 'iot'];
 const NAME_RULES = RULES.filter(([type]) => NAME_FIRST.includes(type));
 
+// Vyrobcovia, ktori robia len jeden druh zariadeni — maju prednost aj pred odhadom nmapu
+// (napr. internetove radio s cipom Frontier Silicon nmap oznaci ako "VoIP phone").
+const SINGLE_PURPOSE_VENDOR = [
+  [/ezviz|hikvision|dahua|reolink|axis communications|hanwha|uniview|foscam/i, 'camera'],
+  [/frontier silicon|teufel|sonos|bose|roku/i, 'media'],
+  [/netatmo|tado|ecobee|nuki|shelly|espressif/i, 'iot'],
+  [/synology|qnap|asustor|terramaster/i, 'nas'],
+];
+
 export function classifyDevice(d) {
+  const sole = !d.randomizedMac && SINGLE_PURPOSE_VENDOR.find(([re]) => re.test(d.vendor || ''));
+  if (sole) return sole[1];
   const hint = NMAP_DEVICE.find(([re]) => re.test(d.deviceHint || ''));
   if (hint) return hint[1];
   if (d.hostname) {
