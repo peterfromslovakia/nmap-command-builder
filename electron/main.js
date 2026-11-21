@@ -8,6 +8,7 @@ const { readState, resolveBounds, writeState } = require('./windowState');
 const { buildMenuTemplate, menuText } = require('./menu');
 const { checkForUpdate, isDownloadUrl } = require('./updates');
 const { arpDevices } = require('./arp');
+const { defaultGateway } = require('./gateway');
 const { VulnIntel } = require('./vulnIntel');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
@@ -266,6 +267,11 @@ ipcMain.handle('intel:nvd', async (event, cve) => {
 ipcMain.handle('net:arp', async (event) => {
   if (!isTrusted(event)) return [];
   try { return await arpDevices(); } catch (_) { return []; }
+});
+
+ipcMain.handle('net:gateway', async (event) => {
+  if (!isTrusted(event)) return null;
+  try { return await defaultGateway(); } catch (_) { return null; }
 });
 
 ipcMain.handle('net:detect', (event) => {

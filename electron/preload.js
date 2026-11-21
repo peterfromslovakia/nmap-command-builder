@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ARP table (MAC + vendor) for the device inventory
   getArpDevices: () => ipcRenderer.invoke('net:arp'),
+  getGateway: () => ipcRenderer.invoke('net:gateway'),
 
   // Update check (GitHub releases) and opening the download page
   checkUpdate: () => ipcRenderer.invoke('update:check'),

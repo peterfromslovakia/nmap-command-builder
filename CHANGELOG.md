@@ -4,6 +4,7 @@
 
 ### New
 - **Export / import of my presets** — share your presets with colleagues or back them up as a JSON file; imported presets are checked the same way as saved ones (unknown flags and invalid values are dropped, the same name replaces the existing preset)
+- **Network map** — after a network scan: Internet → router (the computer's real default gateway) → devices grouped by type and coloured by risk (vulnerabilities, risky open ports), actively exploited devices marked, your own computer marked, filter for devices at risk, details and *SCAN ›* on click. Replaces the old simple host list
 - **Automatic PDF reports from monitoring** — choose a folder once and a full report is saved after the first run and whenever new ports, devices or vulnerabilities appear
 
 ### Fixed

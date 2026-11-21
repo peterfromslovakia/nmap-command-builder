@@ -100,6 +100,7 @@ export default function App() {
   const [reportDialog, setReportDialog] = useState(null); // 'pdf' | 'md' | null
   const [reportMeta, setReportMeta] = useState(() => loadReportMeta());
   const [inventory, setInventory] = useState(null);
+  const [gateway, setGateway] = useState(null); // predvolena brana systemu (mapa siete)
   // Aktualne informacie o zranitelnostiach k nalezom posledneho skenu.
   const [intelEnabled, setIntelEnabled] = useState(() => loadIntelEnabled());
   const [intelData, setIntelData] = useState(null); // { kev, epss, nvd, meta }
@@ -154,6 +155,7 @@ export default function App() {
     if (!window.electronAPI || !window.electronAPI.detectNetworks) return;
     const list = await window.electronAPI.detectNetworks();
     setNetworks(list);
+    window.electronAPI.getGateway?.().then((gw) => setGateway(gw || null)).catch(() => {});
     // Auto-predefine target, kym ho uzivatel nezmenil rucne
     if (list.length > 0 && !targetTouchedRef.current) {
       setTarget(list[0].suggested);
@@ -325,6 +327,9 @@ export default function App() {
     if (r.ok) setUserPresets(r.list);
     return r;
   }, []);
+
+  const handleScanDevice = useCallback((ip) => { targetTouchedRef.current = true; setTarget(ip); setActiveTab('presets'); }, []);
+  const localIps = useMemo(() => networks.map((n) => n.address), [networks]);
 
   const handleDeleteUserPreset = useCallback((id) => {
     setUserPresets(deleteUserPreset(id));
@@ -1038,10 +1043,20 @@ export default function App() {
             <InventoryPanel
               devices={inventory}
               target={scannedTarget}
-              onScanDevice={(ip) => { targetTouchedRef.current = true; setTarget(ip); setActiveTab('presets'); }}
+              onScanDevice={handleScanDevice}
               onExportCsv={() => window.electronAPI.exportResult(
                 inventoryCsv(inventory), `network-devices-${Date.now()}.csv`, [{ name: 'CSV', extensions: ['csv'] }]
               )}
+            />
+          )}
+          {inventory && (
+            <NetworkMap
+              devices={inventory}
+              findings={findings}
+              gatewayIp={gateway}
+              localIps={localIps}
+              target={scannedTarget}
+              onScanDevice={handleScanDevice}
             />
           )}
           <DiffPanel
@@ -1057,7 +1072,6 @@ export default function App() {
             onLoadCommand={handleLoadCommand}
           />
           <HostInfoPanel lines={outputLines} scanStatus={scanStatus} />
-          <NetworkMap lines={outputLines} scanStatus={scanStatus} scannedTarget={scannedTarget} />
           <FindingsPanel
             lines={outputLines}
             scanStatus={scanStatus}
