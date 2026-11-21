@@ -76,7 +76,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Live streaming terminal output
 - Kill button for long scans
 - Export results as `.txt`, `.json`, `.csv`
-- **Scan reports** as PDF or Markdown: summary, changes since the previous scan, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
+- **Professional scan reports** as PDF or Markdown, in **English or Slovak**: who performed the test (tester, organisation, client, authorisation reference), overall risk rating and executive summary, findings overview, changes since the previous scan, vulnerabilities with fixes, open ports per host with risk, hardening recommendations and raw output
 - Scan history with quick reload
 - Interface scales automatically with the window — from small laptop screens (1100×700) up to 1440p and 4K monitors
 
@@ -138,9 +138,14 @@ https://github.com/peterfromslovakia/nmap-command-builder/releases
 
 Available builds:
 
-- macOS → `.dmg`
-- Windows → `.exe`
-- Linux → `.AppImage`
+- macOS Apple Silicon (M1–M5) → `…-arm64.dmg`
+- macOS Intel → `…-x64.dmg`
+- Windows → `…Setup-….exe`
+- Linux → `….AppImage`
+
+### Updates
+
+Every release is built for all platforms above. The app checks for a new version on start (at most every 12 hours) and shows a banner with a download button for your system; *Help → Check for Updates…* checks on demand. Download the new installer and install it over the old version — your saved presets, scans and settings are kept. The check only reads the public GitHub releases page and can be turned off in the banner (*don't check automatically*).
 
 No Node.js installation required.
 
@@ -216,7 +221,7 @@ The **Help** menu links to the Nmap reference guide, NSE script documentation, t
 
 ## Where data is stored
 
-Saved scan results (for the comparison) and your presets are stored only locally in the app's data folder — nothing is sent anywhere. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
+Saved scan results (for the comparison), your presets and report details (tester name, organisation, …) are stored only locally in the app's data folder — nothing is sent anywhere. The only network request the app makes on its own is the optional update check to the public GitHub releases API. Untick *Remember these details* in the report dialog to keep only the report language. Use *forget saved scans* in the comparison panel or ✕ next to a preset to delete them.
 
 ---
 

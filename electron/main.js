@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen, net } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -6,6 +6,7 @@ const { detectNetworks } = require('./network');
 const { validateArgs } = require('./argsValidator');
 const { readState, resolveBounds, writeState } = require('./windowState');
 const { buildMenuTemplate } = require('./menu');
+const { checkForUpdate, isDownloadUrl } = require('./updates');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -145,6 +146,7 @@ app.whenReady().then(() => {
     appName: 'Nmap Command Builder',
     openUrl: (url) => shell.openExternal(url),
     showAbout: () => app.showAboutPanel(),
+    checkUpdates: () => checkUpdatesInteractive(),
   })));
   createWindow();
 });
@@ -298,9 +300,58 @@ ipcMain.handle('nmap:export', async (event, payload) => {
 // Renderer posle hotove HTML reportu (hodnoty uz escapovane). Vykresli sa v
 // skrytom okne bez JavaScriptu, bez preloadu a bez moznosti navigacie; HTML
 // ma CSP default-src 'none', takze nenacita nic zo siete.
+// ─── Aktualizacie ────────────────────────────────────────────────────────────
+
+const runUpdateCheck = () => checkForUpdate(app.getVersion(), { fetchFn: (u, o) => net.fetch(u, o) });
+
+// Help → Check for Updates…: vysledok v systemovom dialogu.
+async function checkUpdatesInteractive() {
+  const r = await runUpdateCheck();
+  const win = mainWindow || undefined;
+  if (!r.ok) {
+    await dialog.showMessageBox(win, { type: 'warning', message: 'Could not check for updates', detail: r.error });
+  } else if (!r.available) {
+    await dialog.showMessageBox(win, { type: 'info', message: 'You have the latest version', detail: `Nmap Command Builder ${r.current}` });
+  } else {
+    const buttons = r.asset ? ['Download', 'Release Notes', 'Later'] : ['Release Notes', 'Later'];
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'info',
+      message: `Version ${r.latest} is available`,
+      detail: `You have ${r.current}.${r.asset ? ` Download: ${r.asset.name}` : ''}`,
+      buttons, defaultId: 0, cancelId: buttons.length - 1,
+    });
+    const choice = buttons[response];
+    if (choice === 'Download') shell.openExternal(r.asset.url);
+    if (choice === 'Release Notes') shell.openExternal(r.pageUrl);
+  }
+}
+
+ipcMain.handle('update:check', async (event) => {
+  if (!isTrusted(event)) return { ok: false, error: 'Untrusted sender.' };
+  return runUpdateCheck();
+});
+
+// Otvori v prehliadaci len odkaz na vydanie tohto projektu na GitHube.
+ipcMain.handle('update:open', async (event, url) => {
+  if (!isTrusted(event) || !isDownloadUrl(url)) return { ok: false };
+  await shell.openExternal(url);
+  return { ok: true };
+});
+
+// Pata kazdej strany PDF: nazov reportu, kto test vykonal, cislo strany.
+// Texty prichadzaju z rendereru → orezat a escapovat.
+function pdfFooterTemplate(footer) {
+  const esc = (v) => String(v ?? '').slice(0, 120)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const f = footer && typeof footer === 'object' ? footer : {};
+  const left = [f.title || 'Nmap Scan Report', f.tester].filter(Boolean).map(esc).join(' · ');
+  return `<div style="font-family:Helvetica,Arial,sans-serif;font-size:7.5px;color:#777;width:100%;padding:0 14mm;display:flex;justify-content:space-between">`
+    + `<span>${left}</span><span>${esc(f.page || 'Page')} <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
+}
+
 ipcMain.handle('report:pdf', async (event, payload) => {
   if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
-  const { html, defaultFilename } = payload || {};
+  const { html, defaultFilename, footer } = payload || {};
   if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > EXPORT_MAX_BYTES) {
     return { success: false, error: 'Invalid or too large report.' };
   }
@@ -325,7 +376,14 @@ ipcMain.handle('report:pdf', async (event, payload) => {
     win.webContents.on('will-navigate', (e) => e.preventDefault());
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     await win.loadFile(tmpFile);
-    const pdf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
+    const pdf = await win.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: pdfFooterTemplate(footer),
+      margins: { top: 0.6, bottom: 0.75, left: 0.55, right: 0.55 },
+    });
     fs.writeFileSync(filePath, pdf);
     return { success: true, filePath };
   } catch (err) {

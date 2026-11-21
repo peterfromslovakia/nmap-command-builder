@@ -18,9 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // Update check (GitHub releases) and opening the download page
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  openDownload: (url) => ipcRenderer.invoke('update:open', url),
+
   // Render an HTML report to PDF (opens Save dialog)
-  exportPdf: (html, defaultFilename) =>
-    ipcRenderer.invoke('report:pdf', { html, defaultFilename }),
+  exportPdf: (html, defaultFilename, footer) =>
+    ipcRenderer.invoke('report:pdf', { html, defaultFilename, footer }),
 
   // Listen for streamed scan output — returns cleanup function
   onScanOutput: (callback) => {

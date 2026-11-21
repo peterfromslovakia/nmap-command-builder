@@ -5,7 +5,7 @@ const { buildMenuTemplate, LINKS } = require('./menu');
 const flat = (items) => items.flatMap((i) => [i, ...(Array.isArray(i.submenu) ? flat(i.submenu) : [])]);
 const make = (o) => {
   const opened = [];
-  const tpl = buildMenuTemplate({ isMac: true, isDev: false, appName: 'Nmap Command Builder', openUrl: (u) => opened.push(u), showAbout: () => opened.push('about'), ...o });
+  const tpl = buildMenuTemplate({ isMac: true, isDev: false, appName: 'Nmap Command Builder', openUrl: (u) => opened.push(u), showAbout: () => opened.push('about'), checkUpdates: () => opened.push('check'), ...o });
   return { tpl, items: flat(tpl), opened };
 };
 
@@ -24,8 +24,10 @@ test('no DevTools or reload in production, available in development', () => {
 test('help links open only fixed https URLs on nmap.org / the project repo', () => {
   const { items, opened } = make();
   items.filter((i) => i.click).forEach((i) => i.click());
-  assert.strictEqual(opened.length, Object.keys(LINKS).length);
-  opened.forEach((u) => assert.match(u, /^https:\/\/(nmap\.org|github\.com\/peterfromslovakia\/nmap-command-builder)(\/|$)/));
+  assert.ok(opened.includes('check'));
+  const urls = opened.filter((u) => u !== 'check');
+  assert.strictEqual(urls.length, Object.keys(LINKS).length);
+  urls.forEach((u) => assert.match(u, /^https:\/\/(nmap\.org|github\.com\/peterfromslovakia\/nmap-command-builder)(\/|$)/));
 });
 
 test('About: app menu on macOS, Help menu elsewhere', () => {

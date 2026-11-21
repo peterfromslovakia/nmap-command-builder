@@ -8,14 +8,13 @@ const LINKS = {
   nmapDocs: 'https://nmap.org/book/man.html',
   nseDocs: 'https://nmap.org/nsedoc/',
   repo: REPO,
-  releases: `${REPO}/releases/latest`,
   issues: `${REPO}/issues/new`,
 };
 
 /**
- * @param {{ isMac: boolean, isDev: boolean, appName: string, openUrl: (url: string) => void, showAbout: () => void }} o
+ * @param {{ isMac: boolean, isDev: boolean, appName: string, openUrl: (url: string) => void, showAbout: () => void, checkUpdates: () => void }} o
  */
-function buildMenuTemplate({ isMac, isDev, appName, openUrl, showAbout }) {
+function buildMenuTemplate({ isMac, isDev, appName, openUrl, showAbout, checkUpdates }) {
   const link = (label, key) => ({ label, click: () => openUrl(LINKS[key]) });
 
   const view = [
@@ -54,7 +53,7 @@ function buildMenuTemplate({ isMac, isDev, appName, openUrl, showAbout }) {
         link('Nmap Reference Guide', 'nmapDocs'),
         link('NSE Script Documentation', 'nseDocs'),
         { type: 'separator' },
-        link('Check for Updates…', 'releases'),
+        { label: 'Check for Updates…', click: () => checkUpdates() },
         link('Report an Issue…', 'issues'),
         link('Project on GitHub', 'repo'),
         ...(isMac ? [] : [{ type: 'separator' }, { label: `About ${appName}`, click: showAbout }]),

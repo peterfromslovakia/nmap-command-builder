@@ -1,4 +1,6 @@
-import { parseHosts, buildReportModel, toMarkdown, toHtml, escapeHtml } from './report';
+import {
+  parseHosts, buildReportModel, toMarkdown, toHtml, escapeHtml, overallRisk, normalizeMeta,
+} from './report';
 
 const OUT = `Nmap scan report for web.local (192.168.1.10)
 PORT    STATE SERVICE VERSION
@@ -32,11 +34,14 @@ test('model summarises findings and hardening advice', () => {
 
 test('markdown contains findings, fixes, ports and raw output', () => {
   const md = toMarkdown(model);
-  expect(md).toContain('# Nmap Scan Report');
+  expect(md).toContain('# Network Security Scan Report');
   expect(md).toContain('[HIGH] Anonymous FTP login allowed');
   expect(md).toContain('**How to fix:**');
   expect(md).toContain('| 21 | tcp | ftp | vsftpd 3.0.3 | HIGH |');
-  expect(md).toContain('## Hardening Recommendations');
+  expect(md).toContain('## Hardening recommendations');
+  expect(md).toContain('| 1 | HIGH | Anonymous FTP login allowed | web.local (192.168.1.10) | 21/tcp |');
+  expect(md).toContain('**Overall risk: HIGH**');
+  expect(md).toContain('- **Performed by:** _not stated_');
   expect(md).toContain('```\nNmap scan report for web.local');
 });
 
@@ -74,16 +79,16 @@ describe('comparison with the previous scan', () => {
 
   test('model has no comparison unless one is passed', () => {
     expect(model.comparison).toBeNull();
-    expect(toMarkdown(model)).not.toContain('Changes Since Previous Scan');
+    expect(toMarkdown(model)).not.toContain('Changes since previous scan');
   });
 
   test('changes appear in markdown and escaped in html', () => {
     const m = withCmp(diffScans(before, after));
     expect(m.comparison.sections.map((s) => s.title)).toEqual(['New open ports', 'Fixed vulnerabilities']);
     const md = toMarkdown(m);
-    expect(md).toContain('## Changes Since Previous Scan');
+    expect(md).toContain('## Changes since previous scan');
     expect(md).toContain('3389/tcp ms-wbt-server');
-    expect(md.indexOf('Changes Since')).toBeLessThan(md.indexOf('Vulnerabilities & Fixes'));
+    expect(md.indexOf('Changes since')).toBeLessThan(md.indexOf('Vulnerabilities & fixes'));
     const html = toHtml(m);
     expect(html).toContain('&lt;b&gt;RDP&lt;/b&gt;');
     expect(html).not.toContain('<b>RDP</b>');
@@ -91,5 +96,48 @@ describe('comparison with the previous scan', () => {
 
   test('identical scans report "No changes"', () => {
     expect(toMarkdown(withCmp(diffScans(before, before)))).toContain('_No changes._');
+  });
+});
+
+describe('report details, overall risk and language', () => {
+  const META = {
+    lang: 'sk', tester: 'Ján Tester', organization: 'ACME s.r.o.', client: 'Obec X', authorization: 'ZML-2026/14',
+  };
+  const sk = buildReportModel({ text: OUT, command: 'nmap -sV x', target: 'x', timestamp: '21. 11. 2026', meta: META });
+
+  test('meta is trimmed, single-line and limited; unknown language falls back to English', () => {
+    expect(normalizeMeta({ lang: 'de', tester: ' A\nB ', client: 'x'.repeat(300) })).toEqual({
+      lang: 'en', tester: 'A B', organization: '', client: 'x'.repeat(120), authorization: '',
+    });
+  });
+
+  test('overall risk follows the worst finding, then risky ports', () => {
+    expect(overallRisk([{ severity: 'low' }, { severity: 'critical' }], [])).toBe('critical');
+    expect(overallRisk([], [{ ports: [{ risk: 'high' }] }])).toBe('medium');
+    expect(overallRisk([], [{ ports: [{ risk: 'medium' }] }])).toBe('low');
+    expect(overallRisk([], [{ ports: [{ risk: 'safe' }] }])).toBe('none');
+    expect(model.risk).toBe('high');
+  });
+
+  test('Slovak markdown: labels, translated findings and fixes, tester details', () => {
+    const md = toMarkdown(sk);
+    expect(md).toContain('# Správa o bezpečnostnom skene siete');
+    expect(md).toContain('- **Test vykonal:** Ján Tester');
+    expect(md).toContain('- **Organizácia:** ACME s.r.o.');
+    expect(md).toContain('- **Klient / vlastník systému:** Obec X');
+    expect(md).toContain('- **Číslo poverenia:** ZML-2026/14');
+    expect(md).toContain('[VYSOKÉ] Povolené anonymné prihlásenie na FTP');
+    expect(md).toContain('**Ako opraviť:**');
+    expect(md).toContain('Vypnite anonymné prihlásenie');
+    expect(md).toContain('## Rozsah a obmedzenia');
+    expect(md).not.toContain('How to fix');
+  });
+
+  test('Slovak html escapes tester details too', () => {
+    const html = toHtml({ ...sk, tester: '<img src=x>' });
+    expect(html).toContain('<html lang="sk">');
+    expect(html).toContain('Test vykonal');
+    expect(html).toContain('&lt;img src=x&gt;');
+    expect(html).not.toContain('<img src=x>');
   });
 });
