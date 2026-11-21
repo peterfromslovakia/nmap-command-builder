@@ -145,6 +145,8 @@ learn and use Nmap effectively without memorising hundreds of flags.
 | OS | macOS · Windows · Linux |
 | Runtime | Electron |
 
+The app scans **IPv4** networks and hosts (addresses, CIDR ranges, address ranges, host names). IPv6 scanning is intentionally not included: an IPv6 network (/64) has 18 quintillion addresses and cannot be swept, and devices on home and office networks are normally reachable over IPv4 as well.
+
 ---
 
 # Installation
