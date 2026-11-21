@@ -1,0 +1,59 @@
+import { parseHosts, buildReportModel, toMarkdown, toHtml, escapeHtml } from './report';
+
+const OUT = `Nmap scan report for web.local (192.168.1.10)
+PORT    STATE SERVICE VERSION
+21/tcp  open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+80/tcp  open  http    <script>alert(1)</script>
+443/tcp closed https
+Nmap scan report for 192.168.1.11
+PORT   STATE SERVICE
+445/tcp open  microsoft-ds
+`;
+
+const model = buildReportModel({
+  text: OUT, command: 'nmap -sV -sC 192.168.1.0/24', target: '192.168.1.0/24',
+  timestamp: '21. 11. 2026 15:00', nmapVersion: 'Nmap version 7.95',
+});
+
+test('parseHosts groups open ports per host and skips closed', () => {
+  const hosts = parseHosts(OUT);
+  expect(hosts.map((h) => h.host)).toEqual(['web.local (192.168.1.10)', '192.168.1.11']);
+  expect(hosts[0].ports.map((p) => p.port)).toEqual(['21', '80']);
+  expect(hosts[0].ports[0].risk).toBe('high');
+});
+
+test('model summarises findings and hardening advice', () => {
+  expect(model.openPortCount).toBe(3);
+  expect(model.findings.map((f) => f.id)).toEqual(['ftp-anon']);
+  expect(model.portAdvice.map((a) => a.port)).toEqual(['21', '445']);
+  expect(model.portAdvice[1].hosts).toEqual(['192.168.1.11']);
+});
+
+test('markdown contains findings, fixes, ports and raw output', () => {
+  const md = toMarkdown(model);
+  expect(md).toContain('# Nmap Scan Report');
+  expect(md).toContain('[HIGH] Anonymous FTP login allowed');
+  expect(md).toContain('**How to fix:**');
+  expect(md).toContain('| 21 | tcp | ftp | vsftpd 3.0.3 | HIGH |');
+  expect(md).toContain('## Hardening Recommendations');
+  expect(md).toContain('```\nNmap scan report for web.local');
+});
+
+test('html escapes untrusted scan data and has a strict CSP', () => {
+  const html = toHtml(model);
+  expect(html).not.toContain('<script>alert(1)</script>');
+  expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+  expect(html).toContain("default-src 'none'");
+  expect(html).toContain('How to fix');
+});
+
+test('escapeHtml', () => {
+  expect(escapeHtml(`<a href="x">'&'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;');
+});
+
+test('empty scan still renders', () => {
+  const m = buildReportModel({ text: '', command: 'nmap', target: '', timestamp: '' });
+  expect(toMarkdown(m)).toContain('No hosts found');
+  expect(toHtml(m)).toContain('No hosts found');
+});

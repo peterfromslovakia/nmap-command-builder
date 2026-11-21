@@ -4,11 +4,14 @@ import './App.css';
 import { FLAG_CATEGORIES } from './data/flags';
 import { buildCommand, parseScanSummary } from './utils/commandBuilder';
 import { validateTarget } from './utils/validator';
+import { toggleScript, removeScripts, addScriptArg } from './utils/nseSelection';
+import { buildReportModel, toMarkdown, toHtml } from './utils/report';
 
 import CommandPreview from './components/CommandPreview';
 import BuilderTab from './components/BuilderTab';
 import CheatsheetTab from './components/CheatsheetTab';
 import PresetsTab from './components/PresetsTab';
+import ScriptsTab from './components/ScriptsTab';
 import EthicsTab from './components/EthicsTab';
 import TerminalOutput from './components/TerminalOutput';
 import ScanHistory from './components/ScanHistory';
@@ -18,6 +21,7 @@ import HostInfoPanel from './components/HostInfoPanel';
 import NetworkMap from './components/NetworkMap';
 import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
+import FindingsPanel from './components/FindingsPanel';
 
 // ─── Initial state for expanded categories ────────────────────────────────────
 const initExpanded = () => {
@@ -27,6 +31,13 @@ const initExpanded = () => {
 };
 
 const MAX_OUTPUT_CHUNKS = 5000; // strop pamate pri dlhych skenoch (-p-)
+
+// Nastavi/odstrani jednu hodnotu flagu (prazdna hodnota = flag sa odstrani).
+function setFlagValue(selections, id, value) {
+  const next = { ...selections };
+  if (value) next[id] = value; else delete next[id];
+  return next;
+}
 
 // ─── Parse target from a saved command string (for history reload) ────────────
 function parseCommandToTarget(command) {
@@ -181,6 +192,24 @@ export default function App() {
     });
   }, []);
 
+  // ── NSE script library: upravuje hodnoty flagov 'script' a 'script_args' ──
+  const handleToggleScript = useCallback((name) => {
+    setFlagSelections((prev) => setFlagValue(prev, 'script', toggleScript(prev.script, name)));
+  }, []);
+
+  const handleRemoveScripts = useCallback((names) => {
+    setFlagSelections((prev) => setFlagValue(prev, 'script', removeScripts(prev.script, names)));
+  }, []);
+
+  const handleClearScripts = useCallback(() => {
+    setFlagSelections((prev) => setFlagValue(setFlagValue(prev, 'script', ''), 'script_args', ''));
+  }, []);
+
+  const handleAddScriptArg = useCallback((key, example) => {
+    setFlagSelections((prev) =>
+      setFlagValue(prev, 'script_args', addScriptArg(prev.script_args, key, example)));
+  }, []);
+
   const handleToggleCategory = useCallback((catId) => {
     setExpandedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
   }, []);
@@ -260,7 +289,28 @@ export default function App() {
 
     let content, filename, filters;
 
-    if (format === 'json') {
+    if (format === 'md' || format === 'pdf') {
+      const model = buildReportModel({
+        text: rawText,
+        command: currentCommandRef.current,
+        target: scannedTarget || targetRef.current,
+        timestamp: new Date().toLocaleString(),
+        nmapVersion: nmapStatus.version,
+      });
+      if (format === 'pdf') {
+        const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${stamp}.pdf`);
+        setOutputLines((prev) => [
+          ...prev,
+          res.success
+            ? { id: Date.now(), type: 'system', text: `\n[✓ PDF report saved to: ${res.filePath}]` }
+            : res.cancelled ? null : { id: Date.now(), type: 'error', text: `\n[✗ PDF export failed: ${res.error}]` },
+        ].filter(Boolean));
+        return;
+      }
+      content = toMarkdown(model);
+      filename = `nmap-report-${stamp}.md`;
+      filters = [{ name: 'Markdown', extensions: ['md'] }];
+    } else if (format === 'json') {
       const data = {
         command: currentCommandRef.current,
         target: targetRef.current,
@@ -306,7 +356,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines]);
+  }, [outputLines, scannedTarget, nmapStatus.version]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
@@ -326,6 +376,17 @@ export default function App() {
     if (t && t !== '<target>') { targetTouchedRef.current = true; setTarget(t); }
     setActiveTab('builder');
   }, []);
+
+  // Doplni do buildera -sV + vuln skripty (z panela VULNERABILITIES & FIXES).
+  const handleLoadVulnScan = useCallback(() => {
+    setFlagSelections((prev) => ({
+      ...prev,
+      sv: true,
+      script: [removeScripts(prev.script, ['vuln', 'vulners']), 'vuln', 'vulners'].filter(Boolean).join(','),
+    }));
+    if (scannedTarget) { targetTouchedRef.current = true; setTarget(scannedTarget); }
+    setActiveTab('builder');
+  }, [scannedTarget]);
 
   // ── Validation for run button ─────────────────────────────────────────────
   const targetValid = target.trim() && validateTarget(target).valid;
@@ -424,6 +485,13 @@ export default function App() {
               PRESETS
             </button>
             <button
+              className={`tab-btn ${activeTab === 'scripts' ? 'tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('scripts')}
+              title="NSE script library"
+            >
+              SCRIPTS
+            </button>
+            <button
               className={`tab-btn tab-btn--ethics ${activeTab === 'ethics' ? 'tab-btn--active' : ''}`}
               onClick={() => setActiveTab('ethics')}
               title="Legal notice, ethical usage guide, root-required scans"
@@ -475,6 +543,17 @@ export default function App() {
               <PresetsTab
                 onLoadPreset={handleLoadPreset}
                 advancedMode={advancedMode}
+              />
+            )}
+            {activeTab === 'scripts' && (
+              <ScriptsTab
+                scriptValue={flagSelections.script}
+                scriptArgsValue={flagSelections.script_args}
+                advancedMode={advancedMode}
+                onToggleScript={handleToggleScript}
+                onAddScriptArg={handleAddScriptArg}
+                onRemoveScripts={handleRemoveScripts}
+                onClearScripts={handleClearScripts}
               />
             )}
             {activeTab === 'ethics' && (
@@ -538,7 +617,8 @@ export default function App() {
             }}
           />
 
-          {/* Results panels — shown after scan completes */}
+          {/* Results panels — shown after scan completes (spolocne rolovanie) */}
+          <div className="results-area">
           <PortsPanel
             lines={outputLines}
             scanStatus={scanStatus}
@@ -547,6 +627,12 @@ export default function App() {
           <HostInfoPanel lines={outputLines} scanStatus={scanStatus} />
           <HostDiscoveryPanel lines={outputLines} scanStatus={scanStatus} />
           <NetworkMap lines={outputLines} scanStatus={scanStatus} scannedTarget={scannedTarget} />
+          <FindingsPanel
+            lines={outputLines}
+            scanStatus={scanStatus}
+            onLoadVulnScan={handleLoadVulnScan}
+            onExport={handleExport}
+          />
           <IntelPanel lines={outputLines} scanStatus={scanStatus} />
           <FollowUpPanel
             lines={outputLines}
@@ -554,6 +640,7 @@ export default function App() {
             scannedTarget={scannedTarget}
             onLoadCommand={handleLoadCommand}
           />
+          </div>
 
           {/* History */}
           <ScanHistory history={scanHistory} onLoad={handleLoadFromHistory} />

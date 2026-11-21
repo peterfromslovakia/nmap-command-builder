@@ -85,6 +85,20 @@ export default function TerminalOutput({ lines, scanStatus, onExport, onClear })
                   <div className="export-menu">
                     <button
                       className="export-menu__item"
+                      onClick={() => { onExport('pdf'); setExportOpen(false); }}
+                    >
+                      <span className="export-menu__fmt">PDF</span>
+                      <span className="export-menu__desc">report with findings &amp; fixes</span>
+                    </button>
+                    <button
+                      className="export-menu__item"
+                      onClick={() => { onExport('md'); setExportOpen(false); }}
+                    >
+                      <span className="export-menu__fmt">MD</span>
+                      <span className="export-menu__desc">Markdown report</span>
+                    </button>
+                    <button
+                      className="export-menu__item"
                       onClick={() => { onExport('txt'); setExportOpen(false); }}
                     >
                       <span className="export-menu__fmt">TXT</span>

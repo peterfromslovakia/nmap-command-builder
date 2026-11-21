@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { parseScanSummary } from '../utils/commandBuilder';
 import { getPortIntel } from '../data/portIntel';
 import { getPortRisk } from '../data/portRisk';
+import { getPortFixes } from '../data/remediation';
 
 /**
  * Collect intel entries for all open ports that have data.
@@ -16,12 +17,13 @@ function buildIntelEntries(openPorts) {
     const intel = getPortIntel(p.port);
     if (!intel) continue;
     seen.add(p.port);
-    entries.push({ port: p.port, risk: getPortRisk(p.port), ...intel });
+    // Pozor: intel.risk je textovy popis, uroven rizika je v 'level'.
+    entries.push({ ...intel, port: p.port, level: getPortRisk(p.port), note: intel.risk, fixes: getPortFixes(p.port) });
   }
 
   // Sort: high risk first, then medium, then safe
   const order = { high: 0, medium: 1, safe: 2 };
-  return entries.sort((a, b) => (order[a.risk] || 2) - (order[b.risk] || 2));
+  return entries.sort((a, b) => (order[a.level] ?? 2) - (order[b.level] ?? 2));
 }
 
 const RISK_LABEL = { high: 'HIGH', medium: 'MED', safe: 'SAFE' };
@@ -48,8 +50,8 @@ export default function IntelPanel({ lines, scanStatus }) {
   if (scanStatus !== 'done' && scanStatus !== 'killed') return null;
   if (entries.length === 0) return null;
 
-  const highCount = entries.filter((e) => e.risk === 'high').length;
-  const medCount  = entries.filter((e) => e.risk === 'medium').length;
+  const highCount = entries.filter((e) => e.level === 'high').length;
+  const medCount  = entries.filter((e) => e.level === 'medium').length;
 
   return (
     <div className="intel-panel">
@@ -68,23 +70,23 @@ export default function IntelPanel({ lines, scanStatus }) {
         {entries.map((e) => {
           const isOpen = expandedPorts.has(e.port);
           return (
-            <div key={e.port} className={`intel-entry intel-entry--${e.risk}`}>
+            <div key={e.port} className={`intel-entry intel-entry--${e.level}`}>
               {/* Always-visible row — click to toggle */}
               <button
                 className="intel-entry__row"
                 onClick={() => togglePort(e.port)}
               >
-                <span className={`intel-risk ${RISK_CSS[e.risk]}`}>{RISK_LABEL[e.risk]}</span>
+                <span className={`intel-risk ${RISK_CSS[e.level] || RISK_CSS.safe}`}>{RISK_LABEL[e.level] || 'INFO'}</span>
                 <span className="intel-port">{e.port}</span>
                 <span className="intel-service">{e.label}</span>
-                <span className="intel-risk-note">{e.risk}</span>
+                <span className="intel-risk-note">{e.note}</span>
                 <span className="intel-chevron">{isOpen ? '▾' : '▸'}</span>
               </button>
 
               {/* Expanded details */}
               {isOpen && (
                 <div className="intel-entry__details">
-                  <p className="intel-detail__risk">{e.risk}</p>
+                  <p className="intel-detail__risk">{e.note}</p>
 
                   {e.hints.slice(0, 2).map((hint, i) => (
                     <div key={i} className="intel-detail__hint">
@@ -99,6 +101,15 @@ export default function IntelPanel({ lines, scanStatus }) {
                       {e.scripts.slice(0, 3).map((s, i) => (
                         <code key={i} className="intel-script-tag">{s}</code>
                       ))}
+                    </div>
+                  )}
+
+                  {e.fixes.length > 0 && (
+                    <div className="intel-detail__fix">
+                      <div className="finding__label finding__label--fix">HOW TO FIX</div>
+                      <ol className="finding__fix">
+                        {e.fixes.map((f, i) => <li key={i}>{f}</li>)}
+                      </ol>
                     </div>
                   )}
                 </div>
