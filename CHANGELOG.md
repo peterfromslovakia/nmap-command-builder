@@ -11,7 +11,11 @@
   - **IP Information** — geolocation and ISP details for any public IP via ipinfo.io (free, no registration, no API key)
 - Keyboard shortcut **⌘6 / Ctrl+6** switches to the TOOLS tab
 
+### Security
+- **`--script-args` validated in main process** — the nmap argument whitelist in the main process now validates `--script-args` values against an allowed pattern (`key=value` pairs; alphanumeric and `.=,@: -`). Previously, only `--script` names were validated; a crafted renderer message could pass filesystem paths (e.g. `nfs-ls.root=/etc/shadow`) to NSE scripts. File paths and backslashes are now rejected
+
 ### Fixed
+- **Report: method-warning banner in comparison section** — when two scans differ in methodology (e.g. one was discovery-only, the other scanned ports), the PDF/Markdown report now shows an explicit warning in the "Changes" section explaining why port and vulnerability changes are not shown
 - **Scan diff: false "closed ports" after discovery scan** — comparing a previous full scan (`-sV`) against a discovery-only scan (`-sn`) no longer marks all previously open ports as "closed". Ports that were simply not tested are skipped; only genuine methodology-compatible comparisons are shown
 - **Scan diff: false "fixed vulnerabilities" after methodology change** — findings are marked as resolved only when both scans ran the same type of scripts; a port-only scan cannot "fix" vulnerabilities found by vuln scripts
 - **Report risk: "NOT ASSESSED" for discovery scans** — a `-sn` ping scan now shows "Risk: NOT ASSESSED" in reports instead of "Risk: NONE". The difference matters: *none* means "tested and found nothing", *not assessed* means "no vulnerability testing was performed"

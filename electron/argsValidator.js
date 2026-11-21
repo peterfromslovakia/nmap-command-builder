@@ -19,6 +19,11 @@ const ALLOWED_FLAGS = new Set([
 const ATTACHED_FLAG_RES = [/^-P[SAU][\d,-]*$/, /^-T[0-5]$/];
 const SCRIPT_VALUE_RE = /^[A-Za-z0-9_,*.+() -]+$/; // nazvy/kategorie, nie cesty
 
+// Povolene znaky pre --script-args: key=value páry oddelené čiarkou.
+// Zakazuje lomky (cesty k súborom) a ďalšie nebezpečné vzory.
+// Príklad povolených hodnôt: "mincvss=5.0", "vulners.showall=true,http.useragent=Mozilla"
+const SCRIPT_ARGS_RE = /^[A-Za-z0-9_.=,@: -]+$/;
+
 function validateArgs(args) {
   if (!Array.isArray(args) || args.length === 0 || args.length > 64) {
     return 'Invalid argument format.';
@@ -38,9 +43,15 @@ function validateArgs(args) {
           return '--script accepts only script names/categories, not file paths.';
         }
       }
+      if (a === '--script-args') {
+        const v = args[i + 1];
+        if (typeof v !== 'string' || !SCRIPT_ARGS_RE.test(v)) {
+          return '--script-args accepts only key=value pairs, not file paths.';
+        }
+      }
     }
   }
   return null;
 }
 
-module.exports = { validateArgs, ALLOWED_FLAGS, SCRIPT_VALUE_RE };
+module.exports = { validateArgs, ALLOWED_FLAGS, SCRIPT_VALUE_RE, SCRIPT_ARGS_RE };

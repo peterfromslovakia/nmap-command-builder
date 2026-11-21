@@ -570,6 +570,7 @@ export function toHtml(m) {
   ${h2('changes')}
   <p class="meta">${e(L.comparedWith(cmp.baselineTime, cmp.baselineCommand))}</p>
   ${cmp.sameCommand ? '' : `<p class="meta">⚠ ${e(L.differentCommand)}</p>`}
+  ${cmp.methodDiffers ? `<p class="meta warn">⚠ ${e(L.methodWarning)}</p>` : ''}
   ${cmp.sections.length === 0 ? `<p class="muted">${e(L.noChanges)}</p>` : cmp.sections.map((s) => `
     <div class="change change-${e(s.tone)}">
       <h3>${e(s.title)} (${s.items.length})</h3>

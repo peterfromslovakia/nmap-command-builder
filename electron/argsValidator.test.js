@@ -21,3 +21,15 @@ test('rejects control characters and empty input', () => {
   assert.ok(validateArgs(['-sV', 'a\nb']));
   assert.ok(validateArgs([]));
 });
+
+test('accepts valid --script-args values', () => {
+  assert.strictEqual(validateArgs(['--script', 'vulners', '--script-args', 'mincvss=5.0', '10.0.0.1']), null);
+  assert.strictEqual(validateArgs(['--script', 'http-enum', '--script-args', 'http.useragent=Mozilla 5.0', '10.0.0.1']), null);
+  assert.strictEqual(validateArgs(['--script', 'vulners', '--script-args', 'vulners.showall=true,mincvss=4.0', '10.0.0.1']), null);
+});
+
+test('rejects --script-args with file paths or dangerous chars', () => {
+  assert.match(validateArgs(['--script', 'nfs-ls', '--script-args', 'nfs-ls.root=/etc/shadow']), /key=value/);
+  assert.match(validateArgs(['--script', 'brute', '--script-args', 'db=C:\\passwords.txt']), /key=value/);
+  assert.match(validateArgs(['--script', 'http-brute', '--script-args', 'passdb=../evil']), /key=value/);
+});
