@@ -102,7 +102,7 @@ export const LABELS = {
     deviceTypes: {
       router: 'Router / gateway', firewall: 'Firewall', printer: 'Printer', nas: 'NAS / storage', camera: 'Camera / NVR',
       windows: 'Windows computer', apple: 'Apple device', phone: 'Phone / tablet', server: 'Server', linux: 'Linux / Unix device',
-      media: 'TV / media', iot: 'IoT / embedded', ap: 'Wi-Fi access point / switch', unknown: 'Unknown device',
+      media: 'TV / media', iot: 'IoT / embedded', ap: 'Wi-Fi access point / switch', voip: 'VoIP / IP phone', unknown: 'Unknown device',
     },
     appendix: 'Appendix',
     networkMap: 'Appendix A — network map',
@@ -218,7 +218,7 @@ export const LABELS = {
     deviceTypes: {
       router: 'Router / brána', firewall: 'Firewall', printer: 'Tlačiareň', nas: 'NAS / úložisko', camera: 'Kamera / NVR',
       windows: 'Počítač s Windows', apple: 'Zariadenie Apple', phone: 'Telefón / tablet', server: 'Server', linux: 'Linux / Unix zariadenie',
-      media: 'TV / multimédiá', iot: 'IoT / vstavané zariadenie', ap: 'Wi-Fi prístupový bod / switch', unknown: 'Neznáme zariadenie',
+      media: 'TV / multimédiá', iot: 'IoT / vstavané zariadenie', ap: 'Wi-Fi prístupový bod / switch', voip: 'VoIP / IP telefón', unknown: 'Neznáme zariadenie',
     },
     appendix: 'Príloha',
     networkMap: 'Príloha A — mapa siete',

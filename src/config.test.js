@@ -71,3 +71,7 @@ describe('version', () => {
     expect(read('CHANGELOG.md')).toMatch(new RegExp(`^## ${pkg.version.replace(/\./g, '\\.')} — \\d{4}-\\d{2}-\\d{2}$`, 'm'));
   });
 });
+
+test('macOS build declares Local Network usage (otherwise macOS may hide LAN devices)', () => {
+  expect(pkg.build.mac.extendInfo.NSLocalNetworkUsageDescription).toMatch(/local network/i);
+});

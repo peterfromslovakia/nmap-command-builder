@@ -37,7 +37,9 @@ const UI_SK = {
   'No network detected — enter a range (e.g. 192.168.1.0/24) as the target': 'Sieť sa nezistila — ako cieľ zadajte rozsah (napr. 192.168.1.0/24)',
   'SCAN NETWORK': 'PREHĽADAŤ SIEŤ',
   'Network scan mode': 'Režim prehľadania siete',
-  'quick · devices only (~30 s)': 'rýchlo · zariadenia (~30 s)',
+  'quick · devices only (~1–2 min)': 'rýchlo · zariadenia (~1–2 min)',
+  'MAC addresses and vendors were not available — the system hides them from apps without administrator rights.': 'MAC adresy a výrobcovia neboli dostupné — systém ich aplikáciám bez práv správcu skrýva.',
+  'FIND MAC ADDRESSES (administrator)': 'ZISTIŤ MAC ADRESY (správca)',
   'detailed · ports + services (minutes)': 'podrobne · porty + služby',
   'This scan requires root / sudo privileges': 'Tento sken vyžaduje oprávnenia root / sudo',
   'REQUIRES ROOT': 'VYŽADUJE ROOT',
@@ -191,6 +193,7 @@ const UI_SK = {
   'IoT / embedded': 'IoT / vstavané zariadenie',
   'Wi-Fi access point / switch': 'Wi-Fi prístupový bod / switch',
   'Unknown device': 'Neznáme zariadenie',
+  'VoIP / IP phone': 'VoIP / IP telefón',
 
   // ── porovnanie skenov ──
   'CHANGES SINCE PREVIOUS SCAN': 'ZMENY OD PREDCHÁDZAJÚCEHO SKENU',

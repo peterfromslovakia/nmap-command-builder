@@ -10,7 +10,7 @@ const SORTS = {
 };
 
 /** Inventar zariadeni v sieti (po "SCAN NETWORK" alebo skene viacerych hostov). */
-export default function InventoryPanel({ devices, target, onScanDevice, onExportCsv }) {
+export default function InventoryPanel({ devices, target, onScanDevice, onExportCsv, onFindMacs }) {
   const t = useT();
   const label = (type) => t(DEVICE_TYPES[type].label);
   const [query, setQuery] = useState('');
@@ -43,6 +43,13 @@ export default function InventoryPanel({ devices, target, onScanDevice, onExport
           <button className="findings-export" onClick={onExportCsv} title={t('Save the device list as CSV (Excel)')}>↓ CSV</button>
         </div>
       </div>
+
+      {onFindMacs && devices.length > 0 && devices.every((d) => !d.mac) && (
+        <div className="inventory-machint">
+          <span>ⓘ {t('MAC addresses and vendors were not available — the system hides them from apps without administrator rights.')}</span>
+          <button className="btn btn--xs noroot-notice__btn" onClick={onFindMacs}>🔒 {t('FIND MAC ADDRESSES (administrator)')}</button>
+        </div>
+      )}
 
       <div className="inventory-types">
         {counts.map(([type, n]) => (

@@ -408,14 +408,14 @@ export default function App() {
     return networks[0]?.suggested || '';
   }, [target, networks]);
 
-  const handleDiscoverNetwork = useCallback((mode) => {
+  const handleDiscoverNetwork = useCallback((mode, opts = {}) => {
     const flags = DISCOVERY_MODES[mode].flags;
     const built = buildCommand(discoveryTarget, flags, advancedMode);
     targetTouchedRef.current = true;
     setTarget(discoveryTarget);
     setFlagSelections(flags);
     setActiveTab('builder');
-    startScan({ args: built.args, command: built.command, target: discoveryTarget, kind: 'discovery' });
+    startScan({ args: built.args, command: built.command, target: discoveryTarget, kind: 'discovery', elevated: Boolean(opts.elevated) });
   }, [discoveryTarget, advancedMode, startScan]);
 
   const handleKillScan = useCallback(async () => {
@@ -531,12 +531,13 @@ export default function App() {
   useEffect(() => {
     if (scanStatus !== 'done' && scanStatus !== 'killed') return undefined;
     const text = scanText;
-    const base = buildInventory(text);
+    const own = { selfIps: localIps, platform: nmapStatus.platform || (IS_MAC ? 'darwin' : '') };
+    const base = buildInventory(text, [], own);
     if (base.length === 0 || (base.length < 2 && scanKindRef.current !== 'discovery')) return undefined;
     let alive = true;
     setInventory(base);
     (window.electronAPI?.getArpDevices?.() || Promise.resolve([])).then((arp) => {
-      if (alive) setInventory(buildInventory(text, arp));
+      if (alive) setInventory(buildInventory(text, arp, own));
     });
     return () => { alive = false; };
   }, [scanStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- staci pri zmene stavu skenu (scanText sa meni s nim)
@@ -1007,7 +1008,7 @@ export default function App() {
                 disabled={scanStatus === 'scanning'}
                 aria-label={t('Network scan mode')}
               >
-                <option value="quick">{t('quick · devices only (~30 s)')}</option>
+                <option value="quick">{t('quick · devices only (~1–2 min)')}</option>
                 <option value="standard">{t('detailed · ports + services (minutes)')}</option>
               </select>
             </div>
@@ -1089,6 +1090,8 @@ export default function App() {
               devices={inventory}
               target={scannedTarget}
               onScanDevice={handleScanDevice}
+              // Bez rootu macOS / Linux MAC adresy casto neda → rychle prehladanie ako spravca (ARP)
+              onFindMacs={nmapStatus.canElevate && scanStatus !== 'scanning' ? () => handleDiscoverNetwork('quick', { elevated: true }) : undefined}
               onExportCsv={() => window.electronAPI.exportResult(
                 inventoryCsv(inventory), `network-devices-${Date.now()}.csv`, [{ name: 'CSV', extensions: ['csv'] }]
               )}

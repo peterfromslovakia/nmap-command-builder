@@ -260,6 +260,7 @@ ipcMain.handle('nmap:check', (event) => {
         privileged: isPrivileged(),
         // Moznost spustit sken s pravami spravcu (systemove okno na heslo)
         canElevate: !isPrivileged() && Boolean(elevationMethod()),
+        platform: process.platform,
       });
     });
     proc.on('error', () => {

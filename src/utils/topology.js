@@ -8,7 +8,7 @@ import { ipNum } from './inventory';
 // najzavaznejsieho nalezu, pripadne podla rizikovych otvorenych portov.
 
 // Poradie skupin v mape (infrastruktura → pocitace → ostatne).
-const GROUP_ORDER = ['firewall', 'ap', 'server', 'nas', 'windows', 'apple', 'linux', 'printer', 'camera', 'phone', 'media', 'iot', 'router', 'unknown'];
+const GROUP_ORDER = ['firewall', 'ap', 'server', 'nas', 'windows', 'apple', 'linux', 'printer', 'camera', 'voip', 'phone', 'media', 'iot', 'router', 'unknown'];
 
 /** IP z retazca hostitela nalezu: "nazov (10.0.0.5)" alebo "10.0.0.5". */
 export function hostIp(host) {

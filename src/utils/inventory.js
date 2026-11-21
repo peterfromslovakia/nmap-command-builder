@@ -86,6 +86,7 @@ export const DEVICE_TYPES = {
   media:    { icon: '▶', label: 'TV / media' },
   iot:      { icon: '◎', label: 'IoT / embedded' },
   ap:       { icon: '⌔', label: 'Wi-Fi access point / switch' },
+  voip:     { icon: '☎', label: 'VoIP / IP phone' },
   unknown:  { icon: '?', label: 'Unknown device' },
 };
 
@@ -99,18 +100,23 @@ const RULES = [
   // Kerio Control: sprava na 4081/tcp (https), VPN 4090; banner "Kerio Control"
   ['firewall', any(V(/fortinet|palo alto|sophos|watchguard|check point|netgate|mikrotik.*firewall/i), H(/firewall|opnsense|pfsense|fortigate|kerio/i),
     S(/opnsense|pfsense|fortigate|kerio/i), P(4081))],
+  ['voip', any(P(5060, 5061), S(/\bsip\b|voip|mitel|yealink|polycom|grandstream|snom|cisco spa|avaya|gigaset|fanvil/i),
+    V(/yealink|polycom|snom|mitel|grandstream|avaya|gigaset|fanvil/i), H(/yealink|polycom|snom|mitel|grandstream|\bsip\b|voip|fanvil/i))],
   ['printer', any(P(9100, 515, 631), H(/printer|print/i), V(/hewlett|^hp\b|canon|brother|epson|lexmark|kyocera|xerox|ricoh|konica|oki data/i), S(/ipp|jetdirect|cups/i))],
-  ['camera', any(P(554, 37777, 8554), H(/webcam|camera|ipcam|nvr|dvr/i), V(/hikvision|dahua|axis comm|hanwha|uniview|reolink|amcrest/i), S(/rtsp/i))],
-  ['nas', any(V(/synology|qnap|western digital|seagate|buffalo|asustor|terramaster/i), H(/\bnas\b|storage|diskstation/i), P(5000, 5001, 2049) )],
-  ['router', H(/router|gateway|\bgw\b|fritz/i)],
+  ['camera', any(P(554, 37777, 8554), H(/webcam|camera|ipcam|nvr|dvr|ezviz|hikvision|dahua|reolink|tapo-?c\d|wyze|arlo|\bipc\b|doorbell/i), V(/hikvision|dahua|axis comm|hanwha|uniview|reolink|amcrest/i), S(/rtsp/i))],
+  ['nas', any(V(/synology|qnap|western digital|seagate|buffalo|asustor|terramaster/i), H(/\bnas\b|storage|diskstation|synology|qnap/i), P(5000, 5001, 2049) )],
+  // Switche a Wi-Fi AP podla nazvu (UniFi USW / UAP / U6, TP-Link EAP, …) — pred routerom
+  ['ap', H(/\b(usw|uap|u6|u7|eap\d*|unifi-?ap)\b|-poe\b|switch|access.?point|\bap\b|mesh/i)],
+  ['router', H(/router|gateway|\bgw\b|fritz|\bunifi\b|\b(udm|usg|ucg|uxg|udr)\b|dream.?machine|openwrt|speedport|tplinkwifi|mikrotik/i)],
   ['ap', any(V(/ubiquiti|aruba|ruckus|cisco meraki|tp-link|zyxel|cambium|mikrotik|netgear|d-link|juniper/i), H(/switch|\bap\b|access point/i))],
-  ['router', any(H(/router|gateway|\bgw\b|fritz|broadband/i), S(/dnsmasq|routeros|miniupnp|upnp/i), (d) => P(53)(d) && P(80, 443)(d))],
-  ['phone', any(P(62078), H(/iphone|ipad|android|galaxy|pixel|phone/i))],
-  ['apple', any(V(/^apple/i), H(/macbook|imac|mac-?mini|apple/i), S(/afp|apple/i), P(548, 7000))],
+  ['router', any(H(/router|gateway|\bgw\b|fritz|broadband/i), S(/dnsmasq|routeros|miniupnp|igd/i), (d) => P(53)(d) && P(80, 443)(d))],
+  ['phone', any(P(62078), H(/iphone|ipad|android|galaxy|pixel|phone|oneplus|xiaomi|redmi|huawei-?p\d/i))],
+  ['apple', any(V(/^apple/i), H(/macbook|imac|mac-?mini|apple/i), S(/afp|apple|airtunes|airplay/i), P(548, 7000))],
   ['windows', any(P(135, 139, 445, 3389), H(/windows|desktop-|laptop-|win-/i), (d) => /windows/i.test(d.os))],
-  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv/i), P(8008, 8009, 1400))],
+  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv|apple-?tv|lgwebos|bravia|shield|soundbar|playstation|xbox/i), P(8008, 8009, 1400))],
   ['server', any(P(25, 110, 143, 389, 636, 1433, 1521, 3306, 5432, 27017, 6379, 9200), H(/server|srv|\bdc\d*\b|mail|db/i))],
-  ['iot', any(V(/espressif|raspberry|tuya|shelly|sonoff|arduino|texas instruments|silicon labs|nordic/i), P(1883, 8883, 5683))],
+  ['iot', any(V(/espressif|raspberry|tuya|shelly|sonoff|arduino|texas instruments|silicon labs|nordic/i), P(1883, 8883, 5683),
+    H(/juicebox|wallbox|zappi|charger|shelly|tasmota|\besp[-_]?\w*|sonoff|tuya|\bhue\b|nuki|tado|netatmo|ecobee|homey|loxone|myenergi|solar|inverter|fronius|victron/i))],
   ['linux', any(P(22), (d) => /linux|unix|bsd/i.test(d.os))],
 ];
 
@@ -122,21 +128,41 @@ const NMAP_DEVICE = [
   [/webcam|camera/i, 'camera'],
   [/storage/i, 'nas'],
   [/switch|wap|bridge/i, 'ap'],
+  [/voip/i, 'voip'],
   [/phone/i, 'phone'],
   [/media|game console/i, 'media'],
 ];
 
+// Nazov zariadenia (zvoleny clovekom) ma prednost pred odhadom podla portov:
+// napr. MacBook s AirPlay (5000/rtsp) nie je kamera.
+const NAME_FIRST = ['voip', 'camera', 'printer', 'nas', 'ap', 'router', 'phone', 'apple', 'media', 'iot'];
+const NAME_RULES = RULES.filter(([type]) => NAME_FIRST.includes(type));
+
 export function classifyDevice(d) {
   const hint = NMAP_DEVICE.find(([re]) => re.test(d.deviceHint || ''));
   if (hint) return hint[1];
+  if (d.hostname) {
+    const byName = { ...d, ports: [], vendor: '', os: '' }; // len nazov
+    for (const [type, test] of NAME_RULES) if (test(byName)) return type;
+  }
   for (const [type, test] of RULES) if (test(d)) return type;
   return 'unknown';
 }
 
-/** Kompletny inventar: zariadenia + ARP + typ, zoradene podla IP. */
-export function buildInventory(text, arp = []) {
+const OWN_TYPE = { darwin: 'apple', win32: 'windows', linux: 'linux' };
+
+/**
+ * Kompletny inventar: zariadenia + ARP + typ, zoradene podla IP.
+ * selfIps: adresy tohto pocitaca — bez nazvu a typu dostanu typ podla systemu.
+ */
+export function buildInventory(text, arp = [], { selfIps = [], platform = '' } = {}) {
+  const self = new Set(selfIps);
   return mergeArp(parseInventory(text), arp)
-    .map((d) => ({ ...d, type: classifyDevice(d) }))
+    .map((d) => {
+      const type = classifyDevice(d);
+      const own = self.has(d.ip) && OWN_TYPE[platform];
+      return { ...d, type: own && (type === 'unknown' || !d.hostname) ? own : type };
+    })
     .sort((a, b) => ipNum(a.ip) - ipNum(b.ip));
 }
 

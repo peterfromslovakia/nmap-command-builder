@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Improved (tested on a real home network)
+- **Better device recognition** — the device name now wins over port guesses (a MacBook with AirPlay is no longer a camera); names of UniFi gateways / switches / access points, EZVIZ / Hikvision / Reolink cameras, EV chargers (JuiceBox, Wallbox, Zappi), Shelly / Tasmota / smart-home devices, TVs and phones are recognised; UPnP alone no longer means "router"
+- **New device type: VoIP / IP phone** (Mitel, Yealink, Polycom, Snom, Grandstream, Fanvil, Gigaset, SIP)
+- **Your own computer** gets the right type even without a host name
+- **MAC addresses on macOS** — new macOS versions hide the neighbour table from apps; when no MAC addresses are available, the device list offers *🔒 FIND MAC ADDRESSES (administrator)* (a quick ARP scan as administrator, which also reports vendors). The macOS app now declares Local Network access
+- Quick network scan shows a realistic time (~1–2 min for a /24)
+
 ## 1.8.0 — 2026-11-21
 
 ### New

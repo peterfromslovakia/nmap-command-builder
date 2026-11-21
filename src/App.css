@@ -2519,3 +2519,4 @@
 .noroot-notice__elevate .noroot-notice__how { margin-top: 0; }
 .noroot-notice__btn { color: var(--orange); border-color: rgba(255,153,0,0.55); }
 .noroot-notice__btn:hover:not(:disabled) { background: rgba(255,153,0,0.12); }
+.inventory-machint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 12px; font-size: 11.5px; color: var(--text-200); background: rgba(255,153,0,0.05); border-bottom: 1px solid var(--border); }
