@@ -103,7 +103,7 @@ const RULES = [
   ['voip', any(P(5060, 5061), S(/\bsip\b|voip|mitel|yealink|polycom|grandstream|snom|cisco spa|avaya|gigaset|fanvil/i),
     V(/yealink|polycom|snom|mitel|grandstream|avaya|gigaset|fanvil/i), H(/yealink|polycom|snom|mitel|grandstream|\bsip\b|voip|fanvil/i))],
   ['printer', any(P(9100, 515, 631), H(/printer|print/i), V(/hewlett|^hp\b|canon|brother|epson|lexmark|kyocera|xerox|ricoh|konica|oki data/i), S(/ipp|jetdirect|cups/i))],
-  ['camera', any(P(554, 37777, 8554), H(/webcam|camera|ipcam|nvr|dvr|ezviz|hikvision|dahua|reolink|tapo-?c\d|wyze|arlo|\bipc\b|doorbell/i), V(/hikvision|dahua|axis comm|hanwha|uniview|reolink|amcrest/i), S(/rtsp/i))],
+  ['camera', any(P(554, 37777, 8554), V(/ezviz|hikvision|dahua|reolink|axis communications|hanwha|uniview|foscam/i), H(/webcam|camera|ipcam|nvr|dvr|ezviz|hikvision|dahua|reolink|tapo-?c\d|wyze|arlo|\bipc\b|doorbell/i), V(/hikvision|dahua|axis comm|hanwha|uniview|reolink|amcrest/i), S(/rtsp/i))],
   ['nas', any(V(/synology|qnap|western digital|seagate|buffalo|asustor|terramaster/i), H(/\bnas\b|storage|diskstation|synology|qnap/i), P(5000, 5001, 2049) )],
   // Switche a Wi-Fi AP podla nazvu (UniFi USW / UAP / U6, TP-Link EAP, …) — pred routerom
   ['ap', H(/\b(usw|uap|u6|u7|eap\d*|unifi-?ap)\b|-poe\b|switch|access.?point|\bap\b|mesh/i)],
@@ -113,9 +113,9 @@ const RULES = [
   ['phone', any(P(62078), H(/iphone|ipad|android|galaxy|pixel|phone|oneplus|xiaomi|redmi|huawei-?p\d/i))],
   ['apple', any(V(/^apple/i), H(/macbook|imac|mac-?mini|apple/i), S(/afp|apple|airtunes|airplay/i), P(548, 7000))],
   ['windows', any(P(135, 139, 445, 3389), H(/windows|desktop-|laptop-|win-/i), (d) => /windows/i.test(d.os))],
-  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv|apple-?tv|lgwebos|bravia|shield|soundbar|playstation|xbox|juicebox|antik|\bstb\b|set-?top|mag\d{3}|kodi|libreelec|radio/i), P(8008, 8009, 1400))],
+  ['media', any(V(/samsung electronics|lg electronics|sony|roku|sonos|amazon|google|frontier silicon|teufel|bose|denon|yamaha|harman/i), H(/\btv\b|chromecast|roku|sonos|firetv|appletv|apple-?tv|lgwebos|bravia|shield|soundbar|playstation|xbox|juicebox|antik|\bstb\b|set-?top|mag\d{3}|kodi|libreelec|radio/i), P(8008, 8009, 1400))],
   ['server', any(P(25, 110, 143, 389, 636, 1433, 1521, 3306, 5432, 27017, 6379, 9200), H(/server|srv|\bdc\d*\b|mail|db/i))],
-  ['iot', any(V(/espressif|raspberry|tuya|shelly|sonoff|arduino|texas instruments|silicon labs|nordic/i), P(1883, 8883, 5683),
+  ['iot', any(V(/espressif|raspberry|tuya|shelly|sonoff|arduino|texas instruments|silicon labs|nordic|netatmo|tado|ecobee|nuki|signify|philips lighting/i), P(1883, 8883, 5683),
     H(/wallbox|zappi|charger|shelly|tasmota|\besp[-_]?\w*|sonoff|tuya|\bhue\b|nuki|tado|netatmo|ecobee|homey|loxone|myenergi|solar|inverter|fronius|victron/i))],
   ['linux', any(P(22), (d) => /linux|unix|bsd/i.test(d.os))],
 ];

@@ -148,3 +148,13 @@ test('real-world cases: MacBook with AirPlay, Mitel VoIP phone, UPnP alone, own 
   const inv = buildInventory(text, [], { selfIps: ['192.168.1.168'], platform: 'darwin' });
   expect(inv.find((d) => d.ip === '192.168.1.168').type).toBe('apple');
 });
+
+test('device type from MAC vendor (administrator scan)', () => {
+  const { classifyDevice } = require('./inventory');
+  const v = (vendor) => classifyDevice({ ip: '192.168.1.9', hostname: '', vendor, os: '', deviceHint: '', ports: [] });
+  expect(v('Hangzhou Ezviz Software')).toBe('camera');
+  expect(v('Frontier Silicon')).toBe('media'); // internetove radia
+  expect(v('Netatmo')).toBe('iot');
+  expect(v('Qnap Systems')).toBe('nas');
+  expect(v('Realtek Semiconductor')).toBe('unknown'); // bezny sietovy cip — nic nehovori
+});
