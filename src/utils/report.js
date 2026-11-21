@@ -1,4 +1,5 @@
 import { parseFindings, SEVERITY_ORDER } from './findings';
+import { applyIntel } from './intel';
 import { getPortRisk } from '../data/portRisk';
 import { getPortIntel } from '../data/portIntel';
 import { getPortFixes } from '../data/remediation';
@@ -52,7 +53,7 @@ export function changeSections(diff, lang = 'en') {
 
 /**
  * Celkove riziko: najzavaznejsi nalez; bez nalezov aspon "medium" pri rizikovom
- * sprístupnenom porte (napr. Telnet, SMB, RDP) a "low" pri porte na kontrolu.
+ * spristupnenom porte (napr. Telnet, SMB, RDP) a "low" pri porte na kontrolu.
  */
 export function overallRisk(findings, hosts) {
   for (const sev of ['critical', 'high', 'medium']) {
@@ -77,13 +78,64 @@ export function normalizeMeta(meta = {}) {
   };
 }
 
+/** Pouzite techniky skenu podla prikazu (pre kapitolu Metodika). */
+export function describeTechniques(command, L, { intel = false } = {}) {
+  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const has = (f) => a.includes(f);
+  const val = (f) => { const i = a.indexOf(f); return i >= 0 ? a[i + 1] : ''; };
+  const t = L.tech;
+  const out = [];
+  if (has('-sn')) out.push(t.pingOnly);
+  else {
+    if (a.some((x) => /^-P[SA]/.test(x))) out.push(t.discovery);
+    if (has('-sS')) out.push(t.syn); else out.push(t.connect);
+    if (has('-sU')) out.push(t.udp);
+    if (has('-p-')) out.push(t.allPorts);
+    else if (has('-p')) out.push(t.ports(val('-p')));
+    else if (has('-F')) out.push(t.topPorts);
+    else if (has('--top-ports')) out.push(t.ports(`top ${val('--top-ports')}`));
+    else out.push(t.defaultPorts);
+  }
+  if (has('-sV') || has('-A')) out.push(t.version);
+  if (has('-O') || has('-A')) out.push(t.os);
+  if (has('--script')) out.push(t.scripts(val('--script')));
+  else if (has('-sC') || has('-A')) out.push(t.scripts('default'));
+  const timing = a.find((x) => /^-T[0-5]$/.test(x));
+  if (timing) out.push(t.timing(timing.slice(2)));
+  if (intel) out.push(t.intel);
+  return out;
+}
+
+const timeframeKey = (f) => (f.exploited ? 'exploited' : f.severity);
+
 /**
  * Datovy model reportu — spolocny pre Markdown aj HTML/PDF.
+ * findings: obohatene nalezy (applyIntel); ak chyba, vyparsuju sa z textu.
  */
-export function buildReportModel({ text, command, target, timestamp, nmapVersion, comparison, meta }) {
+export function buildReportModel({
+  text, command, target, timestamp, nmapVersion, comparison, meta, findings: given, intelMeta, inventory, generatedAt,
+}) {
   const m = normalizeMeta(meta);
+  const L = labels(m.lang);
   const hosts = parseHosts(text);
-  const findings = parseFindings(text).sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  const findings = (given || applyIntel(parseFindings(text), null))
+    .slice()
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || Number(Boolean(b.exploited)) - Number(Boolean(a.exploited)))
+    .map((f, i) => {
+      const details = f.cveDetails || [];
+      const best = details.filter((c) => c.nvd && c.nvd.score != null).sort((x, y) => y.nvd.score - x.nvd.score)[0];
+      const described = details.find((c) => c.nvd && c.nvd.description);
+      return {
+        ...f,
+        ref: `F-${String(i + 1).padStart(2, '0')}`,
+        cvss: best ? best.nvd.score : details.reduce((mx, c) => (c.score != null && c.score > (mx ?? -1) ? c.score : mx), null),
+        vector: best ? best.nvd.vector : '',
+        cwe: [...new Set(details.flatMap((c) => (c.nvd && c.nvd.cwe) || []))].slice(0, 4),
+        nvdDescription: described ? described.nvd.description : '',
+        nvdDescriptionCve: described ? described.id : '',
+        timeframe: timeframeKey(f),
+      };
+    });
 
   // Odporucania pre rizikove porty (deduplikovane podla portu).
   const seen = new Set();
@@ -105,11 +157,23 @@ export function buildReportModel({ text, command, target, timestamp, nmapVersion
   const counts = { critical: 0, high: 0, medium: 0, low: 0 };
   findings.forEach((f) => { counts[f.severity] += 1; });
 
+  const actions = findings
+    .filter((f) => f.exploited || f.severity === 'critical' || f.severity === 'high')
+    .slice(0, 5)
+    .map((f) => ({ ref: f.ref, title: f.title, host: f.host, timeframe: f.timeframe, exploited: Boolean(f.exploited) }));
+
+  const usedIntel = Boolean(intelMeta && (intelMeta.kevVersion || findings.some((f) => f.cveDetails?.some((c) => c.epss != null || c.nvd))));
+
   return {
     ...m,
     command, target, timestamp, nmapVersion: nmapVersion || '',
-    hosts, findings, portAdvice, counts,
+    generatedAt: generatedAt || timestamp,
+    hosts, findings, portAdvice, counts, actions,
+    exploitedCount: findings.filter((f) => f.exploited).length,
     risk: overallRisk(findings, hosts),
+    techniques: describeTechniques(command, L, { intel: usedIntel }),
+    intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
+    inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
     // comparison: { baselineTime, baselineCommand, sameCommand, sections }
     comparison: comparison && comparison.diff ? {
       baselineTime: comparison.baselineTime,
@@ -120,6 +184,24 @@ export function buildReportModel({ text, command, target, timestamp, nmapVersion
     openPortCount: hosts.reduce((n, h) => n + h.ports.length, 0),
     raw: String(text || '').trim(),
   };
+}
+
+/** Kapitoly reportu v poradi (pre obsah aj cislovanie). */
+export function reportSections(m) {
+  const L = labels(m.lang);
+  return [
+    ['summary', L.executiveSummary],
+    ['scope', L.scopeMethodology],
+    ['rating', L.ratingTitle],
+    m.findings.length > 0 && ['overview', L.findingsOverview],
+    ['findings', L.vulnsAndFixes],
+    m.comparison && ['changes', L.changes],
+    m.inventory && ['inventory', L.assetInventory],
+    ['ports', L.openPortsTitle],
+    m.portAdvice.length > 0 && ['hardening', L.hardening],
+    ['signoff', L.signOff],
+    ['raw', L.rawOutput],
+  ].filter(Boolean).map(([id, title], i) => ({ id, title, no: i + 1 }));
 }
 
 const detailRows = (m, L) => [
@@ -133,6 +215,8 @@ const detailRows = (m, L) => [
   m.authorization && [L.authorization, m.authorization],
 ].filter(Boolean);
 
+const epssText = (v) => (v == null ? '—' : `${(v * 100) >= 10 ? Math.round(v * 100) : (v * 100).toFixed(1)} %`);
+
 // ─── Markdown ─────────────────────────────────────────────────────────────────
 
 const mdCell = (v) => String(v ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -142,45 +226,70 @@ export function toMarkdown(m) {
   const L = labels(m.lang);
   const t = (s) => tr(s, m.lang);
   const sevLabel = (s) => (L.sev[s] || s).toUpperCase();
+  const sec = Object.fromEntries(reportSections(m).map((s) => [s.id, s]));
+  const h2 = (id) => `## ${sec[id].no}. ${sec[id].title}`;
   const out = [];
 
-  out.push(`# ${L.title}`, '', `> ${L.confidential}`, '');
+  out.push(`# ${L.title}`, '', `**${L.coverSubtitle}**`, '', `> ${L.confidential}`, '');
   out.push(`## ${L.reportDetails}`, '');
   detailRows(m, L).forEach(([k, v, code, dim]) => out.push(`- **${k}:** ${code ? mdCode(v) : dim ? `_${v}_` : mdCell(v)}`));
+  out.push(`- **${L.reportDate}:** ${m.generatedAt}`, `- **${L.classification}:** ${L.classificationValue}`);
 
-  out.push('', `## ${L.executiveSummary}`, '');
+  out.push('', `## ${L.contents}`, '');
+  reportSections(m).forEach((s) => out.push(`${s.no}. ${s.title}`));
+
+  out.push('', h2('summary'), '');
   out.push(`**${L.overallRisk}: ${sevLabel(m.risk)}** — ${L.riskText[m.risk]}`, '');
-  out.push(`| ${L.hostsUp} | ${L.openPorts} | ${L.sev.critical} | ${L.sev.high} | ${L.sev.medium} | ${L.sev.low} |`);
-  out.push('|---:|---:|---:|---:|---:|---:|');
-  out.push(`| ${m.hosts.length} | ${m.openPortCount} | ${m.counts.critical} | ${m.counts.high} | ${m.counts.medium} | ${m.counts.low} |`);
+  out.push(`| ${L.hostsUp} | ${L.openPorts} | ${L.sev.critical} | ${L.sev.high} | ${L.sev.medium} | ${L.sev.low} | ${L.colKev} |`);
+  out.push('|---:|---:|---:|---:|---:|---:|---:|');
+  out.push(`| ${m.hosts.length} | ${m.openPortCount} | ${m.counts.critical} | ${m.counts.high} | ${m.counts.medium} | ${m.counts.low} | ${m.exploitedCount} |`);
+  out.push('', `**${L.priorityActions}**`, '');
+  if (m.actions.length === 0) out.push(`_${L.noActions}_`);
+  m.actions.forEach((a, i) => out.push(
+    `${i + 1}. ${L.actionFix(t(a.title), a.host)} (${a.ref}) — ${a.exploited ? L.actionExploited : `${L.colTimeframe.toLowerCase()} ${L.timeframe[a.timeframe]}`}`
+  ));
 
-  if (m.findings.length) {
-    out.push('', `## ${L.findingsOverview}`, '');
-    out.push(`| ${L.colNo} | ${L.colSeverity} | ${L.colFinding} | ${L.colHost} | ${L.colPort} |`, '|---:|---|---|---|---|');
-    m.findings.forEach((f, i) => out.push(
-      `| ${i + 1} | ${sevLabel(f.severity)} | ${mdCell(t(f.title))} | ${mdCell(f.host)} | ${mdCell(f.port || '—')} |`
+  out.push('', h2('scope'), '');
+  out.push(`- **${L.targetsInScope}:** ${mdCode(m.target)}`);
+  out.push(`- **${L.scanWindow}:** ${m.timestamp}`);
+  out.push(`- **${L.tool}:** ${m.nmapVersion || 'Nmap'} · Nmap Command Builder`);
+  if (m.authorization) out.push(`- **${L.authorization}:** ${mdCell(m.authorization)}`);
+  out.push(`- **${L.techniques}:**`);
+  m.techniques.forEach((x) => out.push(`  - ${x}`));
+  out.push('', L.scope);
+
+  out.push('', h2('rating'), '', L.ratingIntro, '');
+  out.push(`| ${L.colSeverity} | ${L.colCvss} | ${L.colMeaning} | ${L.colTimeframe} |`, '|---|---|---|---|');
+  [['critical', '9.0–10.0'], ['high', '7.0–8.9'], ['medium', '4.0–6.9'], ['low', '0.1–3.9']].forEach(([s, r]) =>
+    out.push(`| ${sevLabel(s)} | ${r} | ${L.meaning[s]} | ${L.timeframe[s]} |`));
+  out.push(`| ${L.exploitedNow} | — | ${L.escalatedNote} | ${L.timeframe.exploited} |`);
+
+  if (sec.overview) {
+    out.push('', h2('overview'), '');
+    out.push(`| ${L.colId} | ${L.colSeverity} | ${L.colFinding} | ${L.colHost} | ${L.colKev} | ${L.colEpss} | ${L.colDue} |`, '|---|---|---|---|---|---:|---|');
+    m.findings.forEach((f) => out.push(
+      `| ${f.ref} | ${sevLabel(f.severity)} | ${mdCell(t(f.title))} | ${mdCell(f.host)}${f.port ? ` · ${f.port}` : ''} | ${f.exploited ? L.yes : L.no} | ${epssText(f.epssMax)} | ${L.timeframe[f.timeframe]} |`
     ));
   }
 
-  if (m.comparison) {
-    const cmp = m.comparison;
-    out.push('', `## ${L.changes}`, '');
-    out.push(L.comparedWith(cmp.baselineTime, mdCode(cmp.baselineCommand)));
-    if (!cmp.sameCommand) out.push('', `> ${L.differentCommand}`);
-    if (cmp.sections.length === 0) out.push('', `_${L.noChanges}_`);
-    cmp.sections.forEach((sec) => {
-      out.push('', `**${sec.title}**`, '');
-      sec.items.forEach((it) => out.push(`- ${mdCell(it)}`));
-    });
-  }
-
-  out.push('', `## ${L.vulnsAndFixes}`, '');
+  out.push('', h2('findings'), '');
   if (m.findings.length === 0) out.push(`_${L.noFindings}_`);
-  m.findings.forEach((f, i) => {
-    out.push(`### ${i + 1}. [${sevLabel(f.severity)}] ${t(f.title)}`, '');
-    out.push(`- **${L.host}:** ${f.host}${f.port ? ` — ${L.port} ${f.port}` : ''}`);
+  m.findings.forEach((f) => {
+    out.push(`### ${f.ref} — [${sevLabel(f.severity)}] ${t(f.title)}`, '');
+    if (f.exploited) out.push(`> **${L.exploitedNow}${f.ransomware ? ` — ${L.ransomwareUse}` : ''}.** ${L.kevNote(f.kevDue)}${f.escalated ? ` ${L.escalatedNote}` : ''}`, '');
+    out.push(`- **${L.affectedAsset}:** ${f.host}${f.port ? ` — ${L.port} ${f.port}` : ''}`);
+    if (f.cvss != null) out.push(`- **CVSS:** ${f.cvss}${f.vector ? ` (${mdCode(f.vector)})` : ''}`);
+    if (f.epssMax != null) out.push(`- **EPSS:** ${epssText(f.epssMax)}`);
+    if (f.cwe.length) out.push(`- **${L.weakness}:** ${f.cwe.join(', ')}`);
+    out.push(`- **${L.colTimeframe}:** ${L.timeframe[f.timeframe]}`);
     out.push(`- **${L.detectedBy}:** ${mdCode(f.script)}`);
     if (f.evidence) out.push(`- **${L.evidence}:** ${f.evidence}`);
+    out.push('', `**${L.impact}:** ${L.impactText[f.severity]}`);
+    if (f.nvdDescription) out.push('', `**${L.descriptionNvd} — ${f.nvdDescriptionCve}:** ${f.nvdDescription}`);
+    if (f.cveDetails?.length) {
+      out.push('', `**${L.relatedCves}:**`, '', `| ${L.colCve} | CVSS | EPSS | ${L.colKev} |`, '|---|---:|---:|---|');
+      f.cveDetails.slice(0, 12).forEach((c) => out.push(`| ${c.id} | ${c.score ?? '—'} | ${epssText(c.epss)} | ${c.kev ? L.yes : L.no} |`));
+    }
     out.push('', `**${L.howToFix}:**`, '');
     f.fix.forEach((s, j) => out.push(`${j + 1}. ${t(s)}`));
     if (f.refs?.length) {
@@ -190,7 +299,27 @@ export function toMarkdown(m) {
     out.push('');
   });
 
-  out.push('', `## ${L.openPortsTitle}`, '');
+  if (m.comparison) {
+    const cmp = m.comparison;
+    out.push('', h2('changes'), '');
+    out.push(L.comparedWith(cmp.baselineTime, mdCode(cmp.baselineCommand)));
+    if (!cmp.sameCommand) out.push('', `> ${L.differentCommand}`);
+    if (cmp.sections.length === 0) out.push('', `_${L.noChanges}_`);
+    cmp.sections.forEach((s) => {
+      out.push('', `**${s.title}**`, '');
+      s.items.forEach((it) => out.push(`- ${mdCell(it)}`));
+    });
+  }
+
+  if (m.inventory) {
+    out.push('', h2('inventory'), '');
+    out.push(`| ${L.colIp} | ${L.colType} | ${L.colName} | ${L.colMac} | ${L.colOpenPorts} |`, '|---|---|---|---|---|');
+    m.inventory.forEach((d) => out.push(
+      `| ${d.ip} | ${L.deviceTypes[d.type] || d.type} | ${mdCell(d.hostname || '—')} | ${mdCell([d.mac, d.randomizedMac ? L.randomMac : d.vendor].filter(Boolean).join(' · ') || '—')} | ${mdCell(d.ports.map((p) => p.port).join(', ') || '—')} |`
+    ));
+  }
+
+  out.push('', h2('ports'), '');
   if (m.hosts.length === 0) out.push(`_${L.noHosts}_`);
   m.hosts.forEach((h) => {
     out.push(`### ${h.host}`, '');
@@ -202,8 +331,8 @@ export function toMarkdown(m) {
     out.push('');
   });
 
-  if (m.portAdvice.length) {
-    out.push(`## ${L.hardening}`, '');
+  if (sec.hardening) {
+    out.push(h2('hardening'), '');
     m.portAdvice.forEach((a) => {
       out.push(`### ${L.colPort} ${a.port} — ${a.label} (${sevLabel(a.risk)})`, '');
       if (a.note) out.push(`${t(a.note)}`, '');
@@ -213,9 +342,13 @@ export function toMarkdown(m) {
     });
   }
 
-  out.push(`## ${L.scopeTitle}`, '', L.scope, '');
-  out.push(`## ${L.rawOutput}`, '', '```', m.raw.replace(/```/g, "'''"), '```', '');
-  out.push('---', `_${L.footer}${m.tester ? ` · ${m.tester}` : ''} · ${m.timestamp}_`, '');
+  out.push(h2('signoff'), '');
+  out.push(`| | ${L.colName} | ${L.signDate} | ${L.signature} |`, '|---|---|---|---|');
+  out.push(`| ${L.signPreparedBy} | ${mdCell(m.tester || ' ')} | ${m.generatedAt} | |`);
+  out.push(`| ${L.signApprovedBy} | | | |`, '');
+
+  out.push(h2('raw'), '', '```', m.raw.replace(/```/g, "'''"), '```', '');
+  out.push('---', `_${L.footer}${m.tester ? ` · ${m.tester}` : ''} · ${m.generatedAt}${m.intelMeta ? ` · ${L.dataSources(m.intelMeta.kevVersion)}` : ''}_`, '');
   return out.join('\n');
 }
 
@@ -229,7 +362,7 @@ export function escapeHtml(v) {
 }
 
 const SEV_COLOR = {
-  critical: '#b00020', high: '#d32f2f', medium: '#e67e00', low: '#9a7d00', safe: '#2e7d32', none: '#2e7d32',
+  critical: '#9b0018', high: '#d32f2f', medium: '#e67e00', low: '#9a7d00', safe: '#2e7d32', none: '#2e7d32',
 };
 
 export function toHtml(m) {
@@ -238,30 +371,150 @@ export function toHtml(m) {
   const t = (s) => tr(s, m.lang);
   const badge = (sev) =>
     `<span class="badge" style="background:${SEV_COLOR[sev] || '#555'}">${e((L.sev[sev] || sev).toUpperCase())}</span>`;
+  const kevBadge = `<span class="badge kev">${e(L.colKev.toUpperCase())}</span>`;
+  const sections = reportSections(m);
+  const sec = Object.fromEntries(sections.map((s) => [s.id, s]));
+  const h2 = (id) => `<h2 id="${id}"><span class="no">${sec[id].no}.</span> ${e(sec[id].title)}</h2>`;
+  const c = m.counts;
 
-  const details = detailRows(m, L).map(([k, v, code, dim]) =>
-    `<tr><td>${e(k)}</td><td>${code ? `<code>${e(v)}</code>` : dim ? `<span class="muted">${e(v)}</span>` : e(v)}</td></tr>`).join('');
+  const cover = `
+  <section class="cover">
+    <div class="cover__brand">NMAP COMMAND BUILDER</div>
+    <h1>${e(L.title)}</h1>
+    <p class="cover__sub">${e(L.coverSubtitle)}</p>
+    <table class="cover__meta">
+      ${m.client ? `<tr><td>${e(L.preparedFor)}</td><td><b>${e(m.client)}</b></td></tr>` : ''}
+      <tr><td>${e(L.targetsInScope)}</td><td><code>${e(m.target)}</code></td></tr>
+      <tr><td>${e(L.preparedBy)}</td><td>${e([m.tester, m.organization].filter(Boolean).join(' · ') || L.notStated)}</td></tr>
+      <tr><td>${e(L.scanWindow)}</td><td>${e(m.timestamp)}</td></tr>
+      <tr><td>${e(L.reportDate)}</td><td>${e(m.generatedAt)}</td></tr>
+      ${m.authorization ? `<tr><td>${e(L.authorization)}</td><td>${e(m.authorization)}</td></tr>` : ''}
+    </table>
+    <div class="cover__risk" style="border-color:${SEV_COLOR[m.risk]};color:${SEV_COLOR[m.risk]}">
+      ${e(L.overallRisk)}: <b>${e((L.sev[m.risk] || m.risk).toUpperCase())}</b>
+    </div>
+    <div class="confidential">${e(L.confidential)}</div>
+  </section>`;
 
-  const overview = m.findings.length === 0 ? '' : `
-  <h2>${e(L.findingsOverview)}</h2>
+  const toc = `
+  <section class="toc">
+    <h2>${e(L.contents)}</h2>
+    <ol>${sections.map((s) => `<li>${e(s.title)}</li>`).join('')}</ol>
+    <h3>${e(L.documentControl)}</h3>
+    <table class="kv">
+      ${detailRows(m, L).map(([k, v, code, dim]) => `<tr><td>${e(k)}</td><td>${code ? `<code>${e(v)}</code>` : dim ? `<span class="muted">${e(v)}</span>` : e(v)}</td></tr>`).join('')}
+      <tr><td>${e(L.reportVersion)}</td><td>1.0</td></tr>
+      <tr><td>${e(L.classification)}</td><td>${e(L.classificationValue)}</td></tr>
+    </table>
+  </section>`;
+
+  const summary = `
+  ${h2('summary')}
+  <div class="risk" style="background:${SEV_COLOR[m.risk]}">
+    <b>${e(L.overallRisk)}: ${e((L.sev[m.risk] || m.risk).toUpperCase())}</b>
+    <span>${e(L.riskText[m.risk])}</span>
+  </div>
+  <div class="summary">
+    <div class="card">${e(L.hostsUp)}<b>${m.hosts.length}</b></div>
+    <div class="card">${e(L.openPorts)}<b>${m.openPortCount}</b></div>
+    <div class="card">${e(L.sev.critical)}<b style="color:${SEV_COLOR.critical}">${c.critical}</b></div>
+    <div class="card">${e(L.sev.high)}<b style="color:${SEV_COLOR.high}">${c.high}</b></div>
+    <div class="card">${e(L.sev.medium)}<b style="color:${SEV_COLOR.medium}">${c.medium}</b></div>
+    <div class="card">${e(L.sev.low)}<b style="color:${SEV_COLOR.low}">${c.low}</b></div>
+    <div class="card card--kev">${e(L.colKev)}<b>${m.exploitedCount}</b></div>
+  </div>
+  <h3>${e(L.priorityActions)}</h3>
+  ${m.actions.length === 0 ? `<p class="muted">${e(L.noActions)}</p>` : `<ol class="actions">${m.actions.map((a) => `
+    <li>${e(L.actionFix(t(a.title), a.host))} <span class="ref">${e(a.ref)}</span>
+      — <b class="${a.exploited ? 'urgent' : ''}">${e(a.exploited ? L.actionExploited : `${L.colTimeframe.toLowerCase()} ${L.timeframe[a.timeframe]}`)}</b></li>`).join('')}</ol>`}`;
+
+  const scope = `
+  ${h2('scope')}
+  <table class="kv">
+    <tr><td>${e(L.targetsInScope)}</td><td><code>${e(m.target)}</code></td></tr>
+    <tr><td>${e(L.scanWindow)}</td><td>${e(m.timestamp)}</td></tr>
+    <tr><td>${e(L.tool)}</td><td>${e(m.nmapVersion || 'Nmap')} · Nmap Command Builder</td></tr>
+    <tr><td>${e(L.command)}</td><td><code>${e(m.command)}</code></td></tr>
+    ${m.authorization ? `<tr><td>${e(L.authorization)}</td><td>${e(m.authorization)}</td></tr>` : ''}
+  </table>
+  <h3>${e(L.techniques)}</h3>
+  <ul>${m.techniques.map((x) => `<li>${e(x)}</li>`).join('')}</ul>
+  <h3>${e(L.scopeTitle)}</h3>
+  <p class="body">${e(L.scope)}</p>`;
+
+  const rating = `
+  <div class="keep">
+  ${h2('rating')}
+  <p class="body">${e(L.ratingIntro)}</p>
   <table>
-    <thead><tr><th class="num">${e(L.colNo)}</th><th>${e(L.colSeverity)}</th><th>${e(L.colFinding)}</th><th>${e(L.colHost)}</th><th>${e(L.colPort)}</th></tr></thead>
-    <tbody>${m.findings.map((f, i) => `
-      <tr><td class="num">${i + 1}</td><td>${badge(f.severity)}</td><td>${e(t(f.title))}</td><td>${e(f.host)}</td><td>${e(f.port || '—')}</td></tr>`).join('')}
+    <thead><tr><th>${e(L.colSeverity)}</th><th>${e(L.colCvss)}</th><th>${e(L.colMeaning)}</th><th>${e(L.colTimeframe)}</th></tr></thead>
+    <tbody>
+      <tr><td>${kevBadge}</td><td>—</td><td>${e(L.exploitedNow)}. ${e(L.escalatedNote)}</td><td><b>${e(L.timeframe.exploited)}</b></td></tr>
+      ${[['critical', '9.0–10.0'], ['high', '7.0–8.9'], ['medium', '4.0–6.9'], ['low', '0.1–3.9']].map(([s, r]) =>
+    `<tr><td>${badge(s)}</td><td>${r}</td><td>${e(L.meaning[s])}</td><td>${e(L.timeframe[s])}</td></tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
+
+  const overview = !sec.overview ? '' : `
+  ${h2('overview')}
+  <table>
+    <thead><tr><th>${e(L.colId)}</th><th>${e(L.colSeverity)}</th><th>${e(L.colFinding)}</th><th>${e(L.colHost)}</th><th>${e(L.colKev)}</th><th class="num">${e(L.colEpss)}</th><th>${e(L.colDue)}</th></tr></thead>
+    <tbody>${m.findings.map((f) => `
+      <tr><td class="ref">${e(f.ref)}</td><td>${badge(f.severity)}</td><td>${e(t(f.title))}</td>
+      <td>${e(f.host)}${f.port ? `<br><span class="muted">${e(f.port)}</span>` : ''}</td>
+      <td>${f.exploited ? kevBadge : '—'}</td><td class="num">${e(epssText(f.epssMax))}</td><td>${e(L.timeframe[f.timeframe])}</td></tr>`).join('')}
     </tbody>
   </table>`;
 
   const findings = m.findings.length === 0
     ? `<p class="muted">${e(L.noFindings)}</p>`
-    : m.findings.map((f, i) => `
+    : m.findings.map((f) => `
       <div class="finding sev-${e(f.severity)}">
-        <h3>${i + 1}. ${badge(f.severity)} ${e(t(f.title))}</h3>
-        <p class="meta">${e(L.host)} <b>${e(f.host)}</b>${f.port ? ` · ${e(L.port)} <b>${e(f.port)}</b>` : ''} · ${e(L.detectedBy)} <code>${e(f.script)}</code></p>
-        ${f.evidence ? `<p class="meta">${e(L.evidence)}: <code>${e(f.evidence)}</code></p>` : ''}
-        <p class="fix-title">${e(L.howToFix)}</p>
+        <h3><span class="ref">${e(f.ref)}</span> ${badge(f.severity)} ${f.exploited ? kevBadge : ''} ${e(t(f.title))}</h3>
+        ${f.exploited ? `<p class="kevnote">⚠ <b>${e(L.exploitedNow)}${f.ransomware ? ` — ${e(L.ransomwareUse)}` : ''}.</b> ${e(L.kevNote(f.kevDue))}${f.escalated ? ` ${e(L.escalatedNote)}` : ''}</p>` : ''}
+        <table class="kv">
+          <tr><td>${e(L.affectedAsset)}</td><td><b>${e(f.host)}</b>${f.port ? ` · ${e(L.port)} ${e(f.port)}` : ''}</td></tr>
+          ${f.cvss != null ? `<tr><td>CVSS</td><td><b>${e(f.cvss)}</b>${f.vector ? ` <code>${e(f.vector)}</code>` : ''}</td></tr>` : ''}
+          ${f.epssMax != null ? `<tr><td>EPSS</td><td>${e(epssText(f.epssMax))}</td></tr>` : ''}
+          ${f.cwe.length ? `<tr><td>${e(L.weakness)}</td><td>${e(f.cwe.join(', '))}</td></tr>` : ''}
+          <tr><td>${e(L.colTimeframe)}</td><td><b>${e(L.timeframe[f.timeframe])}</b></td></tr>
+          <tr><td>${e(L.detectedBy)}</td><td><code>${e(f.script)}</code></td></tr>
+          ${f.evidence ? `<tr><td>${e(L.evidence)}</td><td><code>${e(f.evidence)}</code></td></tr>` : ''}
+        </table>
+        <p class="label">${e(L.impact)}</p><p class="body">${e(L.impactText[f.severity])}</p>
+        ${f.nvdDescription ? `<p class="label">${e(L.descriptionNvd)} — ${e(f.nvdDescriptionCve)}</p><p class="body">${e(f.nvdDescription)}</p>` : ''}
+        ${f.cveDetails?.length ? `
+        <p class="label">${e(L.relatedCves)}</p>
+        <table class="cves"><thead><tr><th>${e(L.colCve)}</th><th class="num">CVSS</th><th class="num">EPSS</th><th>${e(L.colKev)}</th></tr></thead><tbody>
+          ${f.cveDetails.slice(0, 12).map((x) => `<tr><td><code>${e(x.id)}</code></td><td class="num">${e(x.score ?? '—')}</td><td class="num">${e(epssText(x.epss))}</td><td>${x.kev ? kevBadge : '—'}</td></tr>`).join('')}
+        </tbody></table>` : ''}
+        <p class="label fix-title">${e(L.howToFix)}</p>
         <ol>${f.fix.map((s) => `<li>${e(t(s))}</li>`).join('')}</ol>
         ${f.refs?.length ? `<p class="refs">${f.refs.map((r) => e(r)).join('<br>')}</p>` : ''}
       </div>`).join('');
+
+  const cmp = m.comparison;
+  const comparison = !cmp ? '' : `
+  ${h2('changes')}
+  <p class="meta">${e(L.comparedWith(cmp.baselineTime, cmp.baselineCommand))}</p>
+  ${cmp.sameCommand ? '' : `<p class="meta">⚠ ${e(L.differentCommand)}</p>`}
+  ${cmp.sections.length === 0 ? `<p class="muted">${e(L.noChanges)}</p>` : cmp.sections.map((s) => `
+    <div class="change change-${e(s.tone)}">
+      <h3>${e(s.title)} (${s.items.length})</h3>
+      <ul>${s.items.map((it) => `<li>${e(it)}</li>`).join('')}</ul>
+    </div>`).join('')}`;
+
+  const inventory = !m.inventory ? '' : `
+  ${h2('inventory')}
+  <table>
+    <thead><tr><th>${e(L.colIp)}</th><th>${e(L.colType)}</th><th>${e(L.colName)}</th><th>${e(L.colMac)}</th><th>${e(L.colOpenPorts)}</th></tr></thead>
+    <tbody>${m.inventory.map((d) => `
+      <tr><td><b>${e(d.ip)}</b></td><td>${e(L.deviceTypes[d.type] || d.type)}</td><td>${e(d.hostname || '—')}${d.os ? `<br><span class="muted">${e(d.os)}</span>` : ''}</td>
+      <td>${d.mac ? `<code>${e(d.mac)}</code>` : '—'}${(d.randomizedMac || d.vendor) ? `<br><span class="muted">${e(d.randomizedMac ? L.randomMac : d.vendor)}</span>` : ''}</td>
+      <td>${e(d.ports.map((p) => p.port).join(', ') || '—')}</td></tr>`).join('')}
+    </tbody>
+  </table>`;
 
   const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : m.hosts.map((h) => `
     <h3>${e(h.host)}</h3>
@@ -274,102 +527,96 @@ export function toHtml(m) {
       </tbody>
     </table>`}`).join('');
 
-  const advice = m.portAdvice.map((a) => `
+  const advice = !sec.hardening ? '' : `${h2('hardening')}${m.portAdvice.map((a) => `
     <div class="advice">
       <h3>${e(L.colPort)} ${e(a.port)} — ${e(a.label)} ${badge(a.risk)}</h3>
       ${a.note ? `<p class="meta">${e(t(a.note))}</p>` : ''}
       <p class="meta">${e(L.affectedHosts)}: ${e(a.hosts.join(', '))}</p>
       <ul>${a.fixes.map((s) => `<li>${e(t(s))}</li>`).join('')}</ul>
-    </div>`).join('');
-
-  const cmp = m.comparison;
-  const comparison = !cmp ? '' : `
-  <h2>${e(L.changes)}</h2>
-  <p class="meta">${e(L.comparedWith(cmp.baselineTime, cmp.baselineCommand))}</p>
-  ${cmp.sameCommand ? '' : `<p class="meta">⚠ ${e(L.differentCommand)}</p>`}
-  ${cmp.sections.length === 0 ? `<p class="muted">${e(L.noChanges)}</p>` : cmp.sections.map((sec) => `
-    <div class="change change-${e(sec.tone)}">
-      <h3>${e(sec.title)} (${sec.items.length})</h3>
-      <ul>${sec.items.map((it) => `<li>${e(it)}</li>`).join('')}</ul>
     </div>`).join('')}`;
 
-  const c = m.counts;
+  const signoff = `
+  ${h2('signoff')}
+  <table class="sign">
+    <thead><tr><th></th><th>${e(L.colName)}</th><th>${e(L.signDate)}</th><th>${e(L.signature)}</th></tr></thead>
+    <tbody>
+      <tr><td>${e(L.signPreparedBy)}</td><td>${e(m.tester)}</td><td>${e(m.generatedAt)}</td><td></td></tr>
+      <tr><td>${e(L.signApprovedBy)}</td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>`;
+
   return `<!doctype html>
 <html lang="${e(m.lang)}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <title>${e(L.title)}</title>
 <style>
-  @page { size: A4; margin: 16mm 14mm 18mm; }
-  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1b1f1b; font-size: 10.5pt; line-height: 1.45; }
-  h1 { font-size: 20pt; margin: 0 0 2px; color: #123d14; }
-  h2 { font-size: 13.5pt; border-bottom: 2px solid #1b5e20; padding-bottom: 3px; margin-top: 22px; color: #123d14; }
-  h3 { font-size: 11pt; margin: 14px 0 4px; }
-  code, pre { font-family: Menlo, Consolas, monospace; font-size: 8.8pt; }
-  .meta { margin: 2px 0; color: #444; font-size: 9.8pt; } .muted { color: #777; font-style: italic; }
-  .confidential { border: 1px solid #b00020; color: #b00020; font-size: 8.5pt; font-weight: 700; letter-spacing: .3px; padding: 4px 8px; margin: 6px 0 12px; }
-  .head { width: auto; border: none; margin: 0; } .head td { border: none; padding: 1px 14px 1px 0; font-size: 9.8pt; vertical-align: top; }
-  .head td:first-child { color: #666; white-space: nowrap; }
+  @page { size: A4; }
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1b1f1b; font-size: 10.2pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 24pt; margin: 0 0 6px; color: #10351a; line-height: 1.15; }
+  h2 { font-size: 14pt; border-bottom: 2px solid #1b5e20; padding-bottom: 3px; margin: 24px 0 8px; color: #10351a; page-break-after: avoid; }
+  h2 .no { color: #6a8f6a; } h3 { font-size: 11pt; margin: 14px 0 4px; page-break-after: avoid; }
+  code, pre { font-family: Menlo, Consolas, monospace; font-size: 8.6pt; }
+  .meta { margin: 2px 0; color: #444; font-size: 9.6pt; } .muted { color: #777; font-style: italic; font-size: 9pt; }
+  .body { margin: 2px 0 6px; } .label { font-weight: 700; margin: 8px 0 2px; color: #333; font-size: 9.5pt; }
+  .cover { height: 245mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover__brand { font-family: Menlo, monospace; letter-spacing: 4px; color: #2e7d32; font-size: 9pt; margin-bottom: 18mm; }
+  .cover__sub { font-size: 13pt; color: #444; margin: 0 0 14mm; }
+  .cover__meta { border-collapse: collapse; width: auto; margin-bottom: 12mm; }
+  .cover__meta td { border: none; padding: 3px 18px 3px 0; font-size: 11pt; vertical-align: top; } .cover__meta td:first-child { color: #666; }
+  .cover__risk { display: inline-block; align-self: flex-start; border: 2px solid; border-radius: 6px; padding: 6px 14px; font-size: 13pt; margin-bottom: 12mm; }
+  .keep { page-break-inside: avoid; }
+  .toc { page-break-after: always; } .toc ol { font-size: 11pt; line-height: 1.9; }
+  .confidential { border: 1px solid #9b0018; color: #9b0018; font-size: 8.5pt; font-weight: 700; padding: 5px 9px; }
+  .kv { width: auto; border: none; margin: 4px 0; } .kv td { border: none; padding: 2px 16px 2px 0; font-size: 9.6pt; vertical-align: top; }
+  .kv td:first-child { color: #666; white-space: nowrap; }
   .risk { display: flex; gap: 14px; align-items: center; border-radius: 6px; padding: 10px 14px; margin: 8px 0; color: #fff; page-break-inside: avoid; }
   .risk b { font-size: 15pt; white-space: nowrap; } .risk span { font-size: 10pt; }
-  .summary { display: flex; gap: 8px; margin: 8px 0; }
-  .card { border: 1px solid #ccc; border-radius: 6px; padding: 5px 10px; flex: 1; font-size: 9pt; color: #555; }
-  .card b { display: block; font-size: 15pt; color: #1b1f1b; }
-  .badge { color: #fff; border-radius: 3px; padding: 1px 6px; font-size: 7.8pt; font-weight: 700; letter-spacing: .5px; vertical-align: middle; white-space: nowrap; }
-  .finding, .advice, .change { border-left: 4px solid #999; padding: 2px 0 4px 12px; margin: 10px 0; page-break-inside: avoid; }
+  .summary { display: flex; gap: 6px; margin: 8px 0; }
+  .card { border: 1px solid #ccc; border-radius: 6px; padding: 5px 8px; flex: 1; font-size: 8.5pt; color: #555; }
+  .card b { display: block; font-size: 15pt; color: #1b1f1b; } .card--kev b { color: #9b0018; }
+  .actions li { margin: 3px 0; } .urgent { color: #9b0018; } .ref { font-family: Menlo, monospace; font-size: 8.6pt; color: #555; white-space: nowrap; }
+  .badge { color: #fff; border-radius: 3px; padding: 1px 6px; font-size: 7.6pt; font-weight: 700; letter-spacing: .5px; vertical-align: middle; white-space: nowrap; }
+  .badge.kev { background: #000; color: #fff; border: 1px solid #9b0018; }
+  .finding, .advice, .change { border-left: 4px solid #999; padding: 2px 0 6px 12px; margin: 12px 0; }
+  .finding { page-break-inside: auto; } .finding h3 { page-break-after: avoid; }
+  .kevnote { background: #fdecee; border: 1px solid #f3b6bf; padding: 5px 8px; margin: 4px 0 6px; font-size: 9.5pt; }
   .sev-critical { border-color: ${SEV_COLOR.critical}; } .sev-high { border-color: ${SEV_COLOR.high}; }
   .sev-medium { border-color: ${SEV_COLOR.medium}; } .sev-low { border-color: ${SEV_COLOR.low}; }
   .change-bad { border-color: ${SEV_COLOR.high}; } .change-good { border-color: ${SEV_COLOR.safe}; } .change-info { border-color: #0b57d0; }
-  .fix-title { font-weight: 700; color: #1b5e20; margin: 6px 0 2px; }
-  ol, ul { margin: 2px 0 4px 18px; padding: 0; } .refs { font-size: 8.3pt; color: #0b57d0; word-break: break-all; }
-  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin-bottom: 8px; }
+  .fix-title { color: #1b5e20; }
+  ol, ul { margin: 2px 0 4px 18px; padding: 0; } .refs { font-size: 8.2pt; color: #0b57d0; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.2pt; margin-bottom: 8px; }
   thead { display: table-header-group; } tr { page-break-inside: avoid; }
   th, td { border-bottom: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; } th { background: #eef4ee; } .num { text-align: right; }
-  pre { background: #f6f8f6; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; word-break: break-word; font-size: 8pt; }
-  .scope { font-size: 9.5pt; color: #333; }
-  footer { margin-top: 20px; font-size: 8.3pt; color: #666; border-top: 1px solid #ddd; padding-top: 6px; }
+  table.cves { width: auto; min-width: 60%; } table.cves td, table.cves th { padding: 2px 10px 2px 0; }
+  table.sign td { height: 26px; } table.sign td:first-child { color: #666; white-space: nowrap; }
+  pre { background: #f6f8f6; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; word-break: break-word; font-size: 7.8pt; }
+  footer { margin-top: 20px; font-size: 8pt; color: #666; border-top: 1px solid #ddd; padding-top: 6px; }
 </style></head>
 <body>
-  <h1>${e(L.title)}</h1>
-  <div class="confidential">${e(L.confidential)}</div>
-
-  <table class="head">${details}</table>
-
-  <h2>${e(L.executiveSummary)}</h2>
-  <div class="risk" style="background:${SEV_COLOR[m.risk]}">
-    <b>${e(L.overallRisk)}: ${e((L.sev[m.risk] || m.risk).toUpperCase())}</b>
-    <span>${e(L.riskText[m.risk])}</span>
-  </div>
-  <div class="summary">
-    <div class="card">${e(L.hostsUp)}<b>${m.hosts.length}</b></div>
-    <div class="card">${e(L.openPorts)}<b>${m.openPortCount}</b></div>
-    <div class="card">${e(L.sev.critical)}<b style="color:${SEV_COLOR.critical}">${c.critical}</b></div>
-    <div class="card">${e(L.sev.high)}<b style="color:${SEV_COLOR.high}">${c.high}</b></div>
-    <div class="card">${e(L.sev.medium)}<b style="color:${SEV_COLOR.medium}">${c.medium}</b></div>
-    <div class="card">${e(L.sev.low)}<b style="color:${SEV_COLOR.low}">${c.low}</b></div>
-  </div>
+  ${cover}
+  ${toc}
+  ${summary}
+  ${scope}
+  ${rating}
   ${overview}
-  ${comparison}
-
-  <h2>${e(L.vulnsAndFixes)}</h2>
+  ${h2('findings')}
   ${findings}
-
-  <h2>${e(L.openPortsTitle)}</h2>
+  ${comparison}
+  ${inventory}
+  ${h2('ports')}
   ${hosts}
-
-  ${advice ? `<h2>${e(L.hardening)}</h2>${advice}` : ''}
-
-  <h2>${e(L.scopeTitle)}</h2>
-  <p class="scope">${e(L.scope)}</p>
-
-  <h2>${e(L.rawOutput)}</h2>
+  ${advice}
+  ${signoff}
+  ${h2('raw')}
   <pre>${e(m.raw)}</pre>
 
-  <footer>${e(L.footer)}${m.tester ? ` · ${e(m.tester)}` : ''} · ${e(m.timestamp)}</footer>
+  <footer>${e(L.footer)}${m.tester ? ` · ${e(m.tester)}` : ''} · ${e(m.generatedAt)}${m.intelMeta ? ` · ${e(L.dataSources(m.intelMeta.kevVersion))}` : ''}</footer>
 </body></html>`;
 }
 
-/** Text pre pätu kazdej strany PDF (cislo strany doplni Chromium). */
+/** Text pre patu kazdej strany PDF (cislo strany doplni Chromium). */
 export function pdfFooterLabel(m) {
   const L = labels(m.lang);
-  return { title: L.title, page: L.page, tester: m.tester };
+  return { title: `${L.title} · ${L.classificationValue}`, page: L.page, tester: m.tester };
 }

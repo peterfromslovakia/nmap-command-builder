@@ -38,8 +38,8 @@ test('markdown contains findings, fixes, ports and raw output', () => {
   expect(md).toContain('[HIGH] Anonymous FTP login allowed');
   expect(md).toContain('**How to fix:**');
   expect(md).toContain('| 21 | tcp | ftp | vsftpd 3.0.3 | HIGH |');
-  expect(md).toContain('## Hardening recommendations');
-  expect(md).toContain('| 1 | HIGH | Anonymous FTP login allowed | web.local (192.168.1.10) | 21/tcp |');
+  expect(md).toMatch(/## \d+\. Hardening recommendations/);
+  expect(md).toContain('| F-01 | HIGH | Anonymous FTP login allowed | web.local (192.168.1.10) · 21/tcp | — | — | 30 days |');
   expect(md).toContain('**Overall risk: HIGH**');
   expect(md).toContain('- **Performed by:** _not stated_');
   expect(md).toContain('```\nNmap scan report for web.local');
@@ -86,9 +86,9 @@ describe('comparison with the previous scan', () => {
     const m = withCmp(diffScans(before, after));
     expect(m.comparison.sections.map((s) => s.title)).toEqual(['New open ports', 'Fixed vulnerabilities']);
     const md = toMarkdown(m);
-    expect(md).toContain('## Changes since previous scan');
+    expect(md).toMatch(/## \d+\. Changes since previous scan/);
     expect(md).toContain('3389/tcp ms-wbt-server');
-    expect(md.indexOf('Changes since')).toBeLessThan(md.indexOf('Vulnerabilities & fixes'));
+    expect(md.search(/## \d+\. Changes since/)).toBeGreaterThan(md.search(/## \d+\. Vulnerabilities & fixes/));
     const html = toHtml(m);
     expect(html).toContain('&lt;b&gt;RDP&lt;/b&gt;');
     expect(html).not.toContain('<b>RDP</b>');
@@ -129,7 +129,7 @@ describe('report details, overall risk and language', () => {
     expect(md).toContain('[VYSOKÉ] Povolené anonymné prihlásenie na FTP');
     expect(md).toContain('**Ako opraviť:**');
     expect(md).toContain('Vypnite anonymné prihlásenie');
-    expect(md).toContain('## Rozsah a obmedzenia');
+    expect(md).toMatch(/## \d+\. Rozsah a metodika/);
     expect(md).not.toContain('How to fix');
   });
 
@@ -139,5 +139,68 @@ describe('report details, overall risk and language', () => {
     expect(html).toContain('Test vykonal');
     expect(html).toContain('&lt;img src=x&gt;');
     expect(html).not.toContain('<img src=x>');
+  });
+});
+
+describe('pentest-grade report', () => {
+  const VULN = `Nmap scan report for fileserver.lan (192.168.1.20)
+PORT    STATE SERVICE     VERSION
+22/tcp  open  ssh         OpenSSH 8.2p1
+| vulners:
+|   cpe:/a:openbsd:openssh:8.2p1:
+|     	CVE-2023-38408	9.8	https://vulners.com/cve/CVE-2023-38408
+|_    	CVE-2021-41617	7.0	https://vulners.com/cve/CVE-2021-41617
+445/tcp open  microsoft-ds
+Host script results:
+| smb-vuln-ms17-010:
+|   VULNERABLE:
+|   Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)
+|     State: VULNERABLE
+|     IDs:  CVE:CVE-2017-0143
+`;
+  const { parseFindings } = jest.requireActual('./findings');
+  const { applyIntel } = jest.requireActual('./intel');
+  const intel = {
+    kev: { 'CVE-2017-0143': { dueDate: '2022-05-03', ransomware: true } },
+    epss: { 'CVE-2017-0143': { epss: 0.933, percentile: 0.99 }, 'CVE-2023-38408': { epss: 0.8, percentile: 0.98 } },
+    nvd: { 'CVE-2023-38408': { score: 9.8, vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', cwe: ['CWE-428'], description: 'ssh-agent <PKCS#11> RCE' } },
+  };
+  const make = (lang, extra = {}) => buildReportModel({
+    text: VULN, command: 'nmap -sV --script vuln,vulners -T4 192.168.1.20', target: '192.168.1.20', timestamp: 't',
+    findings: applyIntel(parseFindings(VULN), intel), intelMeta: { kevVersion: '2026.11.20' }, meta: { lang, tester: 'Ján' }, ...extra,
+  });
+
+  test('findings get IDs, KEV flag, NVD CVSS/CWE and remediation timeframe', () => {
+    const m = make('en');
+    expect(m.findings.map((f) => [f.ref, f.exploited, f.timeframe])).toEqual([
+      ['F-01', true, 'exploited'], ['F-02', false, 'critical'],
+    ]);
+    expect(m.findings[1]).toMatchObject({ cvss: 9.8, cwe: ['CWE-428'], nvdDescriptionCve: 'CVE-2023-38408' });
+    expect(m.exploitedCount).toBe(1);
+    expect(m.actions[0]).toMatchObject({ ref: 'F-01', exploited: true });
+  });
+
+  test('methodology describes the techniques actually used', () => {
+    const m = make('en');
+    expect(m.techniques).toEqual(expect.arrayContaining([
+      'TCP connect port scan', 'Service and version detection', 'Nmap Scripting Engine (NSE): vuln,vulners', 'Timing template T4',
+    ]));
+    expect(m.techniques.join()).toMatch(/CISA KEV/);
+  });
+
+  test('HTML has cover, contents, rating table, sign-off; untrusted text escaped', () => {
+    const html = toHtml(make('sk'));
+    ['class="cover"', 'Obsah', 'Hodnotenie rizika a termíny opráv', 'Okamžite', 'Schválenie', 'F-01', 'CWE-428', 'CISA KEV 2026.11.20'].forEach((s) => expect(html).toContain(s));
+    expect(html).toContain('&lt;PKCS#11&gt;');
+    expect(html).not.toContain('<PKCS#11>');
+  });
+
+  test('markdown: numbered chapters and asset inventory when provided', () => {
+    const inventory = [{ ip: '192.168.1.1', type: 'router', hostname: 'gw', mac: 'AA:BB:CC:00:11:22', vendor: 'Ubiquiti', randomizedMac: false, ports: [{ port: 53 }, { port: 443 }] }];
+    const md = toMarkdown(make('en', { inventory }));
+    expect(md).toMatch(/## \d+\. Asset inventory/);
+    expect(md).toContain('| 192.168.1.1 | Router / gateway | gw | AA:BB:CC:00:11:22 · Ubiquiti | 53, 443 |');
+    expect(md).toMatch(/### F-01 — \[HIGH|CRITICAL\]/);
+    expect(md).toContain('Actively exploited (CISA KEV) — used in ransomware campaigns');
   });
 });

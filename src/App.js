@@ -466,9 +466,13 @@ export default function App() {
         text: rawText,
         command: currentCommandRef.current,
         target: scannedTarget || targetRef.current,
-        timestamp: new Date().toLocaleString(),
+        timestamp: new Date(currentSnapshot?.time || Date.now()).toLocaleString(),
+        generatedAt: new Date().toLocaleString(),
         nmapVersion: nmapStatus.version,
         meta,
+        findings: scanText === rawText ? findings : undefined,
+        intelMeta: intelEnabled && intelData ? intelData.meta : null,
+        inventory,
         comparison: comparison && {
           baselineTime: new Date(comparison.baseline.time).toLocaleString(),
           baselineCommand: comparison.baseline.command,
@@ -534,7 +538,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines, scannedTarget, nmapStatus.version, comparison]);
+  }, [outputLines, scannedTarget, nmapStatus.version, comparison, scanText, findings, intelEnabled, intelData, inventory, currentSnapshot]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
