@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Maintenance
+- Added the `LICENSE` file (MIT) and the `license` field in `package.json`
+- Test files are no longer packaged into the app
+- `.gitignore` covers test coverage, caches, logs, `.env.*` and editor files
+
 ## 1.2.0 — 2026-11-21
 
 ### New
