@@ -74,6 +74,11 @@ export default function App() {
     advancedMode
   );
 
+  // macOS: semafor okna (hiddenInset) prekryva lavu cast hlavicky
+  useEffect(() => {
+    if (/Mac/i.test(navigator.userAgent)) document.body.classList.add('platform-mac');
+  }, []);
+
   // ── Detect local network (on mount + whenever the window regains focus) ───
   const refreshNetworks = useCallback(async () => {
     if (!window.electronAPI || !window.electronAPI.detectNetworks) return;

@@ -3,6 +3,18 @@ import { FLAG_CATEGORIES } from '../data/flags';
 import { validateTarget } from '../utils/validator';
 import FlagCategory from './FlagCategory';
 
+// Viac rozhrani v tej istej sieti (napr. Wi-Fi + Ethernet) = jedno tlacidlo.
+function groupNetworks(networks) {
+  const map = new Map();
+  for (const n of networks) {
+    const g = map.get(n.suggested) || { suggested: n.suggested, virtual: true, members: [] };
+    g.members.push(n);
+    g.virtual = g.virtual && n.virtual;
+    map.set(n.suggested, g);
+  }
+  return Array.from(map.values());
+}
+
 export default function BuilderTab({
   target,
   onTargetChange,
@@ -63,16 +75,16 @@ export default function BuilderTab({
           <span className="net-detect__label">
             {networks.length > 0 ? 'DETECTED NETWORK' : 'NO NETWORK DETECTED'}
           </span>
-          {networks.map((n) => (
+          {groupNetworks(networks).map((g) => (
             <button
-              key={`${n.iface}-${n.address}`}
+              key={g.suggested}
               type="button"
-              className={`net-chip ${target === n.suggested ? 'net-chip--active' : ''} ${n.virtual ? 'net-chip--virtual' : ''}`}
-              onClick={() => onUseNetwork && onUseNetwork(n.suggested)}
-              title={`${n.iface}: you are ${n.address}, network ${n.cidr}`}
+              className={`net-chip ${target === g.suggested ? 'net-chip--active' : ''} ${g.virtual ? 'net-chip--virtual' : ''}`}
+              onClick={() => onUseNetwork && onUseNetwork(g.suggested)}
+              title={g.members.map((m) => `${m.iface}: you are ${m.address} (network ${m.cidr})`).join('\n')}
             >
-              {n.iface} · {n.suggested}
-              <span className="net-chip__ip"> (you {n.address})</span>
+              {g.members.map((m) => m.iface).join(' + ')} · {g.suggested}
+              <span className="net-chip__ip"> (you {g.members.map((m) => m.address).join(', ')})</span>
             </button>
           ))}
           <button

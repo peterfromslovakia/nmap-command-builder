@@ -4,6 +4,7 @@
 // primarne riziko. Zoznam nizsie je len obranna vrstva. Lomka "/" v nom NIE JE,
 // pretoze je platnou castou CIDR targetov (192.168.1.0/24) aj ciest k suborom.
 
+// eslint-disable-next-line no-control-regex -- riadiace znaky su zamerne zakazane
 const UNSAFE_CHARS = /[;&|`$(){}[\]<>!\\'"\u0000-\u001f\u007f]/;
 
 const RE_IPV4_LOOSE = /^(\d{1,3}\.){3}\d{1,3}$/;
