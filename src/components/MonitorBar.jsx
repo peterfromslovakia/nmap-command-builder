@@ -25,7 +25,7 @@ function resultText(m, t) {
  * Monitorovanie: zopakuje posledny sken v intervale a upozorni na nove porty,
  * zariadenia a zranitelnosti. Bezi len ked je aplikacia otvorena.
  */
-export default function MonitorBar({ monitor, canStart, lastTarget, scanning, onStart, onStop, onRunNow }) {
+export default function MonitorBar({ monitor, canStart, lastTarget, scanning, onStart, onStop, onRunNow, reportDir = '', onChooseReportDir }) {
   const t = useT();
   const [interval, setIntervalMin] = useState(60);
 
@@ -62,7 +62,24 @@ export default function MonitorBar({ monitor, canStart, lastTarget, scanning, on
         <button className="btn btn--xs" onClick={onRunNow} disabled={scanning}>{t('RUN NOW')}</button>
         <button className="btn btn--xs btn--ghost" onClick={onStop}>{t('STOP')}</button>
       </span>
-      <span className="monitor-bar__hint">{t('Runs only while the app is open.')}</span>
+      <span className="monitor-bar__hint">
+        {t('Runs only while the app is open.')}
+        {onChooseReportDir && (
+          <span className="monitor-bar__reports">
+            {reportDir ? (
+              <>
+                {t('PDF report on changes →')} <code title={reportDir}>{reportDir.split(/[\\/]/).filter(Boolean).pop()}</code>
+                {' '}<button className="link-btn" onClick={() => onChooseReportDir()}>{t('change')}</button>
+                {' '}<button className="link-btn" onClick={() => onChooseReportDir(true)}>{t('turn off')}</button>
+              </>
+            ) : (
+              <button className="link-btn" title={t('Save a PDF report automatically after the first run and whenever something changes')} onClick={() => onChooseReportDir()}>
+                {t('save PDF reports automatically…')}
+              </button>
+            )}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

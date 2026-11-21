@@ -327,5 +327,21 @@ const UI_SK = {
   '{n} new open ports': 'nové otvorené porty: {n}',
   '{n} new vulnerabilities': 'nové zraniteľnosti: {n}',
   'Changes in {target}': 'Zmeny v {target}',
+  // ── export / import predvolieb ──
+  'Load presets from a file (e.g. from a colleague)': 'Načítať predvoľby zo súboru (napr. od kolegu)',
+  'Save all my presets to a file to share or back up': 'Uložiť všetky moje predvoľby do súboru na zdieľanie alebo zálohu',
+  import: 'import',
+  export: 'export',
+  'Imported: {added} new, {replaced} replaced, {skipped} skipped': 'Importované: nové {added}, nahradené {replaced}, vynechané {skipped}',
+  'Not a valid presets file': 'Toto nie je súbor s predvoľbami',
+  'File is too large.': 'Súbor je príliš veľký.',
+  // ── automaticke reporty monitorovania ──
+  'PDF report on changes →': 'PDF report pri zmenách →',
+  change: 'zmeniť',
+  'Save a PDF report automatically after the first run and whenever something changes': 'Automaticky uložiť PDF report po prvom behu a vždy, keď sa niečo zmení',
+  'save PDF reports automatically…': 'ukladať PDF reporty automaticky…',
+  'No report folder chosen.': 'Nie je vybraný priečinok pre reporty.',
+  'Invalid or too large report.': 'Neplatný alebo príliš veľký report.',
+  'unknown error': 'neznáma chyba',
 };
 export default UI_SK;

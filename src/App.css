@@ -2520,3 +2520,7 @@
 .monitor-bar--alert .monitor-bar__result { color: #ff8a9a; font-weight: 600; }
 .monitor-bar__actions { margin-left: auto; display: inline-flex; gap: 6px; }
 .monitor-bar__hint { flex-basis: 100%; font-size: 10px; color: var(--text-dim); }
+.my-presets__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.my-presets__io { display: inline-flex; gap: 12px; font-size: 11px; }
+.monitor-bar__reports { margin-left: 14px; }
+.monitor-bar__reports code { color: var(--accent, #00ff9c); }

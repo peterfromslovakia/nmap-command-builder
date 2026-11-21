@@ -18,6 +18,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // Open a JSON file chosen by the user (preset import) — returns its text only
+  openJsonFile: () => ipcRenderer.invoke('file:openJson'),
+
+  // Monitoring: automatic PDF report into a folder chosen in a system dialog
+  monitorReportDir: () => ipcRenderer.invoke('monitor:reportDir'),
+  chooseMonitorReportDir: (clear) => ipcRenderer.invoke('monitor:chooseReportDir', clear === true),
+  saveMonitorReport: (html, footer, target) => ipcRenderer.invoke('monitor:saveReport', { html, footer, target }),
+
   // System notification (monitoring alerts)
   notify: (title, body) => ipcRenderer.invoke('app:notify', { title, body }),
 

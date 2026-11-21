@@ -75,3 +75,41 @@ export function saveUserPreset({ name, flags, target = '' }, storage = defaultSt
 export function deleteUserPreset(id, storage = defaultStorage()) {
   return persist(loadUserPresets(storage).filter((p) => p.id !== id), storage);
 }
+
+// ─── Export / import (zdielanie predvolieb s kolegami) ───────────────────────
+const EXPORT_TYPE = 'nmap-command-builder/presets';
+
+/** JSON so zvolenymi predvolbami (bez ID a casov). */
+export function exportUserPresets(list, withTargets = true) {
+  return JSON.stringify({
+    type: EXPORT_TYPE,
+    version: 1,
+    presets: list.map((p) => ({ name: p.name, flags: p.flags, ...(withTargets && p.target ? { target: p.target } : {}) })),
+  }, null, 2);
+}
+
+/**
+ * Nacita predvolby zo suboru. Kazda prejde rovnakym cistenim ako pri ulozeni
+ * (nezname flagy sa zahodia); rovnaky nazov prepise existujucu predvolbu.
+ * @returns {{ ok: boolean, error?: string, added: number, replaced: number, skipped: number, list: Array }}
+ */
+export function importUserPresets(text, storage = defaultStorage(), now = new Date()) {
+  const current = loadUserPresets(storage);
+  let data;
+  try { data = JSON.parse(text); } catch (_) { return { ok: false, error: 'Not a valid presets file', added: 0, replaced: 0, skipped: 0, list: current }; }
+  const items = data && data.type === EXPORT_TYPE && Array.isArray(data.presets) ? data.presets : null;
+  if (!items) return { ok: false, error: 'Not a valid presets file', added: 0, replaced: 0, skipped: 0, list: current };
+
+  let list = current;
+  let added = 0; let replaced = 0; let skipped = 0;
+  items.slice(0, MAX_USER_PRESETS * 2).forEach((raw, i) => {
+    const p = sanitize({ ...raw, id: `u${now.getTime()}-${i}`, created: now.toISOString() });
+    if (!p) { skipped += 1; return; }
+    const exists = list.some((x) => x.name.toLowerCase() === p.name.toLowerCase());
+    const rest = list.filter((x) => x.name.toLowerCase() !== p.name.toLowerCase());
+    if (rest.length >= MAX_USER_PRESETS) { skipped += 1; return; }
+    list = [p, ...rest];
+    if (exists) replaced += 1; else added += 1;
+  });
+  return { ok: true, added, replaced, skipped, list: persist(list, storage) };
+}

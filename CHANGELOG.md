@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Export / import of my presets** — share your presets with colleagues or back them up as a JSON file; imported presets are checked the same way as saved ones (unknown flags and invalid values are dropped, the same name replaces the existing preset)
+- **Automatic PDF reports from monitoring** — choose a folder once and a full report is saved after the first run and whenever new ports, devices or vulnerabilities appear
+
+### Fixed
+- Report table of contents showed "0." instead of "10." for the appendix
+
 ## 1.5.0 — 2026-11-21
 
 ### New

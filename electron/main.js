@@ -160,6 +160,24 @@ ipcMain.handle('app:notify', (event, payload) => {
   return true;
 });
 
+// Nacitanie JSON suboru zvoleneho pouzivatelom (import predvolieb).
+// Renderer nedostane cestu, len obsah; max. 256 KB.
+ipcMain.handle('file:openJson', async (event) => {
+  if (!isTrusted(event)) return { ok: false, error: 'Untrusted sender.' };
+  const r = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (r.canceled || !r.filePaths[0]) return { ok: false, cancelled: true };
+  try {
+    const st = fs.statSync(r.filePaths[0]);
+    if (!st.isFile() || st.size > 256 * 1024) return { ok: false, error: 'File is too large.' };
+    return { ok: true, text: fs.readFileSync(r.filePaths[0], 'utf8') };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('app:setLang', (event, lang) => {
   if (!isTrusted(event) || (lang !== 'en' && lang !== 'sk')) return false;
   if (lang !== uiLang) { uiLang = lang; setMenu(lang); }
@@ -410,6 +428,76 @@ function pdfFooterTemplate(footer) {
     + `<span>${left}</span><span>${esc(f.page || 'Page')} <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
 }
 
+/** HTML → PDF v skrytom okne bez JavaScriptu (report je uz escapovany). */
+async function renderPdf(html, footer) {
+  const tmpFile = path.join(app.getPath('temp'), `nmap-report-${process.pid}-${Date.now()}.html`);
+  let win = null;
+  try {
+    fs.writeFileSync(tmpFile, html, 'utf8');
+    win = new BrowserWindow({
+      show: false,
+      webPreferences: { javascript: false, sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    win.webContents.on('will-navigate', (e) => e.preventDefault());
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    await win.loadFile(tmpFile);
+    return await win.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: pdfFooterTemplate(footer),
+      margins: { top: 0.6, bottom: 0.75, left: 0.55, right: 0.55 },
+    });
+  } finally {
+    if (win && !win.isDestroyed()) win.destroy();
+    fs.rm(tmpFile, { force: true }, () => {});
+  }
+}
+
+// ─── Automaticke reporty z monitorovania ─────────────────────────────────────
+// Priecinok vyberie pouzivatel v dialogu; cestu drzi len main proces (renderer
+// ju nevie zmenit ani podvrhnut) a nazov suboru sklada main proces.
+const monitorPrefsFile = () => path.join(app.getPath('userData'), 'monitor-reports.json');
+const readReportDir = () => {
+  try {
+    const d = JSON.parse(fs.readFileSync(monitorPrefsFile(), 'utf8')).dir;
+    return typeof d === 'string' && path.isAbsolute(d) && fs.statSync(d).isDirectory() ? d : '';
+  } catch (_) { return ''; }
+};
+
+ipcMain.handle('monitor:reportDir', (event) => (isTrusted(event) ? { dir: readReportDir() } : { dir: '' }));
+
+ipcMain.handle('monitor:chooseReportDir', async (event, clear) => {
+  if (!isTrusted(event)) return { dir: '' };
+  if (clear === true) { fs.rm(monitorPrefsFile(), { force: true }, () => {}); return { dir: '' }; }
+  const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return { dir: readReportDir(), cancelled: true };
+  fs.writeFileSync(monitorPrefsFile(), JSON.stringify({ dir: r.filePaths[0] }));
+  return { dir: r.filePaths[0] };
+});
+
+ipcMain.handle('monitor:saveReport', async (event, payload) => {
+  if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
+  const dir = readReportDir();
+  if (!dir) return { success: false, error: 'No report folder chosen.' };
+  const { html, footer, target } = payload || {};
+  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > EXPORT_MAX_BYTES) {
+    return { success: false, error: 'Invalid or too large report.' };
+  }
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+  const safeTarget = String(target || 'scan').replace(/[^A-Za-z0-9.-]+/g, '_').slice(0, 60) || 'scan';
+  const filePath = path.join(dir, `nmap-monitor-${safeTarget}-${stamp}.pdf`);
+  try {
+    fs.writeFileSync(filePath, await renderPdf(html, footer));
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('report:pdf', async (event, payload) => {
   if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
   const { html, defaultFilename, footer } = payload || {};
@@ -426,31 +514,10 @@ ipcMain.handle('report:pdf', async (event, payload) => {
     return { success: false, error: 'Only .pdf files are allowed.' };
   }
 
-  const tmpFile = path.join(app.getPath('temp'), `nmap-report-${process.pid}-${Date.now()}.html`);
-  let win = null;
   try {
-    fs.writeFileSync(tmpFile, html, 'utf8');
-    win = new BrowserWindow({
-      show: false,
-      webPreferences: { javascript: false, sandbox: true, contextIsolation: true, nodeIntegration: false },
-    });
-    win.webContents.on('will-navigate', (e) => e.preventDefault());
-    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    await win.loadFile(tmpFile);
-    const pdf = await win.webContents.printToPDF({
-      pageSize: 'A4',
-      printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: pdfFooterTemplate(footer),
-      margins: { top: 0.6, bottom: 0.75, left: 0.55, right: 0.55 },
-    });
-    fs.writeFileSync(filePath, pdf);
+    fs.writeFileSync(filePath, await renderPdf(html, footer));
     return { success: true, filePath };
   } catch (err) {
     return { success: false, error: err.message };
-  } finally {
-    if (win && !win.isDestroyed()) win.destroy();
-    fs.rm(tmpFile, { force: true }, () => {});
   }
 });

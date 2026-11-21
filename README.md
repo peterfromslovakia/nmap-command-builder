@@ -76,6 +76,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 
 - **Repeat a scan every 15 min / 1 h / 6 h / 24 h** and get a **system notification** when a new device, open port or vulnerability appears (compared with the previous scan of the same target)
 - Status bar with the next run, last result, *run now* and *stop*; the schedule survives an app restart and runs only while the app is open
+- Optional **automatic PDF report** into a folder you choose — after the first run and whenever something changes (`nmap-monitor-<target>-<date>_<time>.pdf`)
 
 ## Command Builder
 
@@ -85,7 +86,7 @@ The application will start as an Electron desktop app with the Nmap command buil
 - Safe / Advanced mode toggle
 - 23 built-in scan presets (TLS audit, SMB security check, CVE lookup, database exposure, web vulnerability scan, …), each labelled **LOW / NOISY / INTRUSIVE** with an explanation of the risk; the most dangerous ones (brute-force, exploit/dos scripts) appear only in Advanced mode
 - Automatic local network detection (e.g. `192.168.1.0/24`) pre-fills the target and refreshes when the window regains focus
-- **My presets**: save your own flag combinations (optionally with the target) and reuse them with one click
+- **My presets**: save your own flag combinations (optionally with the target) and reuse them with one click; **export / import** them as a JSON file to share with colleagues or back up (imported presets are checked — unknown flags are dropped)
 - Searchable Nmap cheatsheet
 - NSE script library (SCRIPTS tab): 71 curated scripts and all script categories with descriptions, risk level and one-click `--script` / `--script-args` (brute / exploit / dos only in Advanced mode)
 

@@ -9,7 +9,7 @@ const RISK = {
   high:   { label: 'INTRUSIVE', title: 'May disrupt services or lock accounts — written permission required' },
 };
 
-function MyPresets({ userPresets, canSave, currentTarget, onSave, onDelete, onLoad }) {
+function MyPresets({ userPresets, canSave, currentTarget, onSave, onDelete, onLoad, onExport, onImport }) {
   const t = useT();
   const [name, setName] = useState('');
   const [withTarget, setWithTarget] = useState(false);
@@ -25,7 +25,22 @@ function MyPresets({ userPresets, canSave, currentTarget, onSave, onDelete, onLo
 
   return (
     <section className="my-presets">
-      <div className="my-presets__title">{t('MY PRESETS')}</div>
+      <div className="my-presets__head">
+        <span className="my-presets__title">{t('MY PRESETS')}</span>
+        <span className="my-presets__io">
+          {onImport && (
+            <button className="link-btn" title={t('Load presets from a file (e.g. from a colleague)')} onClick={async () => {
+              const r = await onImport();
+              if (!r) return;
+              if (!r.ok) setMsg({ ok: false, text: t(r.error) });
+              else setMsg({ ok: true, text: t('Imported: {added} new, {replaced} replaced, {skipped} skipped', r) });
+            }}>↑ {t('import')}</button>
+          )}
+          {onExport && userPresets.length > 0 && (
+            <button className="link-btn" title={t('Save all my presets to a file to share or back up')} onClick={onExport}>↓ {t('export')}</button>
+          )}
+        </span>
+      </div>
       <form className="my-presets__form" onSubmit={save}>
         <input
           className="flag-input my-presets__name"
@@ -75,7 +90,7 @@ function MyPresets({ userPresets, canSave, currentTarget, onSave, onDelete, onLo
 }
 
 export default function PresetsTab({
-  onLoadPreset, advancedMode, userPresets = [], canSave = false, currentTarget = '', onSaveUserPreset, onDeleteUserPreset,
+  onLoadPreset, advancedMode, userPresets = [], canSave = false, currentTarget = '', onSaveUserPreset, onDeleteUserPreset, onExportPresets, onImportPresets,
 }) {
   const t = useT();
   const visiblePresets = PRESETS.filter((p) => p.safe || advancedMode);
@@ -92,6 +107,8 @@ export default function PresetsTab({
         currentTarget={currentTarget}
         onSave={onSaveUserPreset}
         onDelete={onDeleteUserPreset}
+        onExport={onExportPresets}
+        onImport={onImportPresets}
         onLoad={onLoadPreset}
       />
 

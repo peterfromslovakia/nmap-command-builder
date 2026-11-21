@@ -28,7 +28,7 @@ import FollowUpPanel from './components/FollowUpPanel';
 import IntelPanel from './components/IntelPanel';
 import FindingsPanel from './components/FindingsPanel';
 import DiffPanel from './components/DiffPanel';
-import { loadUserPresets, saveUserPreset, deleteUserPreset } from './utils/userPresets';
+import { loadUserPresets, saveUserPreset, deleteUserPreset, exportUserPresets, importUserPresets } from './utils/userPresets';
 import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
 import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
@@ -314,6 +314,18 @@ export default function App() {
     return r;
   }, [flagSelections, target]);
 
+  const handleExportPresets = useCallback(() => {
+    window.electronAPI.exportResult(exportUserPresets(userPresets), `nmap-presets-${new Date().toISOString().slice(0, 10)}.json`, [{ name: 'JSON', extensions: ['json'] }]);
+  }, [userPresets]);
+
+  const handleImportPresets = useCallback(async () => {
+    const f = await window.electronAPI.openJsonFile();
+    if (!f || !f.ok) return f && !f.cancelled ? { ok: false, error: f.error } : null;
+    const r = importUserPresets(f.text);
+    if (r.ok) setUserPresets(r.list);
+    return r;
+  }, []);
+
   const handleDeleteUserPreset = useCallback((id) => {
     setUserPresets(deleteUserPreset(id));
   }, []);
@@ -418,6 +430,28 @@ export default function App() {
     startScan({ args: monitor.args, command: monitor.command, target: monitor.target, kind: 'monitor' });
   }, [clock, monitor, scanStatus, startScan]);
 
+  // Automaticky PDF report z monitorovania (pri prvom behu a pri zmenach),
+  // do priecinka, ktory si pouzivatel vybral v systemovom dialogu.
+  const [reportDir, setReportDir] = useState('');
+  useEffect(() => {
+    window.electronAPI?.monitorReportDir?.().then((r) => setReportDir((r && r.dir) || '')).catch(() => {});
+  }, []);
+  const handleChooseReportDir = useCallback(async (clear) => {
+    const r = await window.electronAPI.chooseMonitorReportDir(clear === true);
+    setReportDir((r && r.dir) || '');
+  }, []);
+  const autoReportRef = useRef(null);
+  autoReportRef.current = async (cmp, target) => {
+    if (!reportDir) return;
+    const meta = reportMeta.saved ? reportMeta : { ...reportMeta, lang };
+    const model = reportModelRef.current(meta, cmp);
+    const res = await window.electronAPI.saveMonitorReport(toHtml(model), pdfFooterLabel(model), target);
+    const T = tRef.current;
+    setOutputLines((prev) => [...prev, res && res.success
+      ? { id: Date.now(), type: 'system', text: `\n[✓ ${T('PDF report saved to: {path}', { path: res.filePath })}]` }
+      : { id: Date.now(), type: 'error', text: `\n[✗ ${T('PDF export failed: {msg}', { msg: T((res && res.error) || 'unknown error') })}]` }]);
+  };
+
   // Vysledok monitorovaneho behu: porovnanie s predchadzajucim skenom toho isteho ciela.
   useEffect(() => {
     if (scanKindRef.current !== 'monitor' || !monitor || monitorHandledRef.current === scanIdRef.current) return;
@@ -429,10 +463,11 @@ export default function App() {
     if (scanStatus === 'error' || scanStatus === 'killed') { finish('error'); return; }
     if (currentSnapshot && currentSnapshot.id === scanIdRef.current) {
       const cmp = comparisonFor(snapshots, currentSnapshot);
-      if (!cmp) { finish('first'); return; }
+      if (!cmp) { finish('first'); autoReportRef.current(null, monitor.target); return; }
       const { alert, counts } = monitorChanges(cmp.diff);
       finish(alert ? 'changes' : 'nochange', counts);
       if (alert) {
+        autoReportRef.current(cmp, monitor.target);
         const T = tRef.current;
         const parts = [
           counts.findings && T('{n} new vulnerabilities', { n: counts.findings }),
@@ -520,6 +555,29 @@ export default function App() {
     setCurrentSnapshot(null);
   }, []);
 
+  // Datovy model reportu z aktualneho skenu (export aj automaticke reporty monitorovania).
+  const reportModelRef = useRef(null);
+  reportModelRef.current = (meta, cmp = comparison) => {
+    const rawText = outputLines.map((l) => l.text || '').join('');
+    return buildReportModel({
+      text: rawText,
+      command: currentCommandRef.current,
+      target: scannedTarget || targetRef.current,
+      timestamp: new Date(currentSnapshot?.time || Date.now()).toLocaleString(),
+      generatedAt: new Date().toLocaleString(),
+      nmapVersion: nmapStatus.version,
+      meta,
+      findings: scanText === rawText ? findings : undefined,
+      intelMeta: intelEnabled && intelData ? intelData.meta : null,
+      inventory,
+      comparison: cmp && {
+        baselineTime: new Date(cmp.baseline.time).toLocaleString(),
+        baselineCommand: cmp.baseline.command,
+        diff: cmp.diff,
+      },
+    });
+  };
+
   // ── Unified export handler — supports txt / json / csv ────────────────────
   const handleExport = useCallback(async (format = 'txt', meta = null) => {
     if (!window.electronAPI) return;
@@ -534,23 +592,7 @@ export default function App() {
     let content, filename, filters;
 
     if (format === 'md' || format === 'pdf') {
-      const model = buildReportModel({
-        text: rawText,
-        command: currentCommandRef.current,
-        target: scannedTarget || targetRef.current,
-        timestamp: new Date(currentSnapshot?.time || Date.now()).toLocaleString(),
-        generatedAt: new Date().toLocaleString(),
-        nmapVersion: nmapStatus.version,
-        meta,
-        findings: scanText === rawText ? findings : undefined,
-        intelMeta: intelEnabled && intelData ? intelData.meta : null,
-        inventory,
-        comparison: comparison && {
-          baselineTime: new Date(comparison.baseline.time).toLocaleString(),
-          baselineCommand: comparison.baseline.command,
-          diff: comparison.diff,
-        },
-      });
+      const model = reportModelRef.current(meta);
       if (format === 'pdf') {
         const res = await window.electronAPI.exportPdf(toHtml(model), `nmap-report-${model.lang}-${stamp}.pdf`, pdfFooterLabel(model));
         setOutputLines((prev) => [
@@ -610,7 +652,7 @@ export default function App() {
         { id: Date.now(), type: 'system', text: `\n[✓ Exported to: ${result.filePath}]` },
       ]);
     }
-  }, [outputLines, scannedTarget, nmapStatus.version, comparison, scanText, findings, intelEnabled, intelData, inventory, currentSnapshot]);
+  }, [outputLines]);
 
   // ── IDS/IPS risk — active when evasion/spoofing/paranoid-timing flags are on ─
   const IDS_FLAG_IDS = new Set([
@@ -861,6 +903,8 @@ export default function App() {
                 currentTarget={target.trim()}
                 onSaveUserPreset={handleSaveUserPreset}
                 onDeleteUserPreset={handleDeleteUserPreset}
+                onExportPresets={handleExportPresets}
+                onImportPresets={handleImportPresets}
               />
             )}
             {activeTab === 'scripts' && (
@@ -951,6 +995,8 @@ export default function App() {
             onStart={handleStartMonitor}
             onStop={handleStopMonitor}
             onRunNow={handleMonitorNow}
+            reportDir={reportDir}
+            onChooseReportDir={handleChooseReportDir}
           />
 
           {rootNeeds.length > 0 && (

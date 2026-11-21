@@ -55,3 +55,35 @@ test('tampered or broken storage is cleaned up, never throws', () => {
   expect(loadUserPresets({ getItem: () => { throw new Error('denied'); } })).toEqual([]);
   expect(loadUserPresets(null)).toEqual([]);
 });
+
+describe('export / import', () => {
+  const { exportUserPresets, importUserPresets } = require('./userPresets');
+  const mem = () => { const m = {}; return { getItem: (k) => m[k] ?? null, setItem: (k, v) => { m[k] = v; } }; };
+
+  test('round trip, same name replaces, unknown flags dropped', () => {
+    const a = mem();
+    saveUserPreset({ name: 'NAS', flags: { sv: true }, target: '10.0.0.5' }, a);
+    saveUserPreset({ name: 'Web', flags: { script: 'http-title' } }, a);
+    const file = exportUserPresets(loadUserPresets(a));
+    expect(JSON.parse(file).presets[1]).toEqual({ name: 'NAS', flags: { sv: true }, target: '10.0.0.5' });
+    expect(JSON.parse(exportUserPresets(loadUserPresets(a), false)).presets[1].target).toBeUndefined();
+
+    const b = mem();
+    saveUserPreset({ name: 'nas', flags: { fast: true } }, b);
+    const r = importUserPresets(file, b);
+    expect(r).toMatchObject({ ok: true, added: 1, replaced: 1, skipped: 0 });
+    expect(r.list.find((p) => p.name === 'NAS').flags).toEqual({ sv: true });
+
+    const evil = JSON.stringify({ type: 'nmap-command-builder/presets', version: 1, presets: [
+      { name: 'x', flags: { not_a_flag: '--interactive', sv: 'a\nb' } }, { name: 'ok', flags: { fast: true, evil: true } }, 'junk',
+    ] });
+    const r2 = importUserPresets(evil, b);
+    expect(r2).toMatchObject({ ok: true, added: 1, skipped: 2 });
+    expect(r2.list.find((p) => p.name === 'ok').flags).toEqual({ fast: true });
+  });
+
+  test('rejects other files', () => {
+    expect(importUserPresets('nope', mem())).toMatchObject({ ok: false, error: 'Not a valid presets file' });
+    expect(importUserPresets('{"presets":[]}', mem()).ok).toBe(false);
+  });
+});

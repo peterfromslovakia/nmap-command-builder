@@ -204,3 +204,12 @@ Host script results:
     expect(md).toContain('Actively exploited (CISA KEV) — used in ransomware campaigns');
   });
 });
+
+test('table of contents numbers every section explicitly (10+ must not be clipped)', () => {
+  const { buildReportModel: b, toHtml: h } = require('./report');
+  const html = h(b({ text: '', command: 'nmap x', target: 'x', timestamp: 't' }));
+  const toc = html.slice(html.indexOf('class="toc"'), html.indexOf('</ol>', html.indexOf('class="toc"')));
+  const nums = [...toc.matchAll(/class="toc__n">(\d+)\./g)].map((x) => Number(x[1]));
+  expect(nums.length).toBeGreaterThan(3);
+  expect(nums).toEqual(nums.map((_, i) => i + 1));
+});

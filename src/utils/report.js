@@ -399,7 +399,7 @@ export function toHtml(m) {
   const toc = `
   <section class="toc">
     <h2>${e(L.contents)}</h2>
-    <ol>${sections.map((s) => `<li>${e(s.title)}</li>`).join('')}</ol>
+    <ol>${sections.map((s, i) => `<li><span class="toc__n">${i + 1}.</span>${e(s.title)}</li>`).join('')}</ol>
     <h3>${e(L.documentControl)}</h3>
     <table class="kv">
       ${detailRows(m, L).map(([k, v, code, dim]) => `<tr><td>${e(k)}</td><td>${code ? `<code>${e(v)}</code>` : dim ? `<span class="muted">${e(v)}</span>` : e(v)}</td></tr>`).join('')}
@@ -565,7 +565,7 @@ export function toHtml(m) {
   .cover__meta td { border: none; padding: 3px 18px 3px 0; font-size: 11pt; vertical-align: top; } .cover__meta td:first-child { color: #666; }
   .cover__risk { display: inline-block; align-self: flex-start; border: 2px solid; border-radius: 6px; padding: 6px 14px; font-size: 13pt; margin-bottom: 12mm; }
   .keep { page-break-inside: avoid; }
-  .toc { page-break-after: always; } .toc ol { font-size: 11pt; line-height: 1.9; }
+  .toc { page-break-after: always; } .toc ol { font-size: 11pt; line-height: 1.9; list-style: none; margin-left: 0; } .toc__n { display: inline-block; min-width: 2.2em; }
   .confidential { border: 1px solid #9b0018; color: #9b0018; font-size: 8.5pt; font-weight: 700; padding: 5px 9px; }
   .kv { width: auto; border: none; margin: 4px 0; } .kv td { border: none; padding: 2px 16px 2px 0; font-size: 9.6pt; vertical-align: top; }
   .kv td:first-child { color: #666; white-space: nowrap; }
