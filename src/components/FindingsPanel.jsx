@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { parseFindings } from '../utils/findings';
+import { formatEpss } from '../utils/intel';
 
 const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
 
@@ -7,9 +8,55 @@ const SEV_LABEL = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
  * Zranitelnosti a nebezpecne konfiguracie najdene NSE skriptami + ako ich opravit.
  * Ak sken nespustal skripty, ponukne tip ako ich spustit.
  */
-export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport }) {
+function IntelStatus({ intel, onToggle }) {
+  if (!intel) return null;
+  const { enabled, loading, meta, nvdDone, nvdTotal } = intel;
+  return (
+    <div className="intel-status">
+      {!enabled ? (
+        <span>Online vulnerability data is off.</span>
+      ) : loading ? (
+        <span><span className="btn-spinner" /> Checking CISA KEV and EPSS…</span>
+      ) : meta ? (
+        <span>
+          Checked against <b>CISA KEV</b>{meta.kevVersion ? ` ${meta.kevVersion}` : ''}{meta.kevStale ? ' (offline copy)' : ''} · <b>EPSS</b>
+          {nvdTotal > 0 && <> · <b>NVD</b> {nvdDone < nvdTotal ? `${nvdDone}/${nvdTotal}…` : 'details loaded'}</>}
+          {meta.errors.length > 0 && <span className="intel-status__err" title={meta.errors.join('\n')}> · ⚠ {meta.errors.length} source(s) unavailable</span>}
+        </span>
+      ) : null}
+      <button className="link-btn intel-status__toggle" onClick={onToggle}
+        title="Only CVE numbers are sent to FIRST.org (EPSS) and NIST (NVD); the CISA list is downloaded. No IP addresses or scan data leave this computer.">
+        {enabled ? 'turn off' : 'turn on'}
+      </button>
+    </div>
+  );
+}
+
+function CveTable({ cves }) {
+  if (!cves || cves.length === 0) return null;
+  return (
+    <table className="cve-table">
+      <thead><tr><th>CVE</th><th className="num">CVSS</th><th className="num" title="Probability of exploitation in the next 30 days (FIRST EPSS)">EPSS</th><th>STATUS</th></tr></thead>
+      <tbody>
+        {cves.slice(0, 12).map((c) => (
+          <tr key={c.id} className={c.kev ? 'cve-row--kev' : ''}>
+            <td><code>{c.id}</code>{c.nvd?.cwe?.length ? <span className="cve-cwe">{c.nvd.cwe.join(', ')}</span> : null}</td>
+            <td className="num">{c.score ?? '—'}</td>
+            <td className="num">{formatEpss(c.epss) || '—'}</td>
+            <td>
+              {c.kev ? <span className="kev-badge" title={c.kev.requiredAction}>EXPLOITED{c.kev.ransomware ? ' · RANSOMWARE' : ''}</span> : <span className="inv-dim">—</span>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport, findings: enriched, intel, onToggleIntel }) {
   const text = useMemo(() => lines.map((l) => l.text || '').join(''), [lines]);
-  const findings = useMemo(() => parseFindings(text), [text]);
+  const parsed = useMemo(() => parseFindings(text), [text]);
+  const findings = enriched || parsed;
   const ranScripts = useMemo(() => /^\|[_ ]/m.test(text), [text]);
   const hasOpenPorts = useMemo(() => /^\d+\/(tcp|udp)\s+open\b/m.test(text), [text]);
 
@@ -60,6 +107,8 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
         </div>
       </div>
 
+      <IntelStatus intel={intel} onToggle={onToggleIntel} />
+
       <div className="findings-panel__body">
         {findings.length === 0 && (
           <div className="findings-empty">
@@ -80,7 +129,11 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
             <div key={`${f.id}-${f.host}-${f.port}-${i}`} className={`finding finding--${f.severity}`}>
               <button className="finding__row" onClick={() => toggle(f, i)}>
                 <span className={`sev-badge sev-badge--${f.severity}`}>{SEV_LABEL[f.severity]}</span>
-                <span className="finding__title">{f.title}</span>
+                <span className="finding__title">
+                  {f.title}
+                  {f.exploited && <span className="kev-badge" title="Listed in the CISA Known Exploited Vulnerabilities catalogue">ACTIVELY EXPLOITED</span>}
+                  {f.epssMax != null && f.epssMax >= 0.1 && <span className="epss-badge" title="Highest EPSS — probability of exploitation in the next 30 days">EPSS {formatEpss(f.epssMax)}</span>}
+                </span>
                 <span className="finding__where">
                   {f.host}{f.port ? ` · ${f.port}` : ''}
                 </span>
@@ -96,6 +149,14 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
                       <span className="finding__script">({f.script})</span>
                     </div>
                   )}
+                  {f.exploited && (
+                    <div className="finding__kev">
+                      ⚠ Attackers are exploiting this vulnerability right now (CISA KEV{f.ransomware ? ', used by ransomware' : ''}).
+                      {' '}Fix it first{f.kevDue ? ` — US federal agencies had to fix it by ${f.kevDue}` : ''}.
+                      {f.escalated && ' Severity raised to HIGH.'}
+                    </div>
+                  )}
+                  <CveTable cves={f.cveDetails} />
                   <div className="finding__label finding__label--fix">HOW TO FIX</div>
                   <ol className="finding__fix">
                     {f.fix.map((step, j) => <li key={j}>{step}</li>)}

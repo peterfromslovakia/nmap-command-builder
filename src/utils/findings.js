@@ -51,6 +51,13 @@ export function splitScriptBlocks(text) {
   return blocks;
 }
 
+const MAX_CVES = 50;
+
+/** Vsetky CVE v texte bloku (bez duplicit), bez skore. */
+function cvesIn(body) {
+  return [...new Set(body.match(/CVE-\d{4}-\d{4,7}/g) || [])].slice(0, MAX_CVES).map((id) => ({ id, score: null }));
+}
+
 function vulnTitle(lines) {
   // Riadok za "VULNERABLE:" obsahuje nazov zranitelnosti.
   const i = lines.findIndex((l) => /VULNERABLE:\s*$/.test(l));
@@ -97,6 +104,7 @@ export function parseFindings(text) {
           fix: CVE_FIX,
           evidence: cves.slice(0, 5).map((c) => `${c.id} (${c.score})`).join(', '),
           refs: cves.slice(0, 3).map((c) => `https://nvd.nist.gov/vuln/detail/${c.id}`),
+          cves: cves.slice(0, MAX_CVES),
         });
       }
       continue;
@@ -116,6 +124,7 @@ export function parseFindings(text) {
           ? [vulnTitle(b.lines), (body.match(/CVE-\d{4}-\d{4,}/) || [])[0]].filter(Boolean).join(' — ')
           : b.lines.find((l) => rule.match.test(l))?.replace(/^\|_?\s*/, '').replace(/^[\w.-]+:\s*/, '').trim() || '',
         refs: rule.refs || [],
+        cves: cvesIn(body),
       });
     }
 
@@ -129,6 +138,7 @@ export function parseFindings(text) {
         fix: GENERIC_VULN_FIX,
         evidence: cve ? cve[0] : '',
         refs: cve ? [`https://nvd.nist.gov/vuln/detail/${cve[0]}`] : [],
+        cves: cvesIn(body),
       });
     }
   }

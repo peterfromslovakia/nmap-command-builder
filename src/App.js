@@ -32,6 +32,8 @@ import { loadUserPresets, saveUserPreset, deleteUserPreset } from './utils/userP
 import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
 import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
+import { parseFindings } from './utils/findings';
+import { collectCves, applyIntel, loadIntelEnabled, saveIntelEnabled } from './utils/intel';
 import InventoryPanel from './components/InventoryPanel';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
@@ -91,6 +93,11 @@ export default function App() {
   const [reportDialog, setReportDialog] = useState(null); // 'pdf' | 'md' | null
   const [reportMeta, setReportMeta] = useState(() => loadReportMeta());
   const [inventory, setInventory] = useState(null);
+  // Aktualne informacie o zranitelnostiach k nalezom posledneho skenu.
+  const [intelEnabled, setIntelEnabled] = useState(() => loadIntelEnabled());
+  const [intelData, setIntelData] = useState(null); // { kev, epss, nvd, meta }
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [nvdProgress, setNvdProgress] = useState({ done: 0, total: 0 });
   const [discoverMode, setDiscoverMode] = useState('quick'); // zariadenia po skene siete
   const scanKindRef = useRef('scan');
   const [userPresets, setUserPresets] = useState(() => loadUserPresets());
@@ -392,6 +399,49 @@ export default function App() {
     });
     return () => { alive = false; };
   }, [scanStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- staci pri zmene stavu skenu
+
+  // Nalezy posledneho skenu (+ KEV / EPSS / NVD).
+  const scanText = useMemo(
+    () => (scanStatus === 'done' || scanStatus === 'killed' ? outputLines.map((l) => l.text || '').join('') : ''),
+    [scanStatus, outputLines]
+  );
+  const rawFindings = useMemo(() => (scanText ? parseFindings(scanText) : []), [scanText]);
+  const findings = useMemo(() => applyIntel(rawFindings, intelEnabled ? intelData : null), [rawFindings, intelData, intelEnabled]);
+  const findingsCves = useMemo(() => collectCves(rawFindings).join(','), [rawFindings]);
+
+  useEffect(() => {
+    setIntelData(null);
+    setNvdProgress({ done: 0, total: 0 });
+    const api = window.electronAPI;
+    if (!intelEnabled || !findingsCves || !api?.intelLookup) return undefined;
+    let alive = true;
+    const cves = findingsCves.split(',');
+    (async () => {
+      setIntelLoading(true);
+      const base = await api.intelLookup(cves);
+      if (!alive) return;
+      setIntelLoading(false);
+      if (!base) return;
+      setIntelData(base);
+      // NVD detaily postupne (limit NVD bez kluca); najprv aktivne zneuzivane, max. 25 CVE.
+      const todo = cves
+        .filter((c) => !base.nvd[c])
+        .sort((a, b) => Number(Boolean(base.kev[b])) - Number(Boolean(base.kev[a])) || (base.epss[b]?.epss ?? 0) - (base.epss[a]?.epss ?? 0))
+        .slice(0, 25);
+      setNvdProgress({ done: 0, total: todo.length });
+      for (let i = 0; i < todo.length && alive; i++) {
+        const r = await api.intelNvd(todo[i]);
+        if (!alive) return;
+        if (r && r.ok) setIntelData((prev) => (prev ? { ...prev, nvd: { ...prev.nvd, [todo[i]]: r.data } } : prev));
+        setNvdProgress({ done: i + 1, total: todo.length });
+      }
+    })();
+    return () => { alive = false; };
+  }, [findingsCves, intelEnabled]);
+
+  const handleToggleIntel = useCallback(() => {
+    setIntelEnabled((on) => { saveIntelEnabled(!on); return !on; });
+  }, []);
 
   const handleClearSnapshots = useCallback(() => {
     setSnapshots(clearSnapshots());
@@ -873,6 +923,11 @@ export default function App() {
             scanStatus={scanStatus}
             onLoadVulnScan={handleLoadVulnScan}
             onExport={handleExport}
+            findings={findings}
+            intel={rawFindings.some((f) => f.cves?.length) ? {
+              enabled: intelEnabled, loading: intelLoading, meta: intelData?.meta, nvdDone: nvdProgress.done, nvdTotal: nvdProgress.total,
+            } : null}
+            onToggleIntel={handleToggleIntel}
           />
           <IntelPanel lines={outputLines} scanStatus={scanStatus} />
           <FollowUpPanel

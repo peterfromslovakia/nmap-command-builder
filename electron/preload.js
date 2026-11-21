@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportResult: (content, defaultFilename, filters) =>
     ipcRenderer.invoke('nmap:export', { content, defaultFilename, filters }),
 
+  // Vulnerability intelligence: CISA KEV + EPSS (+ cached NVD), NVD detail per CVE
+  intelLookup: (cves) => ipcRenderer.invoke('intel:lookup', cves),
+  intelNvd: (cve) => ipcRenderer.invoke('intel:nvd', cve),
+
   // ARP table (MAC + vendor) for the device inventory
   getArpDevices: () => ipcRenderer.invoke('net:arp'),
 

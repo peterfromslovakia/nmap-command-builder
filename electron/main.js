@@ -8,6 +8,7 @@ const { readState, resolveBounds, writeState } = require('./windowState');
 const { buildMenuTemplate } = require('./menu');
 const { checkForUpdate, isDownloadUrl } = require('./updates');
 const { arpDevices } = require('./arp');
+const { VulnIntel } = require('./vulnIntel');
 
 process.env.PATH = `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin`;
 
@@ -191,6 +192,25 @@ function isPrivileged() {
 }
 
 // ─── IPC: Detect local networks ──────────────────────────────────────────────
+// ─── Informacie o zranitelnostiach (CISA KEV, EPSS, NVD) ─────────────────────
+let vulnIntel = null;
+const intel = () => {
+  if (!vulnIntel) {
+    vulnIntel = new VulnIntel({ dir: path.join(app.getPath('userData'), 'intel'), fetchFn: (u, o) => net.fetch(u, o) });
+  }
+  return vulnIntel;
+};
+
+ipcMain.handle('intel:lookup', async (event, cves) => {
+  if (!isTrusted(event)) return null;
+  return intel().lookup(cves);
+});
+
+ipcMain.handle('intel:nvd', async (event, cve) => {
+  if (!isTrusted(event)) return { ok: false, error: 'Untrusted sender.' };
+  return intel().nvd(cve);
+});
+
 // MAC adresy + vyrobcovia z ARP tabulky (po skene siete; funguje bez root).
 ipcMain.handle('net:arp', async (event) => {
   if (!isTrusted(event)) return [];
