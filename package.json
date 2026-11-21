@@ -46,7 +46,8 @@
     "asar": true,
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "artifactName": "Nmap-Command-Builder-${version}-${arch}.${ext}"
     },
     "win": {
       "target": "nsis",
@@ -55,7 +56,11 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "Nmap-Command-Builder-${version}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "Nmap-Command-Builder-Setup-${version}.${ext}"
     }
   },
   "eslintConfig": {
