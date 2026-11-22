@@ -2155,6 +2155,12 @@
 }
 .finding__ref:hover { border-style: solid; }
 .intel-detail__fix { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.nse-errors { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.nse-errors__title { font-size: 11px; font-weight: 700; color: var(--orange, #ff9a3c); letter-spacing: 0.8px; margin-bottom: 4px; }
+.nse-error-row { font-size: 11.5px; padding: 2px 0; color: var(--text-200); }
+.nse-error-row__script { color: var(--cyan); font-size: 11px; }
+.nse-error-row__port { color: var(--text-300); }
+.nse-error-row__msg { color: var(--text-200); }
 .findings-export {
   font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px;
   padding: 1px 7px; cursor: pointer; border-radius: 2px;
@@ -2357,6 +2363,13 @@
 .intel-status b { color: var(--text-200); font-weight: 600; }
 .intel-status__err { color: var(--yellow); }
 .intel-status__toggle { font-size: 11px; margin-left: auto; }
+.ver-badge {
+  display: inline-block; margin-left: 6px; padding: 0 5px; vertical-align: middle;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap;
+  border-radius: 2px;
+}
+.ver-badge--likely { color: #f59e0b; border: 1px solid rgba(245,158,11,0.5); }
+.ver-badge--version { color: var(--text-300); border: 1px solid var(--border); }
 .kev-badge {
   display: inline-block; margin-left: 8px; padding: 0 6px; vertical-align: middle;
   font-size: 10px; font-weight: 700; letter-spacing: 0.8px; white-space: nowrap;

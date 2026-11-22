@@ -1,4 +1,4 @@
-import { parseFindings, splitScriptBlocks } from './findings';
+import { parseFindings, parseNseErrors, splitScriptBlocks } from './findings';
 import { getPortFixes } from '../data/remediation';
 
 const SAMPLE = `Starting Nmap 7.95
@@ -100,4 +100,82 @@ describe('parseFindings', () => {
 test('getPortFixes', () => {
   expect(getPortFixes('445').length).toBeGreaterThan(0);
   expect(getPortFixes(12345)).toEqual([]);
+});
+
+describe('verificationStatus (F-003)', () => {
+  const findings = parseFindings(SAMPLE);
+
+  test('vulners finding has verificationStatus VERSION_MATCH', () => {
+    const v = findings.find((f) => f.id === 'vulners');
+    expect(v.verificationStatus).toBe('VERSION_MATCH');
+  });
+
+  test('confirmed VULNERABLE finding has verificationStatus CONFIRMED', () => {
+    const h = findings.find((f) => f.id === 'heartbleed');
+    expect(h.verificationStatus).toBe('CONFIRMED');
+  });
+
+  test('LIKELY VULNERABLE finding has verificationStatus LIKELY', () => {
+    const g = findings.find((f) => f.id === 'generic:smb-vuln-foo');
+    expect(g.verificationStatus).toBe('LIKELY');
+  });
+
+  test('config/detected findings have verificationStatus DETECTED', () => {
+    const ftp = findings.find((f) => f.id === 'ftp-anon');
+    expect(ftp.verificationStatus).toBe('DETECTED');
+  });
+
+  test('LIKELY VULNERABLE finding does NOT affect severity', () => {
+    const g = findings.find((f) => f.id === 'generic:smb-vuln-foo');
+    expect(g.severity).toBe('high');
+  });
+});
+
+describe('parseNseErrors (F-004)', () => {
+  const NSE_ERR_SAMPLE = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+80/tcp open  http
+| http-vuln-cve2014-3704:
+|_ERROR: Script execution failed (use -d to debug)
+22/tcp open  ssh
+| ssh-vuln:
+| NSE: failed to connect
+|_  second line
+Host script results:
+| smb2-security-mode:
+| ERROR: Could not connect to SMB server
+Nmap done.
+`;
+
+  test('captures ERROR lines from port-level scripts', () => {
+    const errors = parseNseErrors(NSE_ERR_SAMPLE);
+    expect(errors.length).toBeGreaterThan(0);
+    const e = errors.find((e) => e.script === 'http-vuln-cve2014-3704');
+    expect(e).toBeTruthy();
+    expect(e.error).toMatch(/Script execution failed/);
+    expect(e.port).toBe('80/tcp');
+  });
+
+  test('captures NSE: errors from scripts', () => {
+    const errors = parseNseErrors(NSE_ERR_SAMPLE);
+    const nse = errors.find((e) => e.script === 'ssh-vuln');
+    expect(nse).toBeTruthy();
+    expect(nse.error).toMatch(/failed to connect/);
+  });
+
+  test('captures ERROR from host-level scripts', () => {
+    const errors = parseNseErrors(NSE_ERR_SAMPLE);
+    const h = errors.find((e) => e.script === 'smb2-security-mode');
+    expect(h).toBeTruthy();
+    expect(h.port).toBeNull();
+  });
+
+  test('returns empty array for output without errors', () => {
+    expect(parseNseErrors(SAMPLE)).toEqual([]);
+  });
+
+  test('errors do not affect finding count', () => {
+    const findings = parseFindings(NSE_ERR_SAMPLE);
+    expect(findings.every((f) => f.id !== 'nse_error')).toBe(true);
+  });
 });

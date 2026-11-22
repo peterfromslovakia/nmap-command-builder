@@ -1,4 +1,4 @@
-import { parseHosts } from './report';
+import { parseHosts, parseAllTestedPorts } from './report';
 import { parseFindings } from './findings';
 import { detectScanType, arePortsComparable, areVulnsComparable, getPortSpec } from './scanMeta';
 
@@ -22,6 +22,9 @@ export function makeSnapshot({ id, time, target, command, text, exitCode, signal
     findings: parseFindings(text).map(({ id: fid, title, severity, host, port }) => ({
       id: fid, title, severity, host, port: port || '',
     })),
+    // Všetky testované porty vrátane filtered/closed — pre presný diff stavu portov.
+    // Štruktúra: { [hostKey]: { [portKey]: state } }
+    allPortStates: parseAllTestedPorts(text),
   };
 }
 
@@ -52,8 +55,14 @@ export function diffScans(prev, curr) {
   const portsComparable = arePortsComparable(prev.command, curr.command);
   const vulnsComparable = areVulnsComparable(prev.command, curr.command);
 
+  // portRangeDiffers: skenovaný rozsah portov sa líšil — "zatvorené porty" môžu byť
+  // netestované, nie skutočne zatvorené. Upozornenie, nie blokovanie diff-u.
+  const portRangeDiffers = portsComparable && (prev.portSpec || 'default') !== (curr.portSpec || 'default');
+
   const openedPorts = [];
   const closedPorts = [];
+  const filteredPorts = [];
+  const notTestedPorts = [];
   const changedVersions = [];
 
   if (portsComparable) {
@@ -69,7 +78,23 @@ export function diffScans(prev, curr) {
           changedVersions.push({ host: ch.host, port: p.port, proto: p.proto, service: p.service, from: before.version, to: p.version });
         }
       }
-      for (const [k, p] of pp) if (!cp.has(k)) closedPorts.push({ host: ch.host, ...p });
+      // Prev-open port zmizol z open listu — klasifikuj podľa skutočného stavu
+      const currAllStates = (curr.allPortStates || {})[key] || {};
+      for (const [k, p] of pp) {
+        if (cp.has(k)) continue; // stále otvorený
+        const currState = currAllStates[k];
+        if (currState === 'filtered' || currState === 'closed|filtered') {
+          filteredPorts.push({ host: ch.host, ...p });
+        } else if (currState === 'closed') {
+          closedPorts.push({ host: ch.host, ...p });
+        } else if (portRangeDiffers) {
+          // Port nie je v curr výstupe vôbec a rozsah sa líšil — nebol testovaný
+          notTestedPorts.push({ host: ch.host, ...p });
+        } else {
+          // Port nie je v curr výstupe, rovnaký rozsah — nmap ho nezobrazil = closed
+          closedPorts.push({ host: ch.host, ...p });
+        }
+      }
     }
   }
 
@@ -82,19 +107,17 @@ export function diffScans(prev, curr) {
     ? prev.findings.filter((f) => !currF.has(findingKey(f)) && currHosts.has(hostKey(f.host)))
     : [];
 
-  const total = newHosts.length + goneHosts.length + openedPorts.length + closedPorts.length +
+  const total = newHosts.length + goneHosts.length + openedPorts.length +
+    closedPorts.length + filteredPorts.length + notTestedPorts.length +
     changedVersions.length + newFindings.length + resolvedFindings.length;
-
-  // portRangeDiffers: skenovaný rozsah portov sa líšil — "zatvorené porty" môžu byť
-  // netestované, nie skutočne zatvorené. Upozornenie, nie blokovanie diff-u.
-  const portRangeDiffers = portsComparable && (prev.portSpec || 'default') !== (curr.portSpec || 'default');
 
   // methodDiffers: informuje UI, že porovnanie portov alebo nálezov nie je spoľahlivé
   // (napr. jeden sken bol discovery-only, druhý mal vuln skripty; alebo iný rozsah portov)
   const methodDiffers = !portsComparable || !vulnsComparable || portRangeDiffers;
 
   return {
-    newHosts, goneHosts, openedPorts, closedPorts, changedVersions, newFindings, resolvedFindings,
+    newHosts, goneHosts, openedPorts, closedPorts, filteredPorts, notTestedPorts,
+    changedVersions, newFindings, resolvedFindings,
     total,
     sameCommand: normalizeCommand(prev.command) === normalizeCommand(curr.command),
     methodDiffers,

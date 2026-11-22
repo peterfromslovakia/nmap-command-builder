@@ -34,7 +34,8 @@ export const LABELS = {
     changeTitles: {
       'New vulnerabilities': 'New vulnerabilities', 'New open ports': 'New open ports', 'New hosts': 'New hosts',
       'Version changes': 'Version changes', 'Fixed vulnerabilities': 'Fixed vulnerabilities',
-      'Closed ports': 'Closed ports', 'Hosts not found': 'Hosts not found',
+      'Closed ports': 'Closed ports', 'Filtered ports': 'Filtered ports', 'Not tested ports': 'Not tested ports',
+      'Hosts not found': 'Hosts not found',
     },
     vulnsAndFixes: 'Vulnerabilities & fixes',
     noFindings: 'No known vulnerabilities were detected by the NSE scripts that ran. For a vulnerability check run: nmap -sV --script vuln,vulners <target>',
@@ -152,7 +153,8 @@ export const LABELS = {
     changeTitles: {
       'New vulnerabilities': 'Nové zraniteľnosti', 'New open ports': 'Novo otvorené porty', 'New hosts': 'Nové zariadenia',
       'Version changes': 'Zmeny verzií', 'Fixed vulnerabilities': 'Opravené zraniteľnosti',
-      'Closed ports': 'Zatvorené porty', 'Hosts not found': 'Nenájdené zariadenia',
+      'Closed ports': 'Zatvorené porty', 'Filtered ports': 'Filtrované porty', 'Not tested ports': 'Netestované porty',
+      'Hosts not found': 'Nenájdené zariadenia',
     },
     vulnsAndFixes: 'Zraniteľnosti a ich oprava',
     noFindings: 'Spustené NSE skripty nenašli žiadne známe zraniteľnosti. Na kontrolu zraniteľností spustite: nmap -sV --script vuln,vulners <cieľ>',

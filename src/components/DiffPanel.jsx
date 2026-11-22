@@ -99,6 +99,8 @@ export default function DiffPanel({ current, snapshots, baselineId, onBaselineCh
             <Section title="FIXED VULNERABILITIES" tone="good" items={diff.resolvedFindings}
               render={(f) => <>{tr(f.title, lang)} <span className="diff-host">{f.host}{f.port ? ` · ${f.port}` : ''}</span></>} />
             <Section title="CLOSED PORTS" tone="good" items={diff.closedPorts} render={portLabel} />
+            <Section title="FILTERED PORTS" tone="info" items={diff.filteredPorts || []} render={portLabel} />
+            <Section title="NOT TESTED PORTS" tone="info" items={diff.notTestedPorts || []} render={portLabel} />
             <Section title="HOSTS NOT FOUND" tone="info" items={diff.goneHosts}
               render={(h) => <><code>{h.host}</code> <span className="diff-ver">{t('down or filtered')}</span></>} />
           </>

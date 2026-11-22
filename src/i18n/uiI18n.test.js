@@ -61,7 +61,7 @@ export function uiStrings() {
   // validator / vlastne predvolby / typy v mape siete / urovne rizika
   ['Target is required', 'Target contains invalid characters', 'Not a valid presets file', 'File is too large.', 'No report folder chosen.', 'Invalid or too large report.', 'unknown error', 'Select at least one flag first', 'Enter a name',
     'critical vulnerability', 'high-risk vulnerability', 'medium vulnerability', 'low vulnerability', 'risky open ports', 'nothing found',
-    'NEW VULNERABILITIES', 'NEW OPEN PORTS', 'NEW HOSTS', 'VERSION CHANGES', 'FIXED VULNERABILITIES', 'CLOSED PORTS', 'HOSTS NOT FOUND',
+    'NEW VULNERABILITIES', 'NEW OPEN PORTS', 'NEW HOSTS', 'VERSION CHANGES', 'FIXED VULNERABILITIES', 'CLOSED PORTS', 'FILTERED PORTS', 'NOT TESTED PORTS', 'HOSTS NOT FOUND',
     'CRIT', 'CRITICAL', 'HIGH', 'MEDIUM', 'MED', 'LOW', 'SAFE', 'INTRUSIVE', 'ADV', 'INFO', 'NOISY',
     'Standard scan', 'Likely to be logged / detected by IDS', 'May disrupt services or lock accounts — written permission required',
     'Performed by', 'Organisation', 'Client / system owner', 'Authorisation ref.',

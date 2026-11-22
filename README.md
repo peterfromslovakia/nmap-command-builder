@@ -179,7 +179,7 @@ IP addresses, host names and scan output never leave your computer.
 
 ## Testing
 
-    npm test          # 331 tests: validators, findings, reports, shortcuts, presets, scan diff, i18n
+    npm test          # 348 tests: validators, findings, reports, shortcuts, presets, scan diff, i18n
     npm run lint      # ESLint, no warnings allowed (also runs in CI)
 
 ---

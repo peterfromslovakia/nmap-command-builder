@@ -33,7 +33,7 @@ import { loadLabels, saveLabels, setLabel } from './utils/deviceLabels';
 import { FLAG_MAP } from './data/flags';
 import { matchShortcut, shortcutHints } from './utils/shortcuts';
 import { DISCOVERY_MODES, buildInventory, inventoryCsv } from './utils/inventory';
-import { parseFindings } from './utils/findings';
+import { parseFindings, parseNseErrors } from './utils/findings';
 import { useLang } from './i18n/ui';
 import { collectCves, applyIntel, loadIntelEnabled, saveIntelEnabled } from './utils/intel';
 import MonitorBar from './components/MonitorBar';
@@ -553,6 +553,7 @@ export default function App() {
   // Nalezy posledneho skenu (+ KEV / EPSS / NVD).
   const rawFindings = useMemo(() => (scanText ? parseFindings(scanText) : []), [scanText]);
   const findings = useMemo(() => applyIntel(rawFindings, intelEnabled ? intelData : null), [rawFindings, intelData, intelEnabled]);
+  const nseErrors = useMemo(() => (scanText ? parseNseErrors(scanText) : []), [scanText]);
   const findingsCves = useMemo(() => collectCves(rawFindings).join(','), [rawFindings]);
 
   useEffect(() => {
@@ -1176,6 +1177,7 @@ export default function App() {
               enabled: intelEnabled, loading: intelLoading, meta: intelData?.meta, nvdDone: nvdProgress.done, nvdTotal: nvdProgress.total,
             } : null}
             onToggleIntel={handleToggleIntel}
+            nseErrors={nseErrors}
           />
           <IntelPanel lines={analysisLines} scanStatus={scanStatus} />
           <FollowUpPanel
@@ -1211,7 +1213,7 @@ export default function App() {
           {t('Created by')} <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.11.1</span>
+        <span className="app-footer__item">Nmap Command Builder v1.12.0</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">{t('Use responsibly & ethically')}</span>
         <span className="app-footer__sep app-footer__keys-sep">·</span>

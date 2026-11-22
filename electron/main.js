@@ -27,6 +27,14 @@ function resolveNmap() {
   return which('nmap') || 'nmap';
 }
 
+function resolveNmapDataDir() {
+  try {
+    const d = path.join(process.resourcesPath, 'share', 'nmap');
+    if (fs.existsSync(d)) return d;
+  } catch (_) { /* resourcesPath not available in dev mode */ }
+  return null;
+}
+
 // Windows: overí či je Npcap nainštalovaný (potrebný pre raw skeny).
 function isNpcapInstalled() {
   if (process.platform !== 'win32') return true;
@@ -306,6 +314,7 @@ ipcMain.handle('nmap:check', (event) => {
         platform: process.platform,
         npcapMissing: process.platform === 'win32' && !isNpcapInstalled(),
         npcapInstallerBundled: process.platform === 'win32' && Boolean(npcapInstallerPath() && fs.existsSync(npcapInstallerPath())),
+        bundledDataDir: resolveNmapDataDir(),
       });
     });
     proc.on('error', () => {
@@ -380,7 +389,8 @@ ipcMain.handle('nmap:run', (event, payload) => {
   // Beh s pravami spravcu: prisnejsia kontrola + sudo/pkexec s grafickym oknom.
   let cmd = resolveNmap();
   let cmdArgs = args;
-  let env = process.env;
+  const dataDir = resolveNmapDataDir();
+  let env = dataDir ? { ...process.env, NMAPDIR: dataDir } : process.env;
   if (elevated) {
     const how = isPrivileged() ? null : elevationMethod();
     if (!how) return { success: false, error: elevateMsg(uiLang, 'unavailable') };
@@ -399,6 +409,7 @@ ipcMain.handle('nmap:run', (event, payload) => {
           : 'Nmap Command Builder wants to run the scan with administrator rights.\n\nEnter your account password:',
       });
       ({ cmd, args: cmdArgs, env } = c);
+      if (dataDir) env = { ...env, NMAPDIR: dataDir };
     } catch (err) {
       return { success: false, error: err.message };
     }

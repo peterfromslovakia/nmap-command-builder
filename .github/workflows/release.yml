@@ -52,6 +52,8 @@ jobs:
           mkdir -p extraResources/bin
           cp "$(which nmap)" extraResources/bin/nmap
           chmod +x extraResources/bin/nmap
+          mkdir -p extraResources/share
+          cp -r "$(brew --prefix nmap)/share/nmap" extraResources/share/
 
       - name: Bundle nmap (Linux)
         if: runner.os == 'Linux'
@@ -60,6 +62,8 @@ jobs:
           mkdir -p extraResources/bin
           cp "$(which nmap)" extraResources/bin/nmap
           chmod +x extraResources/bin/nmap
+          mkdir -p extraResources/share
+          cp -r /usr/share/nmap extraResources/share/
 
       - name: Bundle nmap + Npcap installer (Windows)
         if: runner.os == 'Windows'
@@ -71,6 +75,13 @@ jobs:
           Copy-Item "C:\Program Files (x86)\Nmap\nmap.exe" "extraResources\bin\"
           # Npcap installer bundlujeme samostatne (pre prípad že ho používateľ nemá)
           Invoke-WebRequest "https://npcap.com/dist/npcap-1.79.exe" -OutFile "extraResources\bin\Npcap-installer.exe" -UseBasicParsing
+          # NSE skripty a nmap data súbory
+          New-Item -ItemType Directory -Force -Path "extraResources\share\nmap" | Out-Null
+          $nmapShare = "C:\Program Files (x86)\Nmap"
+          @("scripts", "nselib", "nmap-services", "nmap-os-db", "nmap-service-probes", "nmap-protocols", "nmap-rpc", "nmap-mac-prefixes", "nmap-payloads", "nse_main.lua") | ForEach-Object {
+            $src = Join-Path $nmapShare $_
+            if (Test-Path $src) { Copy-Item -Recurse $src "extraResources\share\nmap\" }
+          }
 
       # electron-builder len zostavuje; vydanie vytvara az job "release" nizsie
       # (inak electron-builder vytvori vlastne vydanie a subory su tam 2x).

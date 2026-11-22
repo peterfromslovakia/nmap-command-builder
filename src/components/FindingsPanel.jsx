@@ -57,7 +57,7 @@ function CveTable({ cves }) {
   );
 }
 
-export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport, findings: enriched, intel, onToggleIntel }) {
+export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExport, findings: enriched, intel, onToggleIntel, nseErrors }) {
   const { lang, t } = useLang();
   const text = useMemo(() => lines.map((l) => l.text || '').join(''), [lines]);
   const parsed = useMemo(() => parseFindings(text), [text]);
@@ -136,6 +136,8 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
                 <span className={`sev-badge sev-badge--${f.severity}`}>{t(SEV_LABEL[f.severity])}</span>
                 <span className="finding__title">
                   {tr(f.title, lang)}
+                  {f.verificationStatus === 'LIKELY' && <span className="ver-badge ver-badge--likely" title={t('Likely vulnerable — not confirmed by live test')}>LIKELY</span>}
+                  {f.verificationStatus === 'VERSION_MATCH' && <span className="ver-badge ver-badge--version" title={t('Based on version match, not a live exploit test')}>VER</span>}
                   {f.exploited && <span className="kev-badge" title={t('Listed in the CISA Known Exploited Vulnerabilities catalogue')}>{t('ACTIVELY EXPLOITED')}</span>}
                   {f.epssMax != null && f.epssMax >= 0.1 && <span className="epss-badge" title={t('Highest EPSS — probability of exploitation in the next 30 days')}>EPSS {formatEpss(f.epssMax)}</span>}
                 </span>
@@ -180,6 +182,19 @@ export default function FindingsPanel({ lines, scanStatus, onLoadVulnScan, onExp
             </div>
           );
         })}
+
+        {nseErrors && nseErrors.length > 0 && (
+          <div className="nse-errors">
+            <div className="nse-errors__title">⚠ {t('NSE ERRORS ({n})', { n: nseErrors.length })}</div>
+            {nseErrors.map((e, i) => (
+              <div key={i} className="nse-error-row">
+                <code className="nse-error-row__script">{e.script || '?'}</code>
+                {e.port && <span className="nse-error-row__port"> · {e.port}</span>}
+                <span className="nse-error-row__msg"> {e.error}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

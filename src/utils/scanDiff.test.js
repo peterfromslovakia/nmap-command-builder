@@ -186,3 +186,108 @@ describe('port range diff', () => {
     expect(makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: 't', command: 'nmap -sV 192.168.1.1', text: '' }).portSpec).toBe('default');
   });
 });
+
+describe('port state accuracy (F-001)', () => {
+  const mkSnap = (id, text, portFlag = '') =>
+    makeSnapshot({ id, time: `2026-11-2${id}T10:00:00Z`, target: '192.168.1.1',
+      command: `nmap -sV${portFlag ? ' ' + portFlag : ''} 192.168.1.1`, text });
+
+  const PREV_OPEN = `Nmap scan report for 192.168.1.1
+PORT    STATE SERVICE VERSION
+22/tcp  open  ssh     OpenSSH 8.2
+80/tcp  open  http    Apache 2.4
+443/tcp open  https   nginx 1.18
+`;
+
+  test('open → filtered: classified as filteredPorts, not closedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE    SERVICE VERSION
+22/tcp  open     ssh     OpenSSH 8.2
+80/tcp  filtered http
+443/tcp open     https   nginx 1.18
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const d = diffScans(prev, mkSnap(2, curr));
+    expect(d.filteredPorts.map((p) => p.port)).toContain('80');
+    expect(d.closedPorts.map((p) => p.port)).not.toContain('80');
+  });
+
+  test('open → closed|filtered: classified as filteredPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE           SERVICE VERSION
+22/tcp  open            ssh     OpenSSH 8.2
+80/tcp  closed|filtered http
+443/tcp open            https   nginx 1.18
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const d = diffScans(prev, mkSnap(2, curr));
+    expect(d.filteredPorts.map((p) => p.port)).toContain('80');
+    expect(d.closedPorts.map((p) => p.port)).not.toContain('80');
+  });
+
+  test('open → closed (explicitly shown): classified as closedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE  SERVICE VERSION
+22/tcp  open   ssh     OpenSSH 8.2
+80/tcp  closed http
+443/tcp open   https   nginx 1.18
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const d = diffScans(prev, mkSnap(2, curr));
+    expect(d.closedPorts.map((p) => p.port)).toContain('80');
+    expect(d.filteredPorts.map((p) => p.port)).not.toContain('80');
+  });
+
+  test('open → not in curr output, same port spec → closedPorts (nmap suppresses closed)', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE SERVICE VERSION
+22/tcp  open  ssh     OpenSSH 8.2
+443/tcp open  https   nginx 1.18
+`;
+    // Port 80 simply absent (closed by default, nmap didn't show it)
+    const prev = mkSnap(1, PREV_OPEN);
+    const d = diffScans(prev, mkSnap(2, curr));
+    expect(d.closedPorts.map((p) => p.port)).toContain('80');
+    expect(d.notTestedPorts.map((p) => p.port)).not.toContain('80');
+  });
+
+  test('open → not in curr, different port spec → notTestedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE SERVICE
+22/tcp  open  ssh
+`;
+    // prev scanned all ports (found 22, 80, 443); curr only scanned -p 22
+    const prev = mkSnap(1, PREV_OPEN, '-p-');
+    const d = diffScans(prev, mkSnap(2, curr, '-p 22'));
+    expect(d.notTestedPorts.map((p) => p.port)).toContain('80');
+    expect(d.notTestedPorts.map((p) => p.port)).toContain('443');
+    expect(d.closedPorts.map((p) => p.port)).not.toContain('80');
+  });
+
+  test('snapshot stores allPortStates including filtered', () => {
+    const text = `Nmap scan report for 192.168.1.1
+PORT    STATE    SERVICE
+22/tcp  open     ssh
+80/tcp  filtered http
+443/tcp closed   https
+`;
+    const snap = mkSnap(1, text);
+    const states = snap.allPortStates?.['192.168.1.1'];
+    expect(states?.['22/tcp']).toBe('open');
+    expect(states?.['80/tcp']).toBe('filtered');
+    expect(states?.['443/tcp']).toBe('closed');
+  });
+
+  test('filteredPorts and notTestedPorts included in total', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE    SERVICE
+22/tcp  open     ssh
+80/tcp  filtered http
+`;
+    const prev = mkSnap(1, PREV_OPEN, '-p-');
+    const d = diffScans(prev, mkSnap(2, curr, '-p 22,80'));
+    expect(d.total).toBe(d.openedPorts.length + d.closedPorts.length + d.filteredPorts.length +
+      d.notTestedPorts.length + d.changedVersions.length + d.newFindings.length +
+      d.resolvedFindings.length + d.newHosts.length + d.goneHosts.length);
+  });
+});

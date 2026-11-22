@@ -1,4 +1,4 @@
-import { parseFindings, SEVERITY_ORDER } from './findings';
+import { parseFindings, parseNseErrors, SEVERITY_ORDER } from './findings';
 import { buildTopology, hostIp } from './topology';
 import { applyIntel } from './intel';
 import { getPortRisk } from '../data/portRisk';
@@ -10,6 +10,7 @@ import { isDiscoveryScan } from './scanMeta';
 
 const RE_HOST = /^Nmap scan report for (.+)$/;
 const RE_PORT = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered)\s+(\S+)(?:\s+(.*))?$/;
+const RE_PORT_ALL = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered|closed|filtered|closed\|filtered|unfiltered)\s+(\S+)/;
 
 /** Hosty a ich otvorene porty z vystupu nmapu. */
 export function parseHosts(text) {
@@ -31,6 +32,32 @@ export function parseHosts(text) {
 }
 
 /**
+ * Všetky testované porty (nielen open) pre potreby scanDiff — umožňuje rozlíšiť
+ * filtered/closed/not_tested. Vracia { [hostKey]: { [portKey]: state } }.
+ */
+export function parseAllTestedPorts(text) {
+  const result = {};
+  let curKey = null;
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    const h = line.match(RE_HOST);
+    if (h) {
+      const host = h[1].trim();
+      const m = host.match(/\(([^()]+)\)\s*$/);
+      curKey = (m ? m[1] : host).trim();
+      if (!result[curKey]) result[curKey] = {};
+      continue;
+    }
+    const p = line.match(RE_PORT_ALL);
+    if (p && curKey) {
+      const pk = `${p[1]}/${p[2]}`;
+      result[curKey][pk] = p[3]; // state: 'open', 'filtered', 'closed', etc.
+    }
+  }
+  return result;
+}
+
+/**
  * Zmeny oproti predchadzajucemu skenu ako jednoduche textove riadky
  * (spolocne pre Markdown aj PDF). `diff` je vysledok diffScans().
  */
@@ -47,6 +74,8 @@ export function changeSections(diff, lang = 'en') {
     ['Version changes', 'info', diff.changedVersions.map((c) => `${c.port}/${c.proto} ${c.service}: ${c.from} → ${c.to} — ${c.host}`)],
     ['Fixed vulnerabilities', 'good', diff.resolvedFindings.map(finding)],
     ['Closed ports', 'good', diff.closedPorts.map(port)],
+    ['Filtered ports', 'info', (diff.filteredPorts || []).map(port)],
+    ['Not tested ports', 'info', (diff.notTestedPorts || []).map(port)],
     ['Hosts not found', 'info', diff.goneHosts.map((h) => `${h.host} (${sk ? 'nedostupné alebo filtrované' : 'down or filtered'})`)],
   ];
   return sections
@@ -201,6 +230,7 @@ export function buildReportModel({
     command, target, timestamp, nmapVersion: nmapVersion || '',
     generatedAt: generatedAt || timestamp,
     hosts, findings, portAdvice, counts, actions,
+    nseErrors: parseNseErrors(text),
     exploitedCount: findings.filter((f) => f.exploited).length,
     risk: overallRisk(findings, hosts, command),
     techniques: describeTechniques(command, L, { intel: usedIntel }),
