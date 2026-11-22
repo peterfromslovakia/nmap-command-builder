@@ -24,7 +24,7 @@ export const LABELS = {
       not_assessed: 'No vulnerability testing was performed — this scan only checked which hosts are online (host discovery). To assess security, run a scan with port scanning and vulnerability scripts.',
     },
     hostsUp: 'Hosts up', openPorts: 'Open ports', findingsCount: 'Findings',
-    sev: { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', none: 'None', safe: 'Standard' },
+    sev: { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', none: 'None', safe: 'Standard', not_assessed: 'NOT ASSESSED', port_only: 'PORT ONLY' },
     findingsOverview: 'Findings overview',
     colNo: '#', colSeverity: 'Severity', colFinding: 'Finding', colHost: 'Host', colPort: 'Port',
     changes: 'Changes since previous scan',
@@ -62,6 +62,8 @@ export const LABELS = {
     actionFix: (title, asset) => `Fix “${title}” on ${asset}`,
     actionExploited: 'actively exploited — immediately',
     noActions: 'No urgent actions. Continue with regular patching and periodic scans.',
+    noActionsNotAssessed: 'Priority actions cannot be determined from a host-discovery-only scan. Run a port scan with vulnerability scripts to assess security.',
+    noPortsTested: 'Ports not tested — host discovery only scan.',
     scopeMethodology: 'Scope and methodology',
     targetsInScope: 'Targets in scope', scanWindow: 'Scan date and time', tool: 'Tool', techniques: 'Techniques used',
     tech: {
@@ -128,7 +130,7 @@ export const LABELS = {
     mapYouSecondary: 'scanning computer — secondary interface',
     mapRisk: {
       critical: 'Critical vulnerability', high: 'High-risk vulnerability', medium: 'Medium vulnerability', low: 'Low vulnerability',
-      exposed: 'Risky open ports', ok: 'Nothing found',
+      exposed: 'Risky open ports', ok: 'Nothing found', not_assessed: 'Security not tested',
     },
     mapPorts: (n) => `${n} open port${n === 1 ? '' : 's'}`,
     mapDevices: (n) => `${n} device${n === 1 ? '' : 's'}`,
@@ -152,7 +154,7 @@ export const LABELS = {
       not_assessed: 'Netestovali sa zraniteľnosti — tento sken len zistil, ktoré zariadenia sú online (host discovery). Pre hodnotenie bezpečnosti spustite sken s testovaním portov a vulnerability skriptmi.',
     },
     hostsUp: 'Aktívne zariadenia', openPorts: 'Otvorené porty', findingsCount: 'Nálezy',
-    sev: { critical: 'Kritické', high: 'Vysoké', medium: 'Stredné', low: 'Nízke', none: 'Žiadne', safe: 'Bežné' },
+    sev: { critical: 'Kritické', high: 'Vysoké', medium: 'Stredné', low: 'Nízke', none: 'Žiadne', safe: 'Bežné', not_assessed: 'NEHODNOTENÉ', port_only: 'LEN PORTY' },
     findingsOverview: 'Prehľad nálezov',
     colNo: 'Č.', colSeverity: 'Závažnosť', colFinding: 'Nález', colHost: 'Zariadenie', colPort: 'Port',
     changes: 'Zmeny od predchádzajúceho skenu',
@@ -190,6 +192,8 @@ export const LABELS = {
     actionFix: (title, asset) => `Opraviť „${title}“ na ${asset}`,
     actionExploited: 'aktívne zneužívané — okamžite',
     noActions: 'Žiadne naliehavé opatrenia. Pokračujte v pravidelných aktualizáciách a periodických skenoch.',
+    noActionsNotAssessed: 'Prioritné opatrenia nemožno určiť na základe samotného objavovacieho skenu. Pre hodnotenie bezpečnosti spustite sken portov so vulnerability skriptmi.',
+    noPortsTested: 'Porty neboli testované — bol spustený len objavovací sken.',
     scopeMethodology: 'Rozsah a metodika',
     targetsInScope: 'Testované ciele', scanWindow: 'Dátum a čas skenu', tool: 'Nástroj', techniques: 'Použité techniky',
     tech: {
@@ -256,7 +260,7 @@ export const LABELS = {
     mapYouSecondary: 'skenovací počítač — sekundárne rozhranie',
     mapRisk: {
       critical: 'Kritická zraniteľnosť', high: 'Vysoká zraniteľnosť', medium: 'Stredná zraniteľnosť', low: 'Nízka zraniteľnosť',
-      exposed: 'Rizikové otvorené porty', ok: 'Bez nálezov',
+      exposed: 'Rizikové otvorené porty', ok: 'Bez nálezov', not_assessed: 'Bezpečnosť netestovaná',
     },
     mapPorts: (n) => (n === 1 ? '1 otvorený port' : n >= 2 && n <= 4 ? `${n} otvorené porty` : `${n} otvorených portov`),
     mapDevices: (n) => (n === 1 ? '1 zariadenie' : n >= 2 && n <= 4 ? `${n} zariadenia` : `${n} zariadení`),

@@ -340,9 +340,9 @@ export function toMarkdown(m) {
   out.push(`**${L.overallRisk}: ${sevLabel(m.risk)}** — ${L.riskText[m.risk]}`, '');
   out.push(`| ${L.hostsUp} | ${L.openPorts} | ${L.sev.critical} | ${L.sev.high} | ${L.sev.medium} | ${L.sev.low} | ${L.colKev} |`);
   out.push('|---:|---:|---:|---:|---:|---:|---:|');
-  out.push(`| ${m.hosts.length} | ${m.openPortCount} | ${m.counts.critical} | ${m.counts.high} | ${m.counts.medium} | ${m.counts.low} | ${m.exploitedCount} |`);
+  out.push(`| ${m.hosts.length} | ${m.risk === 'not_assessed' ? '—' : m.openPortCount} | ${m.counts.critical} | ${m.counts.high} | ${m.counts.medium} | ${m.counts.low} | ${m.exploitedCount} |`);
   out.push('', `**${L.priorityActions}**`, '');
-  if (m.actions.length === 0) out.push(`_${L.noActions}_`);
+  if (m.actions.length === 0) out.push(`_${m.risk === 'not_assessed' ? L.noActionsNotAssessed : L.noActions}_`);
   m.actions.forEach((a, i) => out.push(
     `${i + 1}. ${L.actionFix(t(a.title), a.host)} (${a.ref}) — ${a.exploited ? L.actionExploited : `${L.colTimeframe.toLowerCase()} ${L.timeframe[a.timeframe]}`}`
   ));
@@ -433,10 +433,11 @@ export function toMarkdown(m) {
 
   out.push('', h2('ports'), '');
   if (m.hosts.length === 0) out.push(`_${L.noHosts}_`);
-  if (!m.serviceDetection) out.push(`> _${L.serviceGuessNote}_`, '');
+  const hasAnyPortsMd = m.hosts.some(h => h.ports.length > 0);
+  if (!m.serviceDetection && hasAnyPortsMd) out.push(`> _${L.serviceGuessNote}_`, '');
   m.hosts.forEach((h) => {
     out.push(`### ${h.host}`, '');
-    if (h.ports.length === 0) { out.push(`_${L.noOpenPorts}_`, ''); return; }
+    if (h.ports.length === 0) { out.push(`_${m.risk === 'not_assessed' ? L.noPortsTested : L.noOpenPorts}_`, ''); return; }
     out.push(`| ${L.colPort} | ${L.colProto} | ${L.colService} | ${L.colVersion} | ${L.colRisk} |`, '|---:|---|---|---|---|');
     h.ports.forEach((p) => out.push(
       `| ${p.port} | ${p.proto} | ${mdCell(p.service)}${!m.serviceDetection ? ' \\*' : ''} | ${mdCell(p.version)} | ${sevLabel(p.risk)} |`
@@ -463,7 +464,7 @@ export function toMarkdown(m) {
   if (m.map) {
     const mp = m.map;
     const devLine = (d) => [
-      d.ip, d.hostname, `— ${L.mapRisk[d.risk.level]}`, d.refs.length ? d.refs.join(', ') : '',
+      d.ip, d.hostname, `— ${m.risk === 'not_assessed' && d.risk.level === 'ok' ? L.mapRisk.not_assessed : L.mapRisk[d.risk.level]}`, d.refs.length ? d.refs.join(', ') : '',
       d.risk.exploited ? 'CISA KEV' : '', d.isSelfPrimary ? `(${L.mapYou})` : d.isSelf ? `(${L.mapYouSecondary})` : '', d.ports.length ? `· ${L.mapPorts(d.ports.length)}` : '',
     ].filter(Boolean).join(' ');
     out.push('', h2('map'), '', L.mapIntro, '', '```');
@@ -562,7 +563,7 @@ export function toHtml(m) {
   </div>
   <div class="summary">
     <div class="card">${e(L.hostsUp)}<b>${m.hosts.length}</b></div>
-    <div class="card">${e(L.openPorts)}<b>${m.openPortCount}</b></div>
+    <div class="card">${e(L.openPorts)}<b>${m.risk === 'not_assessed' ? '—' : m.openPortCount}</b></div>
     <div class="card">${e(L.sev.critical)}<b style="color:${SEV_COLOR.critical}">${c.critical}</b></div>
     <div class="card">${e(L.sev.high)}<b style="color:${SEV_COLOR.high}">${c.high}</b></div>
     <div class="card">${e(L.sev.medium)}<b style="color:${SEV_COLOR.medium}">${c.medium}</b></div>
@@ -570,7 +571,7 @@ export function toHtml(m) {
     <div class="card card--kev">${e(L.colKev)}<b>${m.exploitedCount}</b></div>
   </div>
   <h3>${e(L.priorityActions)}</h3>
-  ${m.actions.length === 0 ? `<p class="muted">${e(L.noActions)}</p>` : `<ol class="actions">${m.actions.map((a) => `
+  ${m.actions.length === 0 ? `<p class="muted">${e(m.risk === 'not_assessed' ? L.noActionsNotAssessed : L.noActions)}</p>` : `<ol class="actions">${m.actions.map((a) => `
     <li>${e(L.actionFix(t(a.title), a.host))} <span class="ref">${e(a.ref)}</span>
       — <b class="${a.exploited ? 'urgent' : ''}">${e(a.exploited ? L.actionExploited : `${L.colTimeframe.toLowerCase()} ${L.timeframe[a.timeframe]}`)}</b></li>`).join('')}</ol>`}`;
 
@@ -675,7 +676,7 @@ export function toHtml(m) {
       <div class="nm-node nm-${e(d.risk.level)}">
         <div><b>${e(d.ip)}</b>${mapName ? ` <span class="nm-name${dl ? ' nm-label' : ''}">${e(mapName)}</span>` : ''}${extra}</div>
         <div class="nm-sub">${[
-    e(L.mapRisk[d.risk.level]),
+    e(m.risk === 'not_assessed' && d.risk.level === 'ok' ? L.mapRisk.not_assessed : L.mapRisk[d.risk.level]),
     d.refs.length ? `<b>${e(d.refs.join(', '))}</b>` : '',
     d.risk.exploited ? '<span class="nm-kev">CISA KEV</span>' : '',
     d.ports.length ? e(L.mapPorts(d.ports.length)) : '',
@@ -688,7 +689,7 @@ export function toHtml(m) {
   ${h2('map')}
   <p class="muted">${e(L.mapIntro)}</p>
   <div class="nm-legend">${['critical', 'high', 'medium', 'exposed', 'ok'].filter((l) => m.map.counts[l] > 0 || l === 'ok')
-    .map((l) => `<span class="nm-${l}"><i></i>${e(L.mapRisk[l])}: ${m.map.counts[l]}</span>`).join('')}</div>
+    .map((l) => `<span class="nm-${l}"><i></i>${e(m.risk === 'not_assessed' && l === 'ok' ? L.mapRisk.not_assessed : L.mapRisk[l])}: ${m.map.counts[l]}</span>`).join('')}</div>
   <div class="nm-spine">
     <div class="nm-cloud">${e(L.mapInternet)}</div><div class="nm-wire"></div>
     ${m.map.gateway ? `<div class="nm-gw"><div class="nm-gw__type">${e(L.deviceTypes[m.map.gateway.type] || L.deviceTypes.router)}</div>${mapNode(m.map.gateway, m.map.gateway.synthetic ? ` <span class="nm-name">(${e(L.mapGatewayNote)})</span>` : '')}</div>` : `<div class="nm-cloud">${e(L.mapNoGateway)}</div>`}
@@ -706,10 +707,11 @@ export function toHtml(m) {
   </div>`).join('')}
   </section>`;
 
-  const serviceNote = !m.serviceDetection ? `<p class="muted service-guess-note">* ${e(L.serviceGuessNote)}</p>` : '';
+  const hasAnyPortsHtml = m.hosts.some(h => h.ports.length > 0);
+  const serviceNote = (!m.serviceDetection && hasAnyPortsHtml) ? `<p class="muted service-guess-note">* ${e(L.serviceGuessNote)}</p>` : '';
   const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : serviceNote + m.hosts.map((h) => `
     <h3>${e(h.host)}</h3>
-    ${h.ports.length === 0 ? `<p class="muted">${e(L.noOpenPorts)}</p>` : `
+    ${h.ports.length === 0 ? `<p class="muted">${e(m.risk === 'not_assessed' ? L.noPortsTested : L.noOpenPorts)}</p>` : `
     <table>
       <thead><tr><th class="num">${e(L.colPort)}</th><th>${e(L.colProto)}</th><th>${e(L.colService)}</th><th>${e(L.colVersion)}</th><th>${e(L.colRisk)}</th></tr></thead>
       <tbody>${h.ports.map((p) => `

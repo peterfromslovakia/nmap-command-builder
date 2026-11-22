@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.12.2 — 2026-11-22
+
+### Fixed
+- **Report: `-sn` / discovery-only scan now shows correct labels throughout the report**
+  - Risk badge: `NOT_ASSESSED` → translated `NOT ASSESSED` (EN) / `NEHODNOTENÉ` (SK) instead of raw internal ID
+  - Open ports card: shows `—` instead of `0` (ports were never tested)
+  - Per-host port list: shows "Ports not tested — host discovery only scan" / "Porty neboli testované" instead of "No open ports" (which implied a port scan ran and found nothing)
+  - Priority actions: shows "Priority actions cannot be determined from a host-discovery-only scan" / "Prioritné opatrenia nemožno určiť na základe samotného objavovacieho skenu" instead of "No urgent actions"
+  - Network map: nodes and legend show "Security not tested" / "Bezpečnosť netestovaná" instead of "Nothing found" / "Bez nálezov" (which implied the systems are confirmed secure)
+  - Service-guess footnote no longer appears when no ports were scanned
+
+### Internal
+- 12 new regression tests in `report.test.js` for `not_assessed` report rendering (404 total)
+- Added `noPortsTested`, `noActionsNotAssessed`, `mapRisk.not_assessed`, `sev.not_assessed`, `sev.port_only` i18n keys (EN/SK)
+
 ## 1.12.1 — 2026-11-22
 
 ### Fixed

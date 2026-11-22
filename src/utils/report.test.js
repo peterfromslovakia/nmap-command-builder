@@ -404,3 +404,80 @@ test('map appendix: firewall gateway label and one frame per scanned range', () 
   expect(html).toMatch(/nm-gw__type">Firewall</);
   expect(md(m)).toMatch(/└─ Firewall: 10\.0\.0\.1[\s\S]*├─ Lokálna sieť 10\.0\.0\.0\/22[\s\S]*└─ Lokálna sieť 192\.168\.5\.0\/24/);
 });
+
+describe('not_assessed (discovery-only) report rendering', () => {
+  const { buildReportModel: b, toHtml: h, toMarkdown: md } = require('./report');
+  const dev = (ip) => ({ ip, type: 'unknown', hostname: '', mac: '', vendor: '', os: '', ports: [] });
+  const snText = 'Starting Nmap 7.95\nNmap scan report for 192.168.50.5\nHost is up (0.001s latency).\nNmap done: 256 IP addresses (1 host up) scanned in 7.50 seconds';
+  const baseOpts = { text: snText, command: 'nmap -sn 192.168.50.0/24', target: '192.168.50.0/24', timestamp: 't' };
+
+  test('risk is not_assessed', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' } });
+    expect(m.risk).toBe('not_assessed');
+  });
+
+  test('EN: risk badge shows NOT ASSESSED (translated)', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' } });
+    expect(h(m)).toContain('NOT ASSESSED');
+    expect(h(m)).not.toContain('>not_assessed<');
+  });
+
+  test('SK: risk badge shows NEHODNOTENÉ', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'sk' } });
+    expect(h(m)).toContain('NEHODNOTENÉ');
+  });
+
+  test('EN: open ports card shows — not 0', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' } });
+    const html = h(m);
+    expect(html).toMatch(/<div class="card">Open ports<b>—<\/b><\/div>/);
+    expect(html).not.toMatch(/<div class="card">Open ports<b>\d+<\/b><\/div>/);
+  });
+
+  test('EN: priority actions shows not-assessed message', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' } });
+    expect(h(m)).toContain('Priority actions cannot be determined from a host-discovery-only scan');
+  });
+
+  test('SK: priority actions shows Slovak not-assessed message', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'sk' }, inventory: [dev('192.168.50.1')] });
+    expect(h(m)).toContain('Prioritné opatrenia nemožno určiť');
+  });
+
+  test('EN: per-host port list shows "not tested" not "no open ports"', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' }, inventory: [dev('192.168.50.5')] });
+    const html = h(m);
+    expect(html).toContain('Ports not tested');
+    expect(html).not.toContain('No open ports');
+  });
+
+  test('SK: per-host port list shows "Porty neboli testované"', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'sk' }, inventory: [dev('192.168.50.5')] });
+    expect(h(m)).toContain('Porty neboli testované');
+  });
+
+  test('service-guess footnote is NOT shown for not_assessed scan', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'sk' }, inventory: [dev('192.168.50.5')] });
+    expect(h(m)).not.toContain('service-guess-note');
+    expect(md(m)).not.toContain('Názvy služieb sú odhady');
+  });
+
+  test('EN: map legend and node label shows "Security not tested" not "Nothing found"', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' }, inventory: [dev('192.168.50.1'), dev('192.168.50.5')], gatewayIp: '192.168.50.1' });
+    const html = h(m);
+    expect(html).toContain('Security not tested');
+    expect(html).not.toContain('Nothing found');
+  });
+
+  test('SK: map shows "Bezpečnosť netestovaná" not "Bez nálezov"', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'sk' }, inventory: [dev('192.168.50.1'), dev('192.168.50.5')], gatewayIp: '192.168.50.1' });
+    const html = h(m);
+    expect(html).toContain('Bezpečnosť netestovaná');
+    expect(html).not.toContain('Bez nálezov');
+  });
+
+  test('MD: summary table shows — for open ports', () => {
+    const m = b({ ...baseOpts, meta: { lang: 'en' } });
+    expect(md(m)).toMatch(/Hosts up.*?Open ports[\s\S]*?\|\s*\d+\s*\|\s*—\s*\|/);
+  });
+});
