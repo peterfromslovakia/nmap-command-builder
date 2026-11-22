@@ -404,6 +404,9 @@ ipcMain.handle('nmap:run', (event, payload) => {
     }
   }
 
+  // Sleduje, či ukončenie inicializoval používateľ (nie OS alebo crash).
+  let killRequested = false;
+
   return new Promise((resolve) => {
     try {
       currentScanProcess = spawn(cmd, cmdArgs, {
@@ -411,6 +414,7 @@ ipcMain.handle('nmap:run', (event, payload) => {
         env,
       });
       currentScanProcess.elevated = elevated;
+      currentScanProcess.setKillRequested = () => { killRequested = true; };
       let errHead = '';
 
       const send = (type, data) => {
@@ -436,7 +440,7 @@ ipcMain.handle('nmap:run', (event, payload) => {
         if (why) send('stderr', `\n${why}\n`);
         currentScanProcess = null;
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('scan:done', { code, signal });
+          mainWindow.webContents.send('scan:done', { code, signal, userKill: killRequested });
         }
         resolve({ success: true, code, signal });
       });
@@ -460,6 +464,7 @@ ipcMain.handle('nmap:kill', (event) => {
   if (!isTrusted(event)) return { success: false, error: 'Untrusted sender.' };
   if (!currentScanProcess) return { success: false, error: 'No scan running.' };
   const proc = currentScanProcess;
+  if (proc.setKillRequested) proc.setKillRequested();
   if (proc.elevated) {
     // sudo preposle SIGTERM nmapu (SIGKILL by zabil len sudo a nmap by bezal dalej).
     // pkexec bezi ako root → signal neprejde; zavretie vystupu ukonci nmap pri dalsom zapise.

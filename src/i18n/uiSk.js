@@ -7,6 +7,7 @@ const UI_SK = {
   DONE: 'HOTOVO',
   ERROR: 'CHYBA',
   KILLED: 'ZASTAVENÉ',
+  CRASHED: 'ZLYHALO',
   Language: 'Jazyk',
   'nmap not found': 'nmap sa nenašiel',
   'nmap is not installed or not in PATH.': 'nmap nie je nainštalovaný alebo nie je v PATH.',

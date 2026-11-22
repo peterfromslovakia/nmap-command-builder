@@ -157,3 +157,32 @@ describe('discovery scan vs port scan diff', () => {
     expect(d.resolvedFindings.map((f) => f.id)).toContain('ftp-anon');
   });
 });
+
+describe('port range diff', () => {
+  const snapSpec = (id, portFlag) =>
+    makeSnapshot({ id, time: `2026-11-2${id}T10:00:00Z`, target: '192.168.1.1', command: `nmap -sV ${portFlag} 192.168.1.1`, text: OLD });
+
+  test('rovnaký port spec → portRangeDiffers false', () => {
+    const d = diffScans(snapSpec(1, '-p 80,443'), snapSpec(2, '-p 80,443'));
+    expect(d.portRangeDiffers).toBe(false);
+    expect(d.methodDiffers).toBe(false);
+  });
+
+  test('rôzny port spec → portRangeDiffers true + methodDiffers true', () => {
+    const d = diffScans(snapSpec(1, '-p-'), snapSpec(2, '-p 80,443'));
+    expect(d.portRangeDiffers).toBe(true);
+    expect(d.methodDiffers).toBe(true);
+  });
+
+  test('default vs default → portRangeDiffers false', () => {
+    const a = makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: '192.168.1.1', command: 'nmap -sV 192.168.1.1', text: OLD });
+    const b = makeSnapshot({ id: 2, time: '2026-11-21T10:00:00Z', target: '192.168.1.1', command: 'nmap -sV 192.168.1.1', text: NEW });
+    expect(diffScans(a, b).portRangeDiffers).toBe(false);
+  });
+
+  test('snapshot ukladá portSpec', () => {
+    expect(snapSpec(1, '-p-').portSpec).toBe('all');
+    expect(snapSpec(1, '-p 80,443').portSpec).toBe('80,443');
+    expect(makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: 't', command: 'nmap -sV 192.168.1.1', text: '' }).portSpec).toBe('default');
+  });
+});

@@ -1,4 +1,4 @@
-import { detectScanType, isDiscoveryScan, isVulnScan, arePortsComparable, areVulnsComparable } from './scanMeta';
+import { detectScanType, isDiscoveryScan, isVulnScan, arePortsComparable, areVulnsComparable, getPortSpec } from './scanMeta';
 
 describe('detectScanType', () => {
   test('discovery: -sn', () => {
@@ -70,5 +70,24 @@ describe('areVulnsComparable', () => {
   });
   test('true ak oba majú vuln skripty', () => {
     expect(areVulnsComparable('nmap --script vuln 192.168.1.1', 'nmap --script vuln 192.168.1.1')).toBe(true);
+  });
+});
+
+describe('getPortSpec', () => {
+  test('default keď nie je -p ani -F', () => {
+    expect(getPortSpec('nmap -sV 192.168.1.1')).toBe('default');
+  });
+  test('all pre -p-', () => {
+    expect(getPortSpec('nmap -p- 192.168.1.1')).toBe('all');
+  });
+  test('fast pre -F', () => {
+    expect(getPortSpec('nmap -F 192.168.1.1')).toBe('fast');
+  });
+  test('explicitný port range pre -p', () => {
+    expect(getPortSpec('nmap -p 80,443 192.168.1.1')).toBe('80,443');
+    expect(getPortSpec('nmap -p 1-1000 192.168.1.1')).toBe('1-1000');
+  });
+  test('topN pre --top-ports', () => {
+    expect(getPortSpec('nmap --top-ports 100 192.168.1.1')).toBe('top100');
   });
 });

@@ -220,7 +220,8 @@ export default function App() {
     const cleanDone = window.electronAPI.onScanDone((data) => {
       busyRef.current = false;
       lastExitRef.current = { code: data.code, signal: data.signal || null };
-      setScanStatus(data.signal ? 'killed' : 'done');
+      const isCrash = data.signal && !data.userKill && data.signal !== 'SIGTERM' && data.signal !== 'SIGKILL';
+      setScanStatus(isCrash ? 'crashed' : data.signal ? 'killed' : 'done');
       const statusMsg = data.signal
         ? `\n[⊗ ${tRef.current('Scan killed — signal: {signal}', { signal: data.signal })}]`
         : `\n[✓ ${tRef.current('Scan completed — exit code: {code}', { code: data.code ?? 0 })}]`;
@@ -228,7 +229,6 @@ export default function App() {
         ...prev,
         { id: Date.now(), type: 'system', text: statusMsg },
       ]);
-      const isCrash = data.signal && data.signal !== 'SIGTERM' && data.signal !== 'SIGKILL';
       setScanHistory((prev) => [
         {
           command: currentCommandRef.current,
@@ -432,7 +432,7 @@ export default function App() {
 
   // Text dokonceneho skenu pre analyzu (cely vystup).
   const scanText = useMemo(() => {
-    if (scanStatus !== 'done' && scanStatus !== 'killed') return '';
+    if (scanStatus !== 'done' && scanStatus !== 'killed' && scanStatus !== 'crashed') return '';
     return fullOutRef.current.truncated ? fullOutRef.current.chunks.join('') : outputLines.map((l) => l.text || '').join('');
   }, [scanStatus, outputLines]);
   // Panely s vysledkami dostanu cely vystup, aj ked terminal zobrazuje len koniec.
@@ -502,7 +502,7 @@ export default function App() {
       monitorHandledRef.current = scanIdRef.current;
       setMonitor((m) => (m ? saveMonitor({ ...m, lastResult, lastCounts: lastCounts || m.lastCounts }) : m));
     };
-    if (scanStatus === 'error' || scanStatus === 'killed') { finish('error'); return; }
+    if (scanStatus === 'error' || scanStatus === 'killed' || scanStatus === 'crashed') { finish('error'); return; }
     if (currentSnapshot && currentSnapshot.id === scanIdRef.current) {
       const cmp = comparisonFor(snapshots, currentSnapshot);
       if (!cmp) { finish('first'); autoReportRef.current(null, monitor.target); return; }
@@ -537,7 +537,7 @@ export default function App() {
 
   // Po skene: inventar zariadeni (+ MAC / vyrobca z ARP tabulky systemu).
   useEffect(() => {
-    if (scanStatus !== 'done' && scanStatus !== 'killed') return undefined;
+    if (scanStatus !== 'done' && scanStatus !== 'killed' && scanStatus !== 'crashed') return undefined;
     const text = scanText;
     const own = { selfIps: localIps, platform: nmapStatus.platform || (IS_MAC ? 'darwin' : '') };
     const base = buildInventory(text, [], own);
@@ -790,6 +790,7 @@ export default function App() {
     done: { label: t('DONE'), cls: 'status--done' },
     error: { label: t('ERROR'), cls: 'status--error' },
     killed: { label: t('KILLED'), cls: 'status--killed' },
+    crashed: { label: t('CRASHED'), cls: 'status--error' },
   };
   const currentStatus = statusMap[scanStatus] || statusMap.idle;
 

@@ -1,6 +1,6 @@
 import { parseHosts } from './report';
 import { parseFindings } from './findings';
-import { detectScanType, arePortsComparable, areVulnsComparable } from './scanMeta';
+import { detectScanType, arePortsComparable, areVulnsComparable, getPortSpec } from './scanMeta';
 
 // ─── Snimka vysledkov skenu (kompaktna, bez surovego vystupu) ──────────────────
 
@@ -10,8 +10,9 @@ export function makeSnapshot({ id, time, target, command, text, exitCode, signal
     time,
     target: String(target || '').trim(),
     command,
-    // scanType umožňuje diff-u rozlíšiť discovery od port/vuln skenov
+    // scanType + portSpec umožňujú diff-u rozlíšiť nekompatibilné metodiky
     scanType: detectScanType(command),
+    portSpec: getPortSpec(command),
     exitCode: exitCode != null ? exitCode : undefined,
     signal: signal || undefined,
     hosts: parseHosts(text).map((h) => ({
@@ -84,9 +85,13 @@ export function diffScans(prev, curr) {
   const total = newHosts.length + goneHosts.length + openedPorts.length + closedPorts.length +
     changedVersions.length + newFindings.length + resolvedFindings.length;
 
+  // portRangeDiffers: skenovaný rozsah portov sa líšil — "zatvorené porty" môžu byť
+  // netestované, nie skutočne zatvorené. Upozornenie, nie blokovanie diff-u.
+  const portRangeDiffers = portsComparable && (prev.portSpec || 'default') !== (curr.portSpec || 'default');
+
   // methodDiffers: informuje UI, že porovnanie portov alebo nálezov nie je spoľahlivé
-  // (napr. jeden sken bol discovery-only, druhý mal vuln skripty)
-  const methodDiffers = !portsComparable || !vulnsComparable;
+  // (napr. jeden sken bol discovery-only, druhý mal vuln skripty; alebo iný rozsah portov)
+  const methodDiffers = !portsComparable || !vulnsComparable || portRangeDiffers;
 
   return {
     newHosts, goneHosts, openedPorts, closedPorts, changedVersions, newFindings, resolvedFindings,
@@ -95,6 +100,7 @@ export function diffScans(prev, curr) {
     methodDiffers,
     portsComparable,
     vulnsComparable,
+    portRangeDiffers,
   };
 }
 

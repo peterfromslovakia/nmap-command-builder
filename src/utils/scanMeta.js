@@ -72,6 +72,29 @@ export function arePortsComparable(cmd1, cmd2) {
  *   (mohli by sme tvrdiť "opravené" len preto, že neboli testované)
  * - Rovnaká úroveň (oba port/service alebo oba vuln) → porovnateľné
  */
+/**
+ * Vráti normalizovanú špecifikáciu portov z príkazu.
+ * Používa sa na detekciu, keď dve skenovania testovali rôzne porty
+ * a diff by mohol falošne hlásiť "zatvorené" porty.
+ *
+ * Vracia:
+ *   'all'        — -p- (všetky porty)
+ *   'fast'       — -F (100 portov)
+ *   'topN'       — --top-ports N
+ *   '<spec>'     — explicitný -p argument (napr. "80,443" alebo "1-1000")
+ *   'default'    — žiaden port argument (nmap default: top 1000)
+ */
+export function getPortSpec(command) {
+  const args = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  if (args.includes('-p-')) return 'all';
+  if (args.includes('-F')) return 'fast';
+  const pIdx = args.indexOf('-p');
+  if (pIdx >= 0 && args[pIdx + 1] && !args[pIdx + 1].startsWith('-')) return args[pIdx + 1];
+  const topIdx = args.indexOf('--top-ports');
+  if (topIdx >= 0 && args[topIdx + 1]) return `top${args[topIdx + 1]}`;
+  return 'default';
+}
+
 export function areVulnsComparable(cmd1, cmd2) {
   const t1 = detectScanType(cmd1);
   const t2 = detectScanType(cmd2);

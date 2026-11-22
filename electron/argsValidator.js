@@ -19,10 +19,16 @@ const ALLOWED_FLAGS = new Set([
 const ATTACHED_FLAG_RES = [/^-P[SAU][\d,-]*$/, /^-T[0-5]$/];
 const SCRIPT_VALUE_RE = /^[A-Za-z0-9_,*.+() -]+$/; // nazvy/kategorie, nie cesty
 
-// Povolene znaky pre --script-args: key=value páry oddelené čiarkou.
-// Zakazuje lomky (cesty k súborom) a ďalšie nebezpečné vzory.
-// Príklad povolených hodnôt: "mincvss=5.0", "vulners.showall=true,http.useragent=Mozilla"
-const SCRIPT_ARGS_RE = /^[A-Za-z0-9_.=,@: -]+$/;
+// Povolene znaky pre --script-args.
+// Lomka je povolená (cesty k wordlistom, user-agent strings: Mozilla/5.0).
+// Shell injection znaky (; & | ` $ \ ' " atď.) sú blokované DANGEROUS regexom v nmap:run,
+// takže tu stačí odstrániť len explicitne nebezpečné — nie všetky špeciálne znaky.
+// Príklady povolených hodnôt:
+//   "mincvss=5.0"
+//   "http.useragent=Mozilla/5.0"
+//   "brute.firstonly=true,brute.db=/usr/share/wordlists/rockyou.txt"
+//   "vulners.showall=true,mincvss=4.0"
+const SCRIPT_ARGS_RE = /^[A-Za-z0-9_.=,@: \-/+*]+$/;
 
 function validateArgs(args) {
   if (!Array.isArray(args) || args.length === 0 || args.length > 64) {
