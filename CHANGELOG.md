@@ -3,8 +3,8 @@
 ## 1.12.1 — 2026-11-22
 
 ### Fixed
-- **Report: basic port scan no longer claims "NSE scripts found no vulnerabilities"** — without `-sV` or `--script`, vulnerability testing was not performed; the report now says so explicitly (`port_only` risk category, different "no findings" text in both languages)
-- **Report: `port_only` risk rating for bare port scans** — `nmap <target>` (no service detection, no scripts) now returns risk `port_only` instead of `none`; risk text reads "No vulnerability scripts ran — this scan only identified open ports"
+- **Report: basic port scan no longer claims "NSE scripts found no vulnerabilities"** — three distinct "no findings" states now: `port_only` (no service detection, no scripts, all safe ports → "testing not performed"), `low`-with-no-findings (risky ports but no scripts → "risk is based on port exposure only"), `none` (service detection or scripts ran, nothing found)
+- **Report: `port_only` risk rating for bare port scans** — `nmap <target>` (no service detection, no scripts, all ports safe) now returns risk `port_only` instead of `none`; risk text reads "No vulnerability scripts ran — this scan only identified open ports"
 - **Report: scan time now shows nmap's own start time** — the "Scan date" field now reads the `Starting Nmap … at <time>` line from the output plus elapsed seconds; falls back to the snapshot timestamp if nmap output is unavailable
 - **Report: map — multiple scanner IPs now correctly labelled** — when the scanning machine has two active network interfaces, the second one is now shown as "scanning computer — secondary interface" instead of an identical duplicate label
 - **Report: service names marked as estimates without `-sV`** — port table and HTML now show `*` with a footnote "Service names are estimates based on port numbers" when no service detection ran; footnote absent when `-sV` or `-A` was used
@@ -13,7 +13,8 @@
 - Added `parseScanTimes()` export to `src/utils/report.js` (extracts start time + elapsed)
 - Added `hasVulnScripts()` and `hasServiceDetection()` to `src/utils/scanMeta.js`
 - Added `isSelfPrimary` / `isSelf` distinction in `buildTopology()` in `src/utils/topology.js`
-- 10 new regression tests (382 total)
+- Added `noFindingsPortOnly` i18n key (EN/SK) for scans with risky ports but no vulnerability scripts
+- 20 new regression tests in `report.test.js` + `reportVerify.test.js` (392 total)
 
 ## 1.12.0 — 2026-11-22
 
