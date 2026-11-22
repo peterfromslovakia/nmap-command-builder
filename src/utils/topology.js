@@ -51,7 +51,16 @@ const sameNet24 = (a, b) => String(a).split('.').slice(0, 3).join('.') === Strin
  */
 export function buildTopology({ devices = [], gatewayIp = null, localIps = [], findings = [], target = '' }) {
   const local = new Set(localIps);
-  const nodes = devices.map((d) => ({ ...d, isSelf: local.has(d.ip), risk: deviceRisk(d, findings) }));
+  // isSelf: zariadenie je skenovací počítač.
+  // Ak má počítač viac sieťových rozhraní, všetky IP budú isSelf — označíme
+  // prvú ako primárnu (isSelfPrimary=true) a ostatné ako sekundárne rozhrania.
+  let selfFound = false;
+  const nodes = devices.map((d) => {
+    const isSelf = local.has(d.ip);
+    const isSelfPrimary = isSelf && !selfFound;
+    if (isSelf) selfFound = true;
+    return { ...d, isSelf, isSelfPrimary, risk: deviceRisk(d, findings) };
+  });
 
   // Brana: skutocna predvolena brana systemu, inak router s .1 / .254, inak prvy router.
   let gateway = nodes.find((d) => d.ip === gatewayIp) || null;

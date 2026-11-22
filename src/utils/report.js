@@ -6,11 +6,31 @@ import { getPortIntel } from '../data/portIntel';
 import { getPortFixes } from '../data/remediation';
 import { getLabel } from './deviceLabels';
 import { labels, tr } from '../i18n/report';
-import { isDiscoveryScan } from './scanMeta';
+import { isDiscoveryScan, hasVulnScripts, hasServiceDetection } from './scanMeta';
 
 const RE_HOST = /^Nmap scan report for (.+)$/;
 const RE_PORT = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered)\s+(\S+)(?:\s+(.*))?$/;
 const RE_PORT_ALL = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered|closed|filtered|closed\|filtered|unfiltered)\s+(\S+)/;
+// "Starting Nmap 7.95 ( https://nmap.org ) at 2026-11-22 09:14 CET"
+const RE_NMAP_START = /^Starting Nmap \S+ .* at (.+)$/;
+// "Nmap done: 256 IP addresses (12 hosts up) scanned in 50.42 seconds"
+const RE_NMAP_DONE = /^Nmap done:.*scanned in ([\d.]+) seconds/;
+
+/** Extrahuje čas začiatku a konca z nmap výstupu. */
+export function parseScanTimes(text) {
+  let startLine = null;
+  let elapsedSeconds = null;
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (!startLine) {
+      const m = line.match(RE_NMAP_START);
+      if (m) startLine = m[1].trim();
+    }
+    const d = line.match(RE_NMAP_DONE);
+    if (d) elapsedSeconds = parseFloat(d[1]);
+  }
+  return { startLine, elapsedSeconds };
+}
 
 /** Hosty a ich otvorene porty z vystupu nmapu. */
 export function parseHosts(text) {
@@ -106,6 +126,11 @@ export function overallRisk(findings, hosts, command) {
   const ports = hosts.flatMap((h) => h.ports);
   if (ports.some((p) => p.risk === 'high')) return 'medium';
   if (findings.length > 0 || ports.some((p) => p.risk === 'medium')) return 'low';
+
+  // Ak nebežali ani service detection ani vuln skripty — sme ešte viac v neistote.
+  // 'port_only': holý port scan (bez -sV aj bez --script) — len čísla portov, nič viac.
+  // 'none': prebehla service detekcia alebo skripty, nič závažné sa nenašlo.
+  if (!hasVulnScripts(command) && !hasServiceDetection(command)) return 'port_only';
   return 'none';
 }
 
@@ -225,10 +250,15 @@ export function buildReportModel({
 
   const usedIntel = Boolean(intelMeta && (intelMeta.kevVersion || findings.some((f) => f.cveDetails?.some((c) => c.epss != null || c.nvd))));
 
+  const { startLine: nmapStartLine, elapsedSeconds: nmapElapsed } = parseScanTimes(text);
+
   return {
     ...m,
     command, target, timestamp, nmapVersion: nmapVersion || '',
     generatedAt: generatedAt || timestamp,
+    nmapStartLine: nmapStartLine || null,
+    nmapElapsed: nmapElapsed != null ? nmapElapsed : null,
+    serviceDetection: hasServiceDetection(command),
     hosts, findings, portAdvice, counts, actions,
     nseErrors: parseNseErrors(text),
     exploitedCount: findings.filter((f) => f.exploited).length,
@@ -319,7 +349,7 @@ export function toMarkdown(m) {
 
   out.push('', h2('scope'), '');
   out.push(`- **${L.targetsInScope}:** ${mdCode(m.target)}`);
-  out.push(`- **${L.scanWindow}:** ${m.timestamp}`);
+  out.push(`- **${L.scanWindow}:** ${m.nmapStartLine || m.timestamp}${m.nmapElapsed != null ? ` (${L.elapsed}: ${m.nmapElapsed} s)` : ''}`);
   out.push(`- **${L.tool}:** ${m.nmapVersion || 'Nmap'} · Nmap Command Builder`);
   if (m.authorization) out.push(`- **${L.authorization}:** ${mdCell(m.authorization)}`);
   out.push(`- **${L.techniques}:**`);
@@ -341,7 +371,12 @@ export function toMarkdown(m) {
   }
 
   out.push('', h2('findings'), '');
-  if (m.findings.length === 0) out.push(`_${L.noFindings}_`);
+  if (m.findings.length === 0) {
+    const noFindText = (m.risk === 'port_only' || m.risk === 'not_assessed') ? L.noFindingsNotTested
+      : m.risk === 'none' ? L.noFindings
+      : L.noFindingsPortOnly;
+    out.push(`_${noFindText}_`);
+  }
   m.findings.forEach((f) => {
     out.push(`### ${f.ref} — [${sevLabel(f.severity)}] ${t(f.title)}`, '');
     if (f.exploited) out.push(`> **${L.exploitedNow}${f.ransomware ? ` — ${L.ransomwareUse}` : ''}.** ${L.kevNote(f.kevDue)}${f.escalated ? ` ${L.escalatedNote}` : ''}`, '');
@@ -398,12 +433,13 @@ export function toMarkdown(m) {
 
   out.push('', h2('ports'), '');
   if (m.hosts.length === 0) out.push(`_${L.noHosts}_`);
+  if (!m.serviceDetection) out.push(`> _${L.serviceGuessNote}_`, '');
   m.hosts.forEach((h) => {
     out.push(`### ${h.host}`, '');
     if (h.ports.length === 0) { out.push(`_${L.noOpenPorts}_`, ''); return; }
     out.push(`| ${L.colPort} | ${L.colProto} | ${L.colService} | ${L.colVersion} | ${L.colRisk} |`, '|---:|---|---|---|---|');
     h.ports.forEach((p) => out.push(
-      `| ${p.port} | ${p.proto} | ${mdCell(p.service)} | ${mdCell(p.version)} | ${sevLabel(p.risk)} |`
+      `| ${p.port} | ${p.proto} | ${mdCell(p.service)}${!m.serviceDetection ? ' \\*' : ''} | ${mdCell(p.version)} | ${sevLabel(p.risk)} |`
     ));
     out.push('');
   });
@@ -428,7 +464,7 @@ export function toMarkdown(m) {
     const mp = m.map;
     const devLine = (d) => [
       d.ip, d.hostname, `— ${L.mapRisk[d.risk.level]}`, d.refs.length ? d.refs.join(', ') : '',
-      d.risk.exploited ? 'CISA KEV' : '', d.isSelf ? `(${L.mapYou})` : '', d.ports.length ? `· ${L.mapPorts(d.ports.length)}` : '',
+      d.risk.exploited ? 'CISA KEV' : '', d.isSelfPrimary ? `(${L.mapYou})` : d.isSelf ? `(${L.mapYouSecondary})` : '', d.ports.length ? `· ${L.mapPorts(d.ports.length)}` : '',
     ].filter(Boolean).join(' ');
     out.push('', h2('map'), '', L.mapIntro, '', '```');
     out.push(L.mapInternet);
@@ -496,7 +532,7 @@ export function toHtml(m) {
       ${m.client ? `<tr><td>${e(L.preparedFor)}</td><td><b>${e(m.client)}</b></td></tr>` : ''}
       <tr><td>${e(L.targetsInScope)}</td><td><code>${e(m.target)}</code></td></tr>
       <tr><td>${e(L.preparedBy)}</td><td>${e([m.tester, m.organization].filter(Boolean).join(' · ') || L.notStated)}</td></tr>
-      <tr><td>${e(L.scanWindow)}</td><td>${e(m.timestamp)}</td></tr>
+      <tr><td>${e(L.scanWindow)}</td><td>${e(m.nmapStartLine || m.timestamp)}${m.nmapElapsed != null ? ` <span class="muted">(${e(L.elapsed)}: ${e(String(m.nmapElapsed))} s)</span>` : ''}</td></tr>
       <tr><td>${e(L.reportDate)}</td><td>${e(m.generatedAt)}</td></tr>
       ${m.authorization ? `<tr><td>${e(L.authorization)}</td><td>${e(m.authorization)}</td></tr>` : ''}
     </table>
@@ -542,7 +578,7 @@ export function toHtml(m) {
   ${h2('scope')}
   <table class="kv">
     <tr><td>${e(L.targetsInScope)}</td><td><code>${e(m.target)}</code></td></tr>
-    <tr><td>${e(L.scanWindow)}</td><td>${e(m.timestamp)}</td></tr>
+    <tr><td>${e(L.scanWindow)}</td><td>${e(m.nmapStartLine || m.timestamp)}${m.nmapElapsed != null ? ` <span class="muted">(${e(L.elapsed)}: ${e(String(m.nmapElapsed))} s)</span>` : ''}</td></tr>
     <tr><td>${e(L.tool)}</td><td>${e(m.nmapVersion || 'Nmap')} · Nmap Command Builder</td></tr>
     <tr><td>${e(L.command)}</td><td><code>${e(m.command)}</code></td></tr>
     ${m.authorization ? `<tr><td>${e(L.authorization)}</td><td>${e(m.authorization)}</td></tr>` : ''}
@@ -577,8 +613,11 @@ export function toHtml(m) {
     </tbody>
   </table>`;
 
+  const noFindText = (m.risk === 'port_only' || m.risk === 'not_assessed') ? L.noFindingsNotTested
+    : m.risk === 'none' ? L.noFindings
+    : L.noFindingsPortOnly;
   const findings = m.findings.length === 0
-    ? `<p class="muted">${e(L.noFindings)}</p>`
+    ? `<p class="muted">${e(noFindText)}</p>`
     : m.findings.map((f) => `
       <div class="finding sev-${e(f.severity)}">
         <h3><span class="ref">${e(f.ref)}</span> ${badge(f.severity)} ${f.exploited ? kevBadge : ''} ${e(t(f.title))}</h3>
@@ -640,7 +679,7 @@ export function toHtml(m) {
     d.refs.length ? `<b>${e(d.refs.join(', '))}</b>` : '',
     d.risk.exploited ? '<span class="nm-kev">CISA KEV</span>' : '',
     d.ports.length ? e(L.mapPorts(d.ports.length)) : '',
-    d.isSelf ? `<i>${e(L.mapYou)}</i>` : '',
+    d.isSelfPrimary ? `<i>${e(L.mapYou)}</i>` : d.isSelf ? `<i>${e(L.mapYouSecondary)}</i>` : '',
   ].filter(Boolean).join(' · ')}</div>
       </div>`;
   };
@@ -667,13 +706,14 @@ export function toHtml(m) {
   </div>`).join('')}
   </section>`;
 
-  const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : m.hosts.map((h) => `
+  const serviceNote = !m.serviceDetection ? `<p class="muted service-guess-note">* ${e(L.serviceGuessNote)}</p>` : '';
+  const hosts = m.hosts.length === 0 ? `<p class="muted">${e(L.noHosts)}</p>` : serviceNote + m.hosts.map((h) => `
     <h3>${e(h.host)}</h3>
     ${h.ports.length === 0 ? `<p class="muted">${e(L.noOpenPorts)}</p>` : `
     <table>
       <thead><tr><th class="num">${e(L.colPort)}</th><th>${e(L.colProto)}</th><th>${e(L.colService)}</th><th>${e(L.colVersion)}</th><th>${e(L.colRisk)}</th></tr></thead>
       <tbody>${h.ports.map((p) => `
-        <tr><td class="num">${e(p.port)}</td><td>${e(p.proto)}</td><td>${e(p.service)}</td>
+        <tr><td class="num">${e(p.port)}</td><td>${e(p.proto)}</td><td>${e(p.service)}${!m.serviceDetection ? ` <span class="muted" title="${e(L.serviceGuessNote)}">*</span>` : ''}</td>
         <td>${e(p.version)}</td><td>${badge(p.risk)}</td></tr>`).join('')}
       </tbody>
     </table>`}`).join('');

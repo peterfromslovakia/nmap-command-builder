@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.12.1 — 2026-11-22
+
+### Fixed
+- **Report: basic port scan no longer claims "NSE scripts found no vulnerabilities"** — without `-sV` or `--script`, vulnerability testing was not performed; the report now says so explicitly (`port_only` risk category, different "no findings" text in both languages)
+- **Report: `port_only` risk rating for bare port scans** — `nmap <target>` (no service detection, no scripts) now returns risk `port_only` instead of `none`; risk text reads "No vulnerability scripts ran — this scan only identified open ports"
+- **Report: scan time now shows nmap's own start time** — the "Scan date" field now reads the `Starting Nmap … at <time>` line from the output plus elapsed seconds; falls back to the snapshot timestamp if nmap output is unavailable
+- **Report: map — multiple scanner IPs now correctly labelled** — when the scanning machine has two active network interfaces, the second one is now shown as "scanning computer — secondary interface" instead of an identical duplicate label
+- **Report: service names marked as estimates without `-sV`** — port table and HTML now show `*` with a footnote "Service names are estimates based on port numbers" when no service detection ran; footnote absent when `-sV` or `-A` was used
+
+### Internal
+- Added `parseScanTimes()` export to `src/utils/report.js` (extracts start time + elapsed)
+- Added `hasVulnScripts()` and `hasServiceDetection()` to `src/utils/scanMeta.js`
+- Added `isSelfPrimary` / `isSelf` distinction in `buildTopology()` in `src/utils/topology.js`
+- 10 new regression tests (382 total)
+
 ## 1.12.0 — 2026-11-22
 
 ### New

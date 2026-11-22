@@ -125,6 +125,13 @@ describe('report details, overall risk and language', () => {
     expect(overallRisk([], [], 'nmap -sn 192.168.1.0/24')).toBe('not_assessed');
   });
 
+  test('overall risk is port_only for basic port scan (no -sV, no --script)', () => {
+    expect(overallRisk([], [{ ports: [{ risk: 'safe' }] }], 'nmap 192.168.50.0/24')).toBe('port_only');
+    expect(overallRisk([], [], 'nmap -p 1-1000 10.0.0.1')).toBe('port_only');
+    // -sV alone is 'none' (service detection ran, no vuln scripts but more info than bare scan)
+    expect(overallRisk([], [{ ports: [{ risk: 'safe' }] }], 'nmap -sV 192.168.1.1')).toBe('none');
+  });
+
   test('Slovak markdown: labels, translated findings and fixes, tester details', () => {
     const md = toMarkdown(sk);
     expect(md).toContain('# Správa o bezpečnostnom skene siete');
@@ -298,6 +305,91 @@ Nmap done.
   test('toMarkdown SK: NSE errors section uses Slovak label', () => {
     const md = toMarkdown(makeModel(NSE_TEXT, 'sk'));
     expect(md).toContain('Chyby NSE skriptov');
+  });
+});
+
+describe('report accuracy fixes (phase-4b)', () => {
+  const mk = (command, text = '', extra = {}) =>
+    buildReportModel({ text, command, target: '192.168.50.0/24', timestamp: 't', ...extra });
+
+  // Fix 1 & 2: port_only risk + noFindingsNotTested text
+  test('basic port scan: risk=port_only, findings section uses noFindingsNotTested', () => {
+    const m = mk('nmap 192.168.50.0/24');
+    expect(m.risk).toBe('port_only');
+    const md = toMarkdown(m);
+    expect(md).toContain('port_only' in m ? '' : ''); // model has risk
+    expect(md).not.toContain('Spustené NSE skripty nenašli');
+    expect(md).not.toContain('No known vulnerabilities were detected by the NSE scripts');
+    expect(md).toContain('Vulnerability testing was not performed');
+  });
+
+  test('basic port scan SK: noFindingsNotTested in Slovak', () => {
+    const m = mk('nmap 192.168.50.0/24', '', { meta: { lang: 'sk' } });
+    expect(toMarkdown(m)).toContain('nebolo vykonané testovanie zraniteľností');
+  });
+
+  test('-sV scan: risk=none (service detection ran, no vuln scripts is acceptable)', () => {
+    const m = mk('nmap -sV 192.168.50.0/24');
+    expect(m.risk).toBe('none');
+  });
+
+  test('-sC scan: risk=none (default scripts = vuln category)', () => {
+    const m = mk('nmap -sC 192.168.50.0/24');
+    expect(m.risk).toBe('none');
+  });
+
+  // Fix 3: scan time from nmap output
+  test('parseScanTimes extracts start time and elapsed from nmap output', () => {
+    const { parseScanTimes } = require('./report');
+    const text = `Starting Nmap 7.95 ( https://nmap.org ) at 2026-11-22 09:14 CET
+Nmap scan report for 192.168.50.1
+PORT   STATE SERVICE
+80/tcp open  http
+Nmap done: 1 IP address (1 host up) scanned in 50.42 seconds`;
+    const { startLine, elapsedSeconds } = parseScanTimes(text);
+    expect(startLine).toMatch(/2026-11-22 09:14/);
+    expect(elapsedSeconds).toBe(50.42);
+  });
+
+  test('report uses nmap start time (not JS Date) when available', () => {
+    const text = `Starting Nmap 7.95 ( https://nmap.org ) at 2026-11-22 09:14 CET
+Nmap done: 1 IP address (1 host up) scanned in 10.00 seconds`;
+    const m = mk('nmap 192.168.50.0/24', text);
+    expect(m.nmapStartLine).toMatch(/2026-11-22 09:14/);
+    expect(m.nmapElapsed).toBe(10.0);
+    const md = toMarkdown(m);
+    expect(md).toContain('2026-11-22 09:14');
+    expect(md).toContain('10 s');
+  });
+
+  // Fix 4: two localIps → secondary interface label
+  test('second localIp gets secondary interface label in report', () => {
+    const devs = [
+      { ip: '192.168.50.100', type: 'unknown', hostname: '', mac: '', vendor: '', os: '', ports: [] },
+      { ip: '192.168.1.5', type: 'unknown', hostname: '', mac: '', vendor: '', os: '', ports: [] },
+      { ip: '192.168.50.1', type: 'router', hostname: '', mac: '', vendor: '', os: '', ports: [] },
+    ];
+    const m = buildReportModel({ text: '', command: 'nmap 192.168.50.0/24', target: '192.168.50.0/24',
+      timestamp: 't', inventory: devs, localIps: ['192.168.50.100', '192.168.1.5'] });
+    const html = toHtml(m);
+    expect(html).toContain('scanning computer');
+    expect(html).toContain('secondary interface');
+    // must not say "scanning computer" twice as primary
+    const primaryCount = (html.match(/scanning computer(?! — secondary)/g) || []).length;
+    expect(primaryCount).toBe(1);
+  });
+
+  // Fix 5: service guess note without -sV
+  test('without -sV: service-guess note in markdown', () => {
+    const m = mk('nmap 192.168.50.0/24', 'Nmap scan report for 192.168.50.1\nPORT   STATE SERVICE\n80/tcp open  http\n');
+    expect(m.serviceDetection).toBe(false);
+    expect(toMarkdown(m)).toContain('estimates based on port numbers');
+  });
+
+  test('with -sV: no service-guess note', () => {
+    const m = mk('nmap -sV 192.168.50.0/24', 'Nmap scan report for 192.168.50.1\nPORT   STATE SERVICE\n80/tcp open  http\n');
+    expect(m.serviceDetection).toBe(true);
+    expect(toMarkdown(m)).not.toContain('estimates based on port numbers');
   });
 });
 

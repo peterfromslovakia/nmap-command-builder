@@ -96,10 +96,34 @@ export function getPortSpec(command) {
 }
 
 /**
+ * Vráti true ak príkaz spúšťal vulnerability skripty (NSE vuln/vulners/vulscan/exploit).
+ * Ak nie, "žiadne nálezy" neznamená "bezpečné systémy" — testovanie zraniteľností neprebehlo.
+ */
+export function hasVulnScripts(command) {
+  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const has = (f) => a.includes(f);
+  if (has('-sC') || has('-A')) return true; // default scripts zahŕňajú bezpečnostné kontroly
+  if (has('--script')) {
+    const val = a[a.indexOf('--script') + 1] || '';
+    return /vuln|exploit|vulscan|vulners|malware|backdoor|auth|brute|safe/i.test(val);
+  }
+  return false;
+}
+
+/**
  * Vráti true ak príkaz obsahuje --open (zobrazujú sa len open porty).
  * V tom prípade neprítomný port nemusí byť closed — môže byť filtered alebo closed.
  * Nesmieme ho klasifikovať ako "closed" bez ďalšieho dôkazu.
  */
+/**
+ * Vráti true ak sken spúšťal detekciu verzií/služieb (-sV alebo -A).
+ * Bez toho sú názvy služieb len odhadom podľa čísla portu (IANA registry).
+ */
+export function hasServiceDetection(command) {
+  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  return a.includes('-sV') || a.includes('-A');
+}
+
 export function hasOpenOnly(command) {
   return String(command || '').split(/\s+/).includes('--open');
 }
