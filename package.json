@@ -12,7 +12,7 @@
     "build": "react-scripts build",
     "dev": "concurrently -k -s first -n REACT,ELECTRON -c cyan,green \"react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
     "electron": "electron .",
-    "dist": "electron-builder",
+    "dist": "bash scripts/dist.sh",
     "test": "react-scripts test --watchAll=false",
     "test:main": "node --test \"electron/**/*.test.js\"",
     "lint": "eslint src electron scripts --ext .js,.jsx --max-warnings 0"
