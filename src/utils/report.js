@@ -81,16 +81,21 @@ export function parseAllTestedPorts(text) {
  * Zmeny oproti predchadzajucemu skenu ako jednoduche textove riadky
  * (spolocne pre Markdown aj PDF). `diff` je vysledok diffScans().
  */
-export function changeSections(diff, lang = 'en') {
+export function changeSections(diff, lang = 'en', risk = null) {
   if (!diff) return [];
   const L = labels(lang);
   const sk = lang === 'sk';
   const port = (p) => `${p.port}/${p.proto} ${p.service}${p.version ? ` ${p.version}` : ''} — ${p.host}`;
   const finding = (f) => `[${L.sev[f.severity] || f.severity}] ${tr(f.title, lang)} — ${f.host}${f.port ? ` · ${f.port}` : ''}`;
+  const hostPortsLabel = (h) => {
+    if (h.ports.length > 0) return h.ports.map((p) => p.port).join(', ');
+    if (risk === 'not_assessed') return sk ? 'porty neboli testované' : 'ports not tested';
+    return sk ? 'žiadne otvorené porty' : 'no open ports';
+  };
   const sections = [
     ['New vulnerabilities', 'bad', diff.newFindings.map(finding)],
     ['New open ports', 'bad', diff.openedPorts.map(port)],
-    ['New hosts', 'bad', diff.newHosts.map((h) => `${h.host} (${h.ports.map((p) => p.port).join(', ') || (sk ? 'žiadne otvorené porty' : 'no open ports')})`)],
+    ['New hosts', 'bad', diff.newHosts.map((h) => `${h.host} (${hostPortsLabel(h)})`)],
     ['Version changes', 'info', diff.changedVersions.map((c) => `${c.port}/${c.proto} ${c.service}: ${c.from} → ${c.to} — ${c.host}`)],
     ['Fixed vulnerabilities', 'good', diff.resolvedFindings.map(finding)],
     ['Closed ports', 'good', diff.closedPorts.map(port)],
@@ -251,6 +256,7 @@ export function buildReportModel({
   const usedIntel = Boolean(intelMeta && (intelMeta.kevVersion || findings.some((f) => f.cveDetails?.some((c) => c.epss != null || c.nvd))));
 
   const { startLine: nmapStartLine, elapsedSeconds: nmapElapsed } = parseScanTimes(text);
+  const risk = overallRisk(findings, hosts, command);
 
   return {
     ...m,
@@ -262,7 +268,7 @@ export function buildReportModel({
     hosts, findings, portAdvice, counts, actions,
     nseErrors: parseNseErrors(text),
     exploitedCount: findings.filter((f) => f.exploited).length,
-    risk: overallRisk(findings, hosts, command),
+    risk,
     techniques: describeTechniques(command, L, { intel: usedIntel }),
     intelMeta: usedIntel ? { kevVersion: (intelMeta && intelMeta.kevVersion) || '' } : null,
     inventory: Array.isArray(inventory) && inventory.length > 0 ? inventory : null,
@@ -275,7 +281,7 @@ export function buildReportModel({
       baselineCommand: comparison.baselineCommand,
       sameCommand: comparison.diff.sameCommand,
       methodDiffers: Boolean(comparison.diff.methodDiffers),
-      sections: changeSections(comparison.diff, m.lang),
+      sections: changeSections(comparison.diff, m.lang, risk),
     } : null,
     openPortCount: hosts.reduce((n, h) => n + h.ports.length, 0),
     // Priloha s vystupom skenera: max. ~2 MB (PDF ma limit 20 MB); zaciatok aj koniec.
@@ -510,6 +516,7 @@ export function escapeHtml(v) {
 
 const SEV_COLOR = {
   critical: '#9b0018', high: '#d32f2f', medium: '#e67e00', low: '#9a7d00', safe: '#2e7d32', none: '#2e7d32',
+  not_assessed: '#455a64', port_only: '#37474f',
 };
 
 export function toHtml(m) {
@@ -780,7 +787,7 @@ export function toHtml(m) {
   .confidential { border: 1px solid #9b0018; color: #9b0018; font-size: 8.5pt; font-weight: 700; padding: 5px 9px; }
   .kv { width: auto; border: none; margin: 4px 0; } .kv td { border: none; padding: 2px 16px 2px 0; font-size: 9.6pt; vertical-align: top; }
   .kv td:first-child { color: #666; white-space: nowrap; }
-  .risk { display: flex; gap: 14px; align-items: center; border-radius: 6px; padding: 10px 14px; margin: 8px 0; color: #fff; page-break-inside: avoid; }
+  .risk { display: flex; gap: 14px; align-items: center; border-radius: 6px; padding: 10px 14px; margin: 8px 0; color: #fff; page-break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .risk b { font-size: 15pt; white-space: nowrap; } .risk span { font-size: 10pt; }
   .summary { display: flex; gap: 6px; margin: 8px 0; }
   .card { border: 1px solid #ccc; border-radius: 6px; padding: 5px 8px; flex: 1; font-size: 8.5pt; color: #555; }

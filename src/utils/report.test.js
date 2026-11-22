@@ -481,3 +481,84 @@ describe('not_assessed (discovery-only) report rendering', () => {
     expect(md(m)).toMatch(/Hosts up.*?Open ports[\s\S]*?\|\s*\d+\s*\|\s*—\s*\|/);
   });
 });
+
+describe('changeSections — host port label context', () => {
+  const { changeSections } = require('./report');
+  const makeHost = (ip, ports = []) => ({ host: ip, ports: ports.map((p) => ({ port: p, proto: 'tcp', service: 's', version: '' })) });
+  const makeDiff = (newHosts) => ({
+    newFindings: [], openedPorts: [], newHosts, changedVersions: [],
+    resolvedFindings: [], closedPorts: [], filteredPorts: [], notTestedPorts: [], goneHosts: [],
+  });
+
+  test('EN: host with ports always shows port numbers', () => {
+    const diff = makeDiff([makeHost('10.0.0.1', [80, 443])]);
+    const sections = changeSections(diff, 'en', 'low');
+    expect(sections[0].items[0]).toContain('80');
+    expect(sections[0].items[0]).toContain('443');
+  });
+
+  test('EN: port scan with no open ports shows "no open ports"', () => {
+    const diff = makeDiff([makeHost('10.0.0.1')]);
+    const sections = changeSections(diff, 'en', 'none');
+    expect(sections[0].items[0]).toContain('no open ports');
+    expect(sections[0].items[0]).not.toContain('ports not tested');
+  });
+
+  test('EN: discovery scan new host shows "ports not tested"', () => {
+    const diff = makeDiff([makeHost('10.0.0.1')]);
+    const sections = changeSections(diff, 'en', 'not_assessed');
+    expect(sections[0].items[0]).toContain('ports not tested');
+    expect(sections[0].items[0]).not.toContain('no open ports');
+  });
+
+  test('SK: discovery scan new host shows "porty neboli testované"', () => {
+    const diff = makeDiff([makeHost('10.0.0.1')]);
+    const sections = changeSections(diff, 'sk', 'not_assessed');
+    expect(sections[0].items[0]).toContain('porty neboli testované');
+    expect(sections[0].items[0]).not.toContain('žiadne otvorené porty');
+  });
+
+  test('SK: port scan host with no ports shows "žiadne otvorené porty"', () => {
+    const diff = makeDiff([makeHost('10.0.0.1')]);
+    const sections = changeSections(diff, 'sk', 'low');
+    expect(sections[0].items[0]).toContain('žiadne otvorené porty');
+    expect(sections[0].items[0]).not.toContain('porty neboli testované');
+  });
+
+  test('no risk arg defaults to old "no open ports" behavior', () => {
+    const diff = makeDiff([makeHost('10.0.0.1')]);
+    const sections = changeSections(diff, 'en');
+    expect(sections[0].items[0]).toContain('no open ports');
+  });
+});
+
+describe('risk box HTML visibility', () => {
+  const { buildReportModel: b, toHtml: h } = require('./report');
+  const baseOpts = { text: '', command: 'nmap -sn 192.168.50.0/24', target: '192.168.50.0/24', timestamp: 't', meta: { lang: 'sk' } };
+
+  test('not_assessed risk box has explicit background color (not undefined)', () => {
+    const m = b({ ...baseOpts });
+    const html = h(m);
+    expect(html).toMatch(/<div class="risk" style="background:#[0-9a-f]{6}">/);
+    expect(html).not.toMatch(/<div class="risk" style="background:undefined">/);
+  });
+
+  test('risk box has print-color-adjust for all risk levels', () => {
+    const html = h(b({ ...baseOpts }));
+    expect(html).toContain('print-color-adjust: exact');
+    expect(html).toContain('-webkit-print-color-adjust: exact');
+  });
+
+  test('cover risk box has explicit color for not_assessed', () => {
+    const m = b({ ...baseOpts });
+    const html = h(m);
+    expect(html).toMatch(/cover__risk" style="border-color:#[0-9a-f]{6};color:#[0-9a-f]{6}"/);
+  });
+
+  test('port_only risk box also has explicit background color', () => {
+    const m = b({ text: '', command: 'nmap -p 80,443 192.168.50.0/24', target: '192.168.50.0/24', timestamp: 't', meta: { lang: 'sk' } });
+    expect(m.risk).toBe('port_only');
+    const html = h(m);
+    expect(html).toMatch(/<div class="risk" style="background:#[0-9a-f]{6}">/);
+  });
+});

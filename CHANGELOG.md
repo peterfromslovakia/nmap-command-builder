@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.12.3 — 2026-11-22
+
+### Fixed
+- **Report: scan diff "New hosts" shows "ports not tested" for discovery scans** — when the current scan is `-sn`, newly found hosts in the comparison section now show "ports not tested" / "porty neboli testované" instead of "no open ports" / "žiadne otvorené porty", which implied a port scan ran and found nothing
+- **Report: risk box invisible in PDF for `not_assessed` and `port_only` scans** — `SEV_COLOR` was missing entries for these two risk levels, leaving `background: undefined` on the `.risk` div; with `color: #fff` in CSS, the white text was invisible on white background. Added `#455a64` (blue-gray) for `not_assessed` and `#37474f` for `port_only`
+- **Report: risk box background lost when printing without background graphics** — added `print-color-adjust: exact; -webkit-print-color-adjust: exact` to `.risk` CSS rule so browsers preserve the background color in all risk level boxes when printing to PDF
+
+### Internal
+- `changeSections()` now accepts an optional `risk` parameter (defaults to `null` → old behavior); `buildReportModel()` pre-computes `risk` before the return object and passes it to `changeSections()`
+- 10 new regression tests (414 total): `changeSections` host label context (SK/EN, discovery vs port scan), risk box background color coverage for all risk levels, `print-color-adjust` presence
+
 ## 1.12.2 — 2026-11-22
 
 ### Fixed

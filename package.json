@@ -1,6 +1,6 @@
 {
   "name": "nmap-command-builder",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "description": "Nmap Command Builder — Electron Desktop App",
   "author": "Peter Obala",
   "license": "MIT",
