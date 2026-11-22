@@ -44,3 +44,4 @@ release-notes.md
 
 # lokálne bundlované binárky (CI ich generuje pri builde)
 extraResources/
+.audit-private/
