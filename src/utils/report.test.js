@@ -562,3 +562,71 @@ describe('risk box HTML visibility', () => {
     expect(html).toMatch(/<div class="risk" style="background:#[0-9a-f]{6}">/);
   });
 });
+
+describe('parseHosts — verbose -v [host down] filtering', () => {
+  const { parseHosts } = require('./report');
+  const verboseText = `Starting Nmap 7.95 at 2026-11-22 13:05 +0100
+Nmap scan report for 192.168.50.0 [host down]
+Nmap scan report for 192.168.50.1 [host down]
+Nmap scan report for gateway.local (192.168.50.2)
+Host is up (0.00068s latency).
+PORT   STATE SERVICE
+80/tcp open  http
+Nmap scan report for 192.168.50.3 [host down]
+Nmap scan report for device.local (192.168.50.4)
+Host is up (0.0012s latency).
+Nmap done: 5 IP addresses (2 hosts up) scanned in 10.00 seconds
+`;
+
+  test('skips [host down] entries — only up hosts returned', () => {
+    const hosts = parseHosts(verboseText);
+    expect(hosts.map((h) => h.host)).toEqual(['gateway.local (192.168.50.2)', 'device.local (192.168.50.4)']);
+  });
+
+  test('[host down] entries do not appear as hosts with empty ports', () => {
+    const hosts = parseHosts(verboseText);
+    expect(hosts.every((h) => !h.host.includes('[host down]'))).toBe(true);
+  });
+
+  test('hostCount (hosts.length) reflects only up hosts', () => {
+    const hosts = parseHosts(verboseText);
+    expect(hosts.length).toBe(2);
+  });
+
+  test('ports on up hosts are parsed normally', () => {
+    const hosts = parseHosts(verboseText);
+    const gw = hosts.find((h) => h.host.includes('192.168.50.2'));
+    expect(gw).toBeTruthy();
+    expect(gw.ports.map((p) => p.port)).toEqual(['80']);
+  });
+});
+
+describe('evidencia table — Dátum skenu uses scan start time', () => {
+  const { buildReportModel, toHtml } = require('./report');
+  const textWithStart = `Starting Nmap 7.95 ( https://nmap.org ) at 2026-11-22 13:05 +0100
+Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+80/tcp open  http
+Nmap done: 1 IP address (1 host up) scanned in 10.00 seconds
+`;
+
+  test('nmapStartLine is extracted from scan output', () => {
+    const m = buildReportModel({ text: textWithStart, command: 'nmap -sV 192.168.1.0/24', target: '192.168.1.0/24', timestamp: '22. 11. 2026 13:09:34' });
+    expect(m.nmapStartLine).toMatch(/2026-11-22 13:05/);
+  });
+
+  test('evidencia table shows scan start time, not generation timestamp', () => {
+    const m = buildReportModel({ text: textWithStart, command: 'nmap -sV 192.168.1.0/24', target: '192.168.1.0/24', timestamp: '22. 11. 2026 13:09:34' });
+    const html = toHtml(m);
+    expect(html).toContain('2026-11-22 13:05');
+    // The detail row with scan date should contain 13:05, not the report-generation time
+    expect(html).toMatch(/<td>2026-11-22 13:05/);
+  });
+
+  test('falls back to timestamp when no Starting Nmap line present', () => {
+    const m = buildReportModel({ text: '', command: 'nmap -sV 192.168.1.0/24', target: '192.168.1.0/24', timestamp: '22. 11. 2026 13:09:34' });
+    expect(m.nmapStartLine).toBeNull();
+    const html = toHtml(m);
+    expect(html).toContain('22. 11. 2026 13:09:34');
+  });
+});

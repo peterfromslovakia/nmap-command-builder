@@ -174,7 +174,12 @@ export function parseNseErrors(text) {
       continue;
     }
     const head = line.match(RE_SCRIPT_HEAD);
-    if (head) { script = head[1]; continue; }
+    if (head) {
+      script = head[1];
+      const inlineErr = head[2].match(/^\s*(?:ERROR|NSE):\s*(.+)$/i);
+      if (inlineErr) errors.push({ host, port, script, error: inlineErr[1].trim() });
+      continue;
+    }
   }
   return errors;
 }

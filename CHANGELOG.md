@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.12.4 — 2026-11-22
+
+### Fixed
+- **Report: verbose `-v` flag causes 256 "active devices" instead of actual up-host count** — `parseHosts()` and `parseAllTestedPorts()` now skip `Nmap scan report for X [host down]` lines produced by `-v`; previously these were counted as active hosts, inflating the report with hundreds of empty host sections
+- **Report: NSE inline error format `|_scriptname: ERROR: …` not captured** — `parseNseErrors()` now detects single-line script errors where the error appears directly in the script-head line (e.g. `|_rtsp-methods: ERROR: Script execution failed`); only the two-line `|_scriptname:\n|_ERROR: …` format was handled before
+- **Report: "Dátum skenu" in evidencia (page 2) shows report-generation time instead of scan start time** — `detailRows()` now uses `m.nmapStartLine || m.timestamp` (the `Starting Nmap … at …` timestamp from the raw output), consistent with the cover page and markdown report; the report-generation time was shown before
+
+### Internal
+- 9 new regression tests (423 total): `parseHosts` verbose host-down filtering (4 tests), evidencia date row (3 tests), NSE inline error format (2 tests)
+
 ## 1.12.3 — 2026-11-22
 
 ### Fixed

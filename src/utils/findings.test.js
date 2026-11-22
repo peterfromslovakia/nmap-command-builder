@@ -178,4 +178,36 @@ Nmap done.
     const findings = parseFindings(NSE_ERR_SAMPLE);
     expect(findings.every((f) => f.id !== 'nse_error')).toBe(true);
   });
+
+  test('captures inline |_scriptname: ERROR: format (single-line script error)', () => {
+    const inlineErrText = `Nmap scan report for 192.168.50.168
+PORT     STATE SERVICE
+5000/tcp open  rtsp
+|_rtsp-methods: ERROR: Script execution failed (use -d to debug)
+7000/tcp open  rtsp
+|_rtsp-methods: ERROR: Script execution failed (use -d to debug)
+Nmap done.
+`;
+    const errors = parseNseErrors(inlineErrText);
+    expect(errors.length).toBe(2);
+    const e = errors[0];
+    expect(e.script).toBe('rtsp-methods');
+    expect(e.error).toMatch(/Script execution failed/);
+    expect(e.port).toBe('5000/tcp');
+    expect(e.host).toBe('192.168.50.168');
+  });
+
+  test('inline ERROR format: script name and host are attributed correctly', () => {
+    const text = `Nmap scan report for 10.0.0.1
+PORT     STATE SERVICE
+8554/tcp open  rtsp
+|_rtsp-url-brute: ERROR: No routes found
+Nmap done.
+`;
+    const errors = parseNseErrors(text);
+    expect(errors.length).toBe(1);
+    expect(errors[0].script).toBe('rtsp-url-brute');
+    expect(errors[0].host).toBe('10.0.0.1');
+    expect(errors[0].port).toBe('8554/tcp');
+  });
 });

@@ -39,7 +39,13 @@ export function parseHosts(text) {
   for (const raw of String(text || '').split('\n')) {
     const line = raw.replace(/\r$/, '');
     const h = line.match(RE_HOST);
-    if (h) { cur = { host: h[1].trim(), ports: [] }; hosts.push(cur); continue; }
+    if (h) {
+      const hostStr = h[1].trim();
+      if (hostStr.endsWith('[host down]')) continue;
+      cur = { host: hostStr, ports: [] };
+      hosts.push(cur);
+      continue;
+    }
     const p = line.match(RE_PORT);
     if (p && cur) {
       cur.ports.push({
@@ -63,6 +69,7 @@ export function parseAllTestedPorts(text) {
     const h = line.match(RE_HOST);
     if (h) {
       const host = h[1].trim();
+      if (host.endsWith('[host down]')) { curKey = null; continue; }
       const m = host.match(/\(([^()]+)\)\s*$/);
       curKey = (m ? m[1] : host).trim();
       if (!result[curKey]) result[curKey] = {};
@@ -311,7 +318,7 @@ export function reportSections(m) {
 const detailRows = (m, L) => [
   [L.target, m.target, true],
   [L.command, m.command, true],
-  [L.date, m.timestamp],
+  [L.date, m.nmapStartLine || m.timestamp],
   m.nmapVersion && [L.nmap, m.nmapVersion],
   [L.performedBy, m.tester || L.notStated, false, !m.tester],
   m.organization && [L.organization, m.organization],
