@@ -135,5 +135,8 @@ export function areVulnsComparable(cmd1, cmd2) {
   // Ak jeden má vuln skripty a druhý nie — zmiznuté nálezy sú zavádzajúce
   const oneHasVuln = t1 === 'vuln' || t2 === 'vuln';
   if (oneHasVuln && t1 !== t2) return false;
+  // Ak jeden sken spúšťal NSE skripty (-sC/-A) a druhý nie (-sV), nálezy pochádzajú
+  // z rôznych zdrojov — zmiznutý nález mohol byť jednoducho netestovaný, nie opravený.
+  if (hasVulnScripts(cmd1) !== hasVulnScripts(cmd2)) return false;
   return true;
 }

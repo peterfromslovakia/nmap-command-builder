@@ -64,12 +64,24 @@ describe('areVulnsComparable', () => {
     expect(areVulnsComparable('nmap -sV 192.168.1.1', 'nmap --script vuln 192.168.1.1')).toBe(false);
     expect(areVulnsComparable('nmap --script vuln 192.168.1.1', 'nmap -sV 192.168.1.1')).toBe(false);
   });
-  test('true ak oba nemajú vuln skripty', () => {
+  test('true ak oba nemajú NSE skripty', () => {
     expect(areVulnsComparable('nmap -sV 192.168.1.0/24', 'nmap -sV 192.168.1.0/24')).toBe(true);
-    expect(areVulnsComparable('nmap 192.168.1.1', 'nmap -A 192.168.1.1')).toBe(true);
+    expect(areVulnsComparable('nmap 192.168.1.1', 'nmap -sV 192.168.1.1')).toBe(true);
   });
   test('true ak oba majú vuln skripty', () => {
     expect(areVulnsComparable('nmap --script vuln 192.168.1.1', 'nmap --script vuln 192.168.1.1')).toBe(true);
+  });
+  test('false ak jeden sken mal -sC/-A a druhý len -sV', () => {
+    // -sC spúšťa NSE skripty; -sV bez skriptov → nálezy z NSE mohli zmiznúť len preto,
+    // že neboli testované, nie že boli opravené.
+    expect(areVulnsComparable('nmap -sS -sC 192.168.1.1', 'nmap -sS -sV 192.168.1.1')).toBe(false);
+    expect(areVulnsComparable('nmap -sV 192.168.1.1', 'nmap -sC 192.168.1.1')).toBe(false);
+    expect(areVulnsComparable('nmap -A 192.168.1.1', 'nmap -sV 192.168.1.1')).toBe(false);
+    expect(areVulnsComparable('nmap 192.168.1.1', 'nmap -A 192.168.1.1')).toBe(false);
+  });
+  test('true ak oba mali -sC alebo oba mali -A', () => {
+    expect(areVulnsComparable('nmap -sC 192.168.1.1', 'nmap -sC 192.168.1.1')).toBe(true);
+    expect(areVulnsComparable('nmap -A 192.168.1.1', 'nmap -A -T4 192.168.1.1')).toBe(true);
   });
 });
 

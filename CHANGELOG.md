@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.5 — 2026-11-22
+
+### Fixed
+- **Scan diff: false "resolved findings" when comparing `-sC` scan to `-sV`-only scan** — `areVulnsComparable()` now returns `false` when one scan ran NSE scripts (`-sC`, `-A`, or `--script …`) and the other did not; previously both returned `'service'` from `detectScanType()` and were treated as comparable, causing NSE findings that were simply not re-tested to be incorrectly shown as "resolved" in the diff
+
+### Internal
+- Existing test `areVulnsComparable — true ak oba nemajú vuln skripty` contained a wrong assertion (`nmap -A` vs bare `nmap` expected `true`); corrected to `false` and the description updated
+- 4 new regression tests (427 total): `areVulnsComparable` with `-sC`/`-A` vs `-sV` pairs (scanMeta), and end-to-end `diffScans` verifying resolved findings are suppressed when scan methods differ (scanDiff)
+
 ## 1.12.4 — 2026-11-22
 
 ### Fixed

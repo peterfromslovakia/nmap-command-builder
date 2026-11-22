@@ -349,3 +349,37 @@ PORT    STATE SERVICE
     expect(d.notTestedPorts).toHaveLength(0);
   });
 });
+
+describe('diffScans — areVulnsComparable with -sC vs -sV', () => {
+  const textWithFinding = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+21/tcp open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+`;
+  const textNoFinding = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+`;
+
+  test('prev -sC finding NOT shown as resolved when curr only used -sV (methods differ)', () => {
+    const prev = makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sS -sC 192.168.1.1', text: textWithFinding });
+    const curr = makeSnapshot({ id: 2, time: '2026-11-21T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sS -sV 192.168.1.1', text: textNoFinding });
+    const d = diffScans(prev, curr);
+    expect(d.vulnsComparable).toBe(false);
+    expect(d.methodDiffers).toBe(true);
+    expect(d.resolvedFindings).toHaveLength(0);
+  });
+
+  test('prev -sC finding IS shown as resolved when curr also used -sC and finding gone', () => {
+    const prev = makeSnapshot({ id: 1, time: '2026-11-20T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sS -sC 192.168.1.1', text: textWithFinding });
+    const curr = makeSnapshot({ id: 2, time: '2026-11-21T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sS -sC 192.168.1.1', text: textNoFinding });
+    const d = diffScans(prev, curr);
+    expect(d.vulnsComparable).toBe(true);
+    expect(d.resolvedFindings).toHaveLength(1);
+    expect(d.resolvedFindings[0].id).toBe('ftp-anon');
+  });
+});

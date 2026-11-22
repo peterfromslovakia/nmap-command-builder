@@ -1213,7 +1213,7 @@ export default function App() {
           {t('Created by')} <span className="app-footer__author">Peter Obala</span>
         </span>
         <span className="app-footer__sep">·</span>
-        <span className="app-footer__item">Nmap Command Builder v1.12.4</span>
+        <span className="app-footer__item">Nmap Command Builder v1.12.5</span>
         <span className="app-footer__sep">·</span>
         <span className="app-footer__item">{t('Use responsibly & ethically')}</span>
         <span className="app-footer__sep app-footer__keys-sep">·</span>
