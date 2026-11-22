@@ -25,6 +25,7 @@
     "concurrently": "^8.2.0",
     "electron": "^32.0.0",
     "electron-builder": "^24.13.3",
+    "playwright-core": "^1.65.1",
     "react-scripts": "5.0.1",
     "wait-on": "^7.2.0"
   },
@@ -48,8 +49,14 @@
     },
     "asar": true,
     "extraResources": [
-      { "from": "extraResources/bin", "to": "bin" },
-      { "from": "extraResources/share", "to": "share" }
+      {
+        "from": "extraResources/bin",
+        "to": "bin"
+      },
+      {
+        "from": "extraResources/share",
+        "to": "share"
+      }
     ],
     "mac": {
       "target": [

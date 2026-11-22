@@ -41,3 +41,6 @@ yarn-error.log*
 
 # generated in the release workflow
 release-notes.md
+
+# lokálne bundlované binárky (CI ich generuje pri builde)
+extraResources/
