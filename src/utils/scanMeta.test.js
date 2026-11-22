@@ -1,4 +1,4 @@
-import { detectScanType, isDiscoveryScan, isVulnScan, arePortsComparable, areVulnsComparable, getPortSpec } from './scanMeta';
+import { detectScanType, isDiscoveryScan, isVulnScan, arePortsComparable, areVulnsComparable, getPortSpec, hasVulnScripts, splitArgs } from './scanMeta';
 
 describe('detectScanType', () => {
   test('discovery: -sn', () => {
@@ -101,5 +101,70 @@ describe('getPortSpec', () => {
   });
   test('topN pre --top-ports', () => {
     expect(getPortSpec('nmap --top-ports 100 192.168.1.1')).toBe('top100');
+  });
+});
+
+describe('--flag=value normalization (splitArgs)', () => {
+  test('splitArgs normalizuje --script=vuln na --script vuln', () => {
+    expect(splitArgs('nmap --script=vuln 192.168.1.1')).toContain('--script');
+    const a = splitArgs('nmap --script=vuln 192.168.1.1');
+    expect(a[a.indexOf('--script') + 1]).toBe('vuln');
+  });
+
+  test('detectScanType rozpozná --script=vuln ako vuln sken', () => {
+    expect(detectScanType('nmap --script=vuln 192.168.1.1')).toBe('vuln');
+    expect(detectScanType('nmap -sV --script=vuln,vulners 192.168.1.1')).toBe('vuln');
+  });
+
+  test('detectScanType rozpozná -sn aj s inými --flag=value', () => {
+    expect(detectScanType('nmap -sn --max-rtt-timeout=100ms 192.168.1.0/24')).toBe('discovery');
+  });
+
+  test('hasVulnScripts rozpozná --script=safe', () => {
+    expect(hasVulnScripts('nmap --script=safe 192.168.1.1')).toBe(true);
+    expect(hasVulnScripts('nmap --script=http-title 192.168.1.1')).toBe(false);
+  });
+
+  test('getPortSpec rozpozná --top-ports=100', () => {
+    expect(getPortSpec('nmap --top-ports=100 192.168.1.1')).toBe('top100');
+  });
+});
+
+describe('areVulnsComparable — rôzne explicit script sety', () => {
+  test('false ak oba majú --script ale s rôznymi hodnotami', () => {
+    expect(areVulnsComparable(
+      'nmap -sV --script vuln,ftp-anon 192.168.1.1',
+      'nmap -sV --script vuln 192.168.1.1',
+    )).toBe(false);
+  });
+
+  test('false ak --script=value formát s rôznymi hodnotami', () => {
+    expect(areVulnsComparable(
+      'nmap --script=vuln,ftp-anon 192.168.1.1',
+      'nmap --script=vuln 192.168.1.1',
+    )).toBe(false);
+  });
+
+  test('true ak oba majú rovnaké --script hodnoty', () => {
+    expect(areVulnsComparable(
+      'nmap -sV --script vuln 192.168.1.1',
+      'nmap -sV --script vuln 192.168.1.1',
+    )).toBe(true);
+  });
+
+  test('true ak len jeden má --script a druhý používa -sC (rôzne typy → false cez vuln check)', () => {
+    // -sC → hasVulnScripts=true, --script vuln → hasVulnScripts=true, ale typy sa líšia
+    // t1=service (-sC), t2=vuln (--script vuln) → oneHasVuln=true, t1!==t2 → false
+    expect(areVulnsComparable(
+      'nmap -sC 192.168.1.1',
+      'nmap --script=vuln 192.168.1.1',
+    )).toBe(false);
+  });
+
+  test('true ak ani jeden nemá --script (oba service)', () => {
+    expect(areVulnsComparable(
+      'nmap -sV -sC 192.168.1.1',
+      'nmap -A 192.168.1.1',
+    )).toBe(true);
   });
 });

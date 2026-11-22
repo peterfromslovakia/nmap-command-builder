@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.12.6 — 2026-11-22
+
+### Fixed
+- **`--script=value` (equals formát) nebol rozpoznaný** — `detectScanType()`, `hasVulnScripts()`, `hasServiceDetection()`, `hasOpenOnly()`, `getPortSpec()` a `describeTechniques()` používali `split(/\s+/)` a teda `--script=vuln` spracovávali ako neznámy token namiesto `--script vuln`. Opravené novým `splitArgs()` helperom, ktorý normalizuje `--flag=value` na `--flag value` pred parsovaním
+- **Porovnanie skenov s rôznymi explicitnými `--script` hodnotami** — `areVulnsComparable()` vrátila `true` pre `--script vuln,ftp-anon` vs `--script vuln`, čo mohlo označiť nálezy z `ftp-anon` ako "vyriešené" hoci skript nebol znovu spustený. Teraz vracia `false` keď oba skeny majú explicitné `--script` s rôznymi hodnotami
+
+### Internal
+- `splitArgs()` exportovaná pomocná funkcia v `scanMeta.js` — normalizuje `--flag=value` na `--flag value`
+- 10 nových regresných testov (437 celkom): `splitArgs` normalizácia, `detectScanType`/`hasVulnScripts`/`getPortSpec` s `=` formátom, `areVulnsComparable` s rôznymi script setmi
+
 ## 1.12.5 — 2026-11-22
 
 ### Fixed

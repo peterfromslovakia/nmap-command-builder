@@ -6,7 +6,7 @@ import { getPortIntel } from '../data/portIntel';
 import { getPortFixes } from '../data/remediation';
 import { getLabel } from './deviceLabels';
 import { labels, tr } from '../i18n/report';
-import { isDiscoveryScan, hasVulnScripts, hasServiceDetection } from './scanMeta';
+import { isDiscoveryScan, hasVulnScripts, hasServiceDetection, splitArgs } from './scanMeta';
 
 const RE_HOST = /^Nmap scan report for (.+)$/;
 const RE_PORT = /^(\d+)\/(tcp|udp)\s+(open|open\|filtered)\s+(\S+)(?:\s+(.*))?$/;
@@ -161,7 +161,7 @@ export function normalizeMeta(meta = {}) {
 
 /** Pouzite techniky skenu podla prikazu (pre kapitolu Metodika). */
 export function describeTechniques(command, L, { intel = false } = {}) {
-  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const a = splitArgs(command);
   const has = (f) => a.includes(f);
   const val = (f) => { const i = a.indexOf(f); return i >= 0 ? a[i + 1] : ''; };
   const t = L.tech;

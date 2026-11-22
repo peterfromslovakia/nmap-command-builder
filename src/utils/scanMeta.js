@@ -3,6 +3,15 @@
  * a mohli správne porovnávať výsledky a hodnotiť riziko.
  */
 
+// nmap akceptuje --flag value aj --flag=value; normalizujeme na medzeru
+export function splitArgs(command) {
+  return String(command || '')
+    .replace(/--([a-z][\w-]*)=(\S+)/gi, '--$1 $2')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(1);
+}
+
 /**
  * Typy skenu (od najobmedzenejšieho po najúplnejší):
  *   discovery  — len ping / host-alive check (-sn / -sP); porty sa netestujú
@@ -11,7 +20,7 @@
  *   vuln       — vulnerability skripty (vuln, vulners, exploit, …)
  */
 export function detectScanType(command) {
-  const args = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const args = splitArgs(command);
   const has = (f) => args.includes(f);
   const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : ''; };
 
@@ -85,7 +94,7 @@ export function arePortsComparable(cmd1, cmd2) {
  *   'default'    — žiaden port argument (nmap default: top 1000)
  */
 export function getPortSpec(command) {
-  const args = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const args = splitArgs(command);
   if (args.includes('-p-')) return 'all';
   if (args.includes('-F')) return 'fast';
   const pIdx = args.indexOf('-p');
@@ -100,7 +109,7 @@ export function getPortSpec(command) {
  * Ak nie, "žiadne nálezy" neznamená "bezpečné systémy" — testovanie zraniteľností neprebehlo.
  */
 export function hasVulnScripts(command) {
-  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const a = splitArgs(command);
   const has = (f) => a.includes(f);
   if (has('-sC') || has('-A')) return true; // default scripts zahŕňajú bezpečnostné kontroly
   if (has('--script')) {
@@ -120,12 +129,12 @@ export function hasVulnScripts(command) {
  * Bez toho sú názvy služieb len odhadom podľa čísla portu (IANA registry).
  */
 export function hasServiceDetection(command) {
-  const a = String(command || '').split(/\s+/).filter(Boolean).slice(1);
+  const a = splitArgs(command);
   return a.includes('-sV') || a.includes('-A');
 }
 
 export function hasOpenOnly(command) {
-  return String(command || '').split(/\s+/).includes('--open');
+  return splitArgs(command).includes('--open');
 }
 
 export function areVulnsComparable(cmd1, cmd2) {
@@ -138,5 +147,12 @@ export function areVulnsComparable(cmd1, cmd2) {
   // Ak jeden sken spúšťal NSE skripty (-sC/-A) a druhý nie (-sV), nálezy pochádzajú
   // z rôznych zdrojov — zmiznutý nález mohol byť jednoducho netestovaný, nie opravený.
   if (hasVulnScripts(cmd1) !== hasVulnScripts(cmd2)) return false;
+  // Ak oba majú explicitné --script, ale s rôznymi hodnotami — skripty nie sú rovnaké,
+  // zmiznutý nález mohol pochádzať zo skriptu, ktorý nebol znovu spustený.
+  const a1 = splitArgs(cmd1);
+  const a2 = splitArgs(cmd2);
+  const s1 = a1.includes('--script') ? (a1[a1.indexOf('--script') + 1] || '').toLowerCase() : '';
+  const s2 = a2.includes('--script') ? (a2[a2.indexOf('--script') + 1] || '').toLowerCase() : '';
+  if (s1 && s2 && s1 !== s2) return false;
   return true;
 }
