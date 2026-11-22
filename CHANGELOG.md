@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.11.0 — 2026-11-22
 
 ### New
 - **Bundled nmap — no installation required** — nmap is included directly in the installer (.dmg / .exe / .AppImage). macOS ships a universal binary (arm64 + x64), Linux the x64 binary, Windows nmap.exe together with the Npcap driver installer. Users install the app and can scan immediately — no separate nmap download needed. If Npcap is missing on Windows, a banner offers one-click installation
