@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.11.1 — 2026-11-22
+
+### Security
+- **`--script-args` validation relaxed to allow file paths** — the previous regex blocked legitimate NSE arguments that include file paths (e.g. `brute.db=/usr/share/wordlists/rockyou.txt`) and user-agent strings (`http.useragent=Mozilla/5.0`). The validator now allows `/` in script-arg values; shell injection characters (`;`, `&`, `|`, `\`, quotes etc.) remain blocked by the existing DANGEROUS check that runs after validation, since `spawn()` is always called without `shell: true`
+- **`--script-args` validated in main process** — the nmap argument whitelist now validates `--script-args` values; previously only `--script` names were validated
+
+### Fixed
+- **UI shows "CRASHED" badge instead of "KILLED" when nmap crashes** — a scan terminated by SIGSEGV, SIGABRT or any unexpected signal now shows a "CRASHED" status badge in the UI, not "KILLED". Previously only the scan history entry was correct; now the UI badge matches. Uses the new `userKill` flag from the main process to reliably distinguish user-initiated stops from OS or crash signals
+- **Port range changes tracked in diff** — when two scans used different port specs (e.g. `-p-` vs `-p 80,443`), the comparison now sets `portRangeDiffers: true` and shows the method warning in the report, preventing false claims about "closed ports" that were simply not tested in the new scan
+- **Report: method-warning banner in comparison section** — when two scans differ in methodology (e.g. one was discovery-only, the other scanned ports), the PDF/Markdown report now shows an explicit warning in the "Changes" section explaining why port and vulnerability changes are not shown
+
 ## 1.11.0 — 2026-11-22
 
 ### New
@@ -11,14 +22,7 @@
   - **IP Information** — geolocation and ISP details for any public IP via ipinfo.io (free, no registration, no API key)
 - Keyboard shortcut **⌘6 / Ctrl+6** switches to the TOOLS tab
 
-### Security
-- **`--script-args` validation relaxed to allow file paths** — the previous regex blocked legitimate NSE arguments that include file paths (e.g. `brute.db=/usr/share/wordlists/rockyou.txt`) and user-agent strings (`http.useragent=Mozilla/5.0`). The validator now allows `/` in script-arg values; shell injection characters (`;`, `&`, `|`, `\`, quotes etc.) remain blocked by the existing DANGEROUS check that runs after validation, since `spawn()` is always called without `shell: true`
-- **`--script-args` validated in main process** — the nmap argument whitelist in the main process now validates `--script-args` values against an allowed pattern (`key=value` pairs; alphanumeric and `.=,@: -`). Previously, only `--script` names were validated; a crafted renderer message could pass filesystem paths (e.g. `nfs-ls.root=/etc/shadow`) to NSE scripts. File paths and backslashes are now rejected
-
 ### Fixed
-- **UI shows "CRASHED" badge instead of "KILLED" when nmap crashes** — a scan terminated by SIGSEGV, SIGABRT or any unexpected signal now shows a "CRASHED" status badge in the UI, not "KILLED". Previously only the scan history entry was correct; now the UI badge matches. Uses the new `userKill` flag from the main process to reliably distinguish user-initiated stops from OS or crash signals
-- **Port range changes tracked in diff** — when two scans used different port specs (e.g. `-p-` vs `-p 80,443`), the comparison now sets `portRangeDiffers: true` and shows the method warning in the report, preventing false claims about "closed ports" that were simply not tested in the new scan
-- **Report: method-warning banner in comparison section** — when two scans differ in methodology (e.g. one was discovery-only, the other scanned ports), the PDF/Markdown report now shows an explicit warning in the "Changes" section explaining why port and vulnerability changes are not shown
 - **Scan diff: false "closed ports" after discovery scan** — comparing a previous full scan (`-sV`) against a discovery-only scan (`-sn`) no longer marks all previously open ports as "closed". Ports that were simply not tested are skipped; only genuine methodology-compatible comparisons are shown
 - **Scan diff: false "fixed vulnerabilities" after methodology change** — findings are marked as resolved only when both scans ran the same type of scripts; a port-only scan cannot "fix" vulnerabilities found by vuln scripts
 - **Report risk: "NOT ASSESSED" for discovery scans** — a `-sn` ping scan now shows "Risk: NOT ASSESSED" in reports instead of "Risk: NONE". The difference matters: *none* means "tested and found nothing", *not assessed* means "no vulnerability testing was performed"

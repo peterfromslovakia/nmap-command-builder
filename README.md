@@ -171,7 +171,7 @@ IP addresses, host names and scan output never leave your computer.
 ## Security model
 
 - `contextIsolation` enabled, `nodeIntegration` disabled, renderer sandbox on
-- Nmap runs only from the main process; flags checked against a whitelist; `--script` accepts names only, not file paths
+- Nmap runs only from the main process; flags checked against a whitelist; `--script` accepts names only (not file paths); `--script-args` values validated against an allowed pattern — shell injection characters always blocked
 - IPC accepted only from the app window; navigation and new windows blocked
 - PDF reports rendered with JavaScript disabled and a strict CSP; all scan data HTML-escaped
 
@@ -179,7 +179,7 @@ IP addresses, host names and scan output never leave your computer.
 
 ## Testing
 
-    npm test          # 296 tests: validators, findings, reports, shortcuts, presets, scan diff, i18n
+    npm test          # 331 tests: validators, findings, reports, shortcuts, presets, scan diff, i18n
     npm run lint      # ESLint, no warnings allowed (also runs in CI)
 
 ---
