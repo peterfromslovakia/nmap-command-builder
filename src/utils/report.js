@@ -446,6 +446,15 @@ export function toMarkdown(m) {
     out.push('```', '');
   }
 
+  if (m.nseErrors && m.nseErrors.length > 0) {
+    out.push('', `## ${L.nseErrorsTitle}`, '', L.nseErrorsIntro, '');
+    out.push(`| ${L.nseErrorScript} | ${L.nseErrorPort} | ${L.nseErrorHost} | ${L.nseErrorMsg} |`);
+    out.push('|---|---|---|---|');
+    m.nseErrors.forEach((e) => out.push(
+      `| ${mdCell(e.script || '—')} | ${mdCell(e.port || '—')} | ${mdCell(e.host || '—')} | ${mdCell(e.error)} |`
+    ));
+  }
+
   out.push(h2('raw'), '');
   if (m.rawTruncated) out.push(`> ${L.rawTruncated(Math.round(m.rawLength / 1048576))}`, '');
   out.push('```', m.raw.replace(/```/g, "'''"), '```', '');
@@ -751,6 +760,7 @@ export function toHtml(m) {
   table.cves { width: auto; min-width: 60%; } table.cves td, table.cves th { padding: 2px 10px 2px 0; }
   table.sign td { height: 26px; } table.sign td:first-child { color: #666; white-space: nowrap; }
   pre { background: #f6f8f6; border: 1px solid #ddd; padding: 8px; white-space: pre-wrap; word-break: break-word; font-size: 7.8pt; }
+  .nse-err-msg { word-break: break-all; font-size: 8.5pt; }
   footer { margin-top: 20px; font-size: 8pt; color: #666; border-top: 1px solid #ddd; padding-top: 6px; }
 </style></head>
 <body>
@@ -769,6 +779,17 @@ export function toHtml(m) {
   ${advice}
   ${signoff}
   ${map}
+  ${!m.nseErrors || m.nseErrors.length === 0 ? '' : `
+  <section class="nse-err-section">
+    <h2>${e(L.nseErrorsTitle)}</h2>
+    <p class="muted">${e(L.nseErrorsIntro)}</p>
+    <table>
+      <thead><tr><th>${e(L.nseErrorScript)}</th><th>${e(L.nseErrorPort)}</th><th>${e(L.nseErrorHost)}</th><th>${e(L.nseErrorMsg)}</th></tr></thead>
+      <tbody>${m.nseErrors.map((err) => `
+        <tr><td><code>${e(err.script || '—')}</code></td><td>${e(err.port || '—')}</td><td>${e(err.host || '—')}</td><td class="nse-err-msg">${e(err.error)}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  </section>`}
   ${h2('raw')}
   ${m.rawTruncated ? `<p class="meta">⚠ ${e(L.rawTruncated(Math.round(m.rawLength / 1048576)))}</p>` : ''}
   <pre>${e(m.raw)}</pre>

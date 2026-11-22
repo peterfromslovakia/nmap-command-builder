@@ -3,12 +3,15 @@
 ## 1.12.0 — 2026-11-22
 
 ### New
-- **Port state accuracy in scan diff (F-001)** — `open → filtered` is no longer misclassified as "closed". The diff now reports three distinct categories: `filteredPorts` (port reached `filtered`/`closed|filtered`), `notTestedPorts` (different port range — port was not tested in the new scan), and `closedPorts` (confirmed closed). Both UI and Markdown/HTML report now show FILTERED PORTS and NOT TESTED PORTS sections
+- **Port state accuracy in scan diff (F-001)** — `open → filtered` is no longer misclassified as "closed". The diff now reports three distinct categories: `filteredPorts` (port reached `filtered`/`closed|filtered`), `notTestedPorts` (different port range — port was not tested in the new scan), and `closedPorts` (confirmed closed). Both UI and Markdown/HTML report now show FILTERED PORTS and NOT TESTED PORTS sections. Killed/incomplete scans (`exitCode ≠ 0` or `signal ≠ null`) and scans with `--open` flag also put absent ports in NOT TESTED (not CLOSED), because the output is ambiguous
 - **Confidence badges on findings (F-003)** — each finding now carries a `verificationStatus` field: `CONFIRMED` (live `State: VULNERABLE`), `LIKELY` (nmap said `State: LIKELY VULNERABLE`), `VERSION_MATCH` (vulners — based on version matching, not live exploit), `DETECTED` (misconfiguration / risky port). `LIKELY` and `VER` badges are shown next to severity in the UI
-- **NSE error diagnostics (F-004)** — script errors (`| ERROR:` / `| NSE:` lines) are now captured by `parseNseErrors()` and shown in the Findings panel below the findings list, attributed to the script and port where they occurred
+- **NSE error diagnostics (F-004)** — script errors (`| ERROR:` / `| NSE:` lines) are now captured by `parseNseErrors()` and shown in the Findings panel and in Markdown/HTML exports as a table attributed to the script, port and host where they occurred. All nmap-sourced content is HTML-escaped in the report to prevent XSS
 - **Bundled nmap data files (F-002)** — NSE scripts (`scripts/`), `nselib/`, `nmap-services`, `nmap-os-db`, `nmap-service-probes` and other nmap data files are now bundled alongside the binary in the installer. `NMAPDIR` is set at startup so nmap finds its data directory even on systems where nmap is not installed separately. Increases installer size by ~23 MB
+- **React component tests (F-006)** — 15 new `@testing-library/react` tests covering `FindingsPanel` (LIKELY/VER badges, NSE errors section, idle/crashed guard) and `DiffPanel` (FILTERED PORTS, NOT TESTED PORTS, Slovak labels)
 
 ### Fixed
+- **F-001: killed/incomplete scan** — absent ports in a scan terminated by a signal or non-zero exit code are now classified as NOT TESTED, not CLOSED
+- **F-001: `--open` flag** — when the scan command includes `--open`, only open ports are shown; absent ports are ambiguous and are now classified as NOT TESTED
 - Lint: removed unused `RE_VULNERABLE` constant from `findings.js`
 
 ## 1.11.1 — 2026-11-22

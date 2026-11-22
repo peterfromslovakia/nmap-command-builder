@@ -95,6 +95,15 @@ export function getPortSpec(command) {
   return 'default';
 }
 
+/**
+ * Vráti true ak príkaz obsahuje --open (zobrazujú sa len open porty).
+ * V tom prípade neprítomný port nemusí byť closed — môže byť filtered alebo closed.
+ * Nesmieme ho klasifikovať ako "closed" bez ďalšieho dôkazu.
+ */
+export function hasOpenOnly(command) {
+  return String(command || '').split(/\s+/).includes('--open');
+}
+
 export function areVulnsComparable(cmd1, cmd2) {
   const t1 = detectScanType(cmd1);
   const t2 = detectScanType(cmd2);

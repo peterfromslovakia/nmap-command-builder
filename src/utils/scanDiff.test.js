@@ -290,4 +290,62 @@ PORT    STATE    SERVICE
       d.notTestedPorts.length + d.changedVersions.length + d.newFindings.length +
       d.resolvedFindings.length + d.newHosts.length + d.goneHosts.length);
   });
+
+  test('killed scan (exitCode≠0): absent port → notTestedPorts, not closedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+22/tcp open  ssh
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const currSnap = makeSnapshot({ id: 2, time: '2026-11-22T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sV 192.168.1.1', text: curr, exitCode: 1, signal: null });
+    const d = diffScans(prev, currSnap);
+    expect(d.scanIncomplete).toBe(true);
+    expect(d.notTestedPorts.map(p => p.port)).toContain('80');
+    expect(d.notTestedPorts.map(p => p.port)).toContain('443');
+    expect(d.closedPorts).toHaveLength(0);
+  });
+
+  test('signal-killed scan: absent port → notTestedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+22/tcp open  ssh
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const currSnap = makeSnapshot({ id: 2, time: '2026-11-22T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sV 192.168.1.1', text: curr, exitCode: null, signal: 'SIGTERM' });
+    const d = diffScans(prev, currSnap);
+    expect(d.scanIncomplete).toBe(true);
+    expect(d.notTestedPorts.map(p => p.port)).toContain('80');
+    expect(d.closedPorts).toHaveLength(0);
+  });
+
+  test('--open flag: absent port → notTestedPorts (cannot distinguish filtered vs closed)', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT   STATE SERVICE
+22/tcp open  ssh
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const currSnap = makeSnapshot({ id: 2, time: '2026-11-22T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sV --open 192.168.1.1', text: curr });
+    const d = diffScans(prev, currSnap);
+    expect(d.scanIncomplete).toBe(true);
+    expect(d.notTestedPorts.map(p => p.port)).toContain('80');
+    expect(d.closedPorts).toHaveLength(0);
+  });
+
+  test('clean scan (exitCode=0, no --open): absent port → closedPorts', () => {
+    const curr = `Nmap scan report for 192.168.1.1
+PORT    STATE SERVICE
+22/tcp  open  ssh
+443/tcp open  https
+`;
+    const prev = mkSnap(1, PREV_OPEN);
+    const currSnap = makeSnapshot({ id: 2, time: '2026-11-22T10:00:00Z', target: '192.168.1.1',
+      command: 'nmap -sV 192.168.1.1', text: curr, exitCode: 0, signal: null });
+    const d = diffScans(prev, currSnap);
+    expect(d.scanIncomplete).toBe(false);
+    expect(d.closedPorts.map(p => p.port)).toContain('80');
+    expect(d.notTestedPorts).toHaveLength(0);
+  });
 });

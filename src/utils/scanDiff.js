@@ -1,6 +1,6 @@
 import { parseHosts, parseAllTestedPorts } from './report';
 import { parseFindings } from './findings';
-import { detectScanType, arePortsComparable, areVulnsComparable, getPortSpec } from './scanMeta';
+import { detectScanType, arePortsComparable, areVulnsComparable, getPortSpec, hasOpenOnly } from './scanMeta';
 
 // ─── Snimka vysledkov skenu (kompaktna, bez surovego vystupu) ──────────────────
 
@@ -59,6 +59,15 @@ export function diffScans(prev, curr) {
   // netestované, nie skutočne zatvorené. Upozornenie, nie blokovanie diff-u.
   const portRangeDiffers = portsComparable && (prev.portSpec || 'default') !== (curr.portSpec || 'default');
 
+  // scanIncomplete: sken bol prerušený (kill/crash) — výstup je neúplný,
+  // neprítomný port neznamená closed. Rovnako --open zobrazuje len open porty,
+  // takže absent port môže byť filtered alebo closed — nedá sa rozlíšiť.
+  const scanIncomplete = portsComparable && (
+    (curr.exitCode != null && curr.exitCode !== 0) ||
+    curr.signal != null ||
+    hasOpenOnly(curr.command)
+  );
+
   const openedPorts = [];
   const closedPorts = [];
   const filteredPorts = [];
@@ -87,11 +96,14 @@ export function diffScans(prev, curr) {
           filteredPorts.push({ host: ch.host, ...p });
         } else if (currState === 'closed') {
           closedPorts.push({ host: ch.host, ...p });
-        } else if (portRangeDiffers) {
-          // Port nie je v curr výstupe vôbec a rozsah sa líšil — nebol testovaný
+        } else if (portRangeDiffers || scanIncomplete) {
+          // Port nie je v curr výstupe:
+          // - iný rozsah portov → nebol testovaný
+          // - prerušený/killed sken → neistý stav
+          // - --open flag → neprítomný neznamená closed (môže byť filtered)
           notTestedPorts.push({ host: ch.host, ...p });
         } else {
-          // Port nie je v curr výstupe, rovnaký rozsah — nmap ho nezobrazil = closed
+          // Port nie je v curr výstupe, rovnaký rozsah, kompletný sken — nmap ho nezobrazil = closed
           closedPorts.push({ host: ch.host, ...p });
         }
       }
@@ -124,6 +136,7 @@ export function diffScans(prev, curr) {
     portsComparable,
     vulnsComparable,
     portRangeDiffers,
+    scanIncomplete,
   };
 }
 

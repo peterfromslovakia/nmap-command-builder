@@ -251,6 +251,56 @@ describe('network map appendix', () => {
   });
 });
 
+describe('NSE errors in report output (F-004 export)', () => {
+  const NSE_TEXT = `Nmap scan report for 192.168.1.5
+PORT   STATE SERVICE
+80/tcp open  http
+| http-enum:
+|_ERROR: Script execution failed (use -d to debug)
+Nmap done.
+`;
+
+  const NSE_XSS_TEXT = `Nmap scan report for 192.168.1.5
+PORT   STATE SERVICE
+80/tcp open  http
+| http-scripts:
+|_ERROR: <script>alert(1)</script>
+Nmap done.
+`;
+
+  const makeModel = (text, lang = 'en') =>
+    buildReportModel({ text, command: 'nmap -sC 192.168.1.5', target: '192.168.1.5', timestamp: 't', meta: { lang } });
+
+  test('toMarkdown: NSE errors table rendered when nseErrors present', () => {
+    const md = toMarkdown(makeModel(NSE_TEXT));
+    expect(md).toContain('NSE script errors');
+    expect(md).toContain('http-enum');
+    expect(md).toContain('Script execution failed');
+  });
+
+  test('toMarkdown: NSE section absent when no errors', () => {
+    const md = toMarkdown(makeModel('Nmap scan report for 192.168.1.5\nNmap done.\n'));
+    expect(md).not.toContain('NSE script errors');
+  });
+
+  test('toHtml: NSE errors table rendered with escaping', () => {
+    const html = toHtml(makeModel(NSE_XSS_TEXT));
+    expect(html).toContain('nse-err-section');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).not.toContain('<script>alert(1)</script>');
+  });
+
+  test('toHtml: NSE section absent when no errors', () => {
+    const html = toHtml(makeModel('Nmap scan report for 192.168.1.5\nNmap done.\n'));
+    expect(html).not.toContain('nse-err-section');
+  });
+
+  test('toMarkdown SK: NSE errors section uses Slovak label', () => {
+    const md = toMarkdown(makeModel(NSE_TEXT, 'sk'));
+    expect(md).toContain('Chyby NSE skriptov');
+  });
+});
+
 test('map appendix: firewall gateway label and one frame per scanned range', () => {
   const { buildReportModel: b, toHtml: h, toMarkdown: md } = require('./report');
   const dev = (ip, type) => ({ ip, type, hostname: '', mac: '', vendor: '', os: '', ports: [] });

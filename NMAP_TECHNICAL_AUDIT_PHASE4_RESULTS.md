@@ -12,12 +12,12 @@
 
 | Finding | Priority | Status | Test method |
 |---------|----------|--------|-------------|
-| F-001 — Port state accuracy | P1 | **PASS** | REAL (7 new Jest tests) |
-| F-002 — Bundled nmap data files | P1 | **PASS (CI)** | SIMULATED — code change verified, installer NOT built |
-| F-003 — LIKELY vs CONFIRMED confidence | P2 | **PASS** | REAL (5 new Jest tests) |
-| F-004 — NSE error diagnostics | P2 | **PASS** | REAL (5 new Jest tests) |
+| F-001 — Port state accuracy | P1 | **PASS** | REAL (11 new Jest tests incl. killed/--open) |
+| F-002 — Bundled nmap data files | P1 | **PASS (macOS arm64)** | Verified in installed app — 620 scripts, 140 nselib; other platforms: NOT VERIFIED |
+| F-003 — LIKELY vs CONFIRMED confidence | P2 | **PASS** | REAL (5 new Jest tests + 2 component tests) |
+| F-004 — NSE error diagnostics | P2 | **PASS** | REAL (5 findings.test + 5 report.test + 2 component tests) |
 | F-005 — Security model validation | P2 | **PASS** | REAL (`elevate.test.js` + code inspection) |
-| F-006 — React component tests | P2 | **NOT RUN** | `@testing-library/react` not installed; deferred |
+| F-006 — React component tests | P2 | **PASS** | REAL (15 new `@testing-library/react` tests) |
 | F-007 — Hybrid XML evaluation | P3 | **NOT RUN** | Design proposal only — not implemented |
 
 ---
@@ -64,9 +64,13 @@ File: `src/utils/scanDiff.test.js`, describe block `port state accuracy (F-001)`
 | `open → absent, different portSpec` → notTestedPorts | `notTestedPorts` contains ports 80 and 443 | **PASS** |
 | `allPortStates` stored correctly | states for `open`, `filtered`, `closed` all present | **PASS** |
 | `total` includes all arrays | sum formula matches | **PASS** |
+| **killed scan (exitCode≠0)** → notTestedPorts | `scanIncomplete=true`; absent ports in `notTestedPorts`, not `closedPorts` | **PASS** |
+| **signal-killed scan (SIGTERM)** → notTestedPorts | signal≠null → `scanIncomplete=true`; absent in `notTestedPorts` | **PASS** |
+| **`--open` flag** → notTestedPorts | `hasOpenOnly()=true` → `scanIncomplete=true`; absent in `notTestedPorts` | **PASS** |
+| **clean scan (exitCode=0, no --open)** → closedPorts | `scanIncomplete=false`; absent port in `closedPorts` | **PASS** |
 
 ```
-npm test --testPathPattern="scanDiff" → 26 tests, 0 failures
+npm test --testPathPattern="scanDiff" → 30 tests, 0 failures
 ```
 
 ### Backward compatibility
@@ -101,16 +105,33 @@ Nmap data files (`scripts/`, `nselib/`, `nmap-services`, `nmap-os-db`, etc.) wer
 - In `nmap:run`: `NMAPDIR` set to bundled data dir in spawn env (both elevated and non-elevated)
 - In `nmap:check`: returns `bundledDataDir` path for diagnostics
 
-### Test method: **SIMULATED**
+### Test method: **PASS (macOS arm64) / NOT VERIFIED (other platforms)**
 
-The CI change was code-reviewed and logic verified. A clean-room test (macOS without system nmap installed, using bundled binary + data) was **NOT RUN** — this would require a full installer build and clean VM. 
+**macOS arm64 (verified in installed app):**
+```
+/Applications/Nmap Command Builder.app/Contents/Resources/share/nmap/
+├── scripts/        620 NSE scripts
+├── nselib/         140 files  
+├── nmap-services
+├── nmap-os-db
+├── nmap-service-probes
+├── nmap-protocols
+├── nmap-rpc
+├── nmap-mac-prefixes
+├── nmap-payloads
+├── nse_main.lua
+├── nmap.dtd
+└── nmap.xsl
+```
+Bundle verified present in the installed v1.12.0 `.app`.
 
-**What can be verified without a build:**
-- `resolveNmapDataDir()` logic: returns `null` in dev mode (no `process.resourcesPath`) — correct
-- `NMAPDIR` env variable: nmap respects this (documented behavior; not retested here)
-- `extraResources` path: electron-builder places `share/` at `app.asar.unpacked/../share/` or `resources/share/` depending on config — the path `process.resourcesPath + '/share/nmap'` is consistent with how `bin/` is already found
+**Clean-room test (without system nmap):** NOT RUN — requires a VM without homebrew nmap. The bundle is present; `NMAPDIR` wiring confirmed in code.
 
-**Remaining risk:** Windows installer not tested. PowerShell `Copy-Item -Recurse` behavior depends on which nmap version Chocolatey installs on the runner.
+**macOS x64:** NOT VERIFIED (no x64 Mac available)  
+**Windows:** NOT VERIFIED (CI-built installer not manually tested)  
+**Linux:** NOT VERIFIED (CI-built AppImage not manually tested)
+
+**Remaining risk:** Windows PowerShell `Copy-Item -Recurse` behavior depends on which nmap version Chocolatey installs on the runner.
 
 ---
 
@@ -224,18 +245,32 @@ Relevant passing tests:
 
 ## 7. F-006 — React Component Tests
 
-### Status: NOT RUN
+### Status: **PASS** — 15 new `@testing-library/react` tests
 
-**Reason:** `@testing-library/react` is not installed (not hoisted from `react-scripts` devDependencies in this Node version). Installing it requires `npm install --save-dev @testing-library/react @testing-library/jest-dom @testing-library/user-event` and writing `src/components/components.test.jsx`.
+**Package installed:** `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`  
+**Test file:** `src/components/components.test.jsx`
 
-**Planned test coverage (deferred to v1.13.0):**
-1. FindingsPanel renders LIKELY badge when `verificationStatus === 'LIKELY'`
-2. FindingsPanel renders VER badge when `verificationStatus === 'VERSION_MATCH'`
-3. FindingsPanel renders NSE errors section when `nseErrors` prop non-empty
-4. FindingsPanel returns null when `scanStatus === 'crashed'` / `'idle'`
-5. DiffPanel renders FILTERED PORTS section when `diff.filteredPorts.length > 0`
-6. DiffPanel renders NOT TESTED PORTS section
-7. SK locale: component renders Slovak strings when `lang='sk'`
+| Test | Assertion | Result |
+|------|-----------|--------|
+| FindingsPanel: idle → returns null | `container.firstChild === null` | **PASS** |
+| FindingsPanel: crashed → returns null | `container.firstChild === null` | **PASS** |
+| FindingsPanel: done → renders finding title | text "Test vuln" in document | **PASS** |
+| FindingsPanel: LIKELY badge visible | `getByText('LIKELY')` present | **PASS** |
+| FindingsPanel: no LIKELY badge for CONFIRMED | `queryByText('LIKELY') === null` | **PASS** |
+| FindingsPanel: VER badge visible | `getByText('VER')` present | **PASS** |
+| FindingsPanel: no VER badge for CONFIRMED | `queryByText('VER') === null` | **PASS** |
+| FindingsPanel: NSE errors section shown | `getByText(/NSE ERRORS/)` present | **PASS** |
+| FindingsPanel: NSE errors section absent when empty | `queryByText(/NSE ERRORS/) === null` | **PASS** |
+| FindingsPanel: LIKELY badge SK tooltip | `title` matches `/Pravdepodobne/` | **PASS** |
+| DiffPanel: FILTERED PORTS section shown | `getByText(/FILTERED PORTS/i)` present | **PASS** |
+| DiffPanel: NOT TESTED PORTS (--open scan) | `getByText(/NOT TESTED PORTS/i)` present | **PASS** |
+| DiffPanel: SK label FILTROVANÉ PORTY | `getByText(/FILTROVANÉ PORTY/i)` present | **PASS** |
+| DiffPanel: SK label NETESTOVANÉ PORTY | `getByText(/NETESTOVANÉ PORTY/i)` present | **PASS** |
+| DiffPanel: CLOSED PORTS (clean scan) | `getByText(/CLOSED PORTS/i)` present | **PASS** |
+
+```
+npm test --testPathPattern="components.test" → 15 tests, 0 failures
+```
 
 ---
 
@@ -274,24 +309,24 @@ After scan completion:
 
 ```
 npm test -- --watchAll=false
-  Test Suites: 22 passed, 22 total
-  Tests:       348 passed, 348 total  (+17 new vs v1.11.1)
+  Test Suites: 23 passed, 23 total
+  Tests:       372 passed, 372 total  (+24 new since original Phase 4 commit)
   Time:        ~1.3 s
-
-npm run test:main
-  tests 50 / pass 50 / fail 0
 
 npm run lint
   0 errors, 0 warnings
 ```
 
-**New tests added in Phase 4:**
+**New tests added in Phase 4 (complete):**
 
 | File | Describe block | Count |
 |------|---------------|-------|
-| `src/utils/scanDiff.test.js` | `port state accuracy (F-001)` | 7 |
+| `src/utils/scanDiff.test.js` | `port state accuracy (F-001)` — incl. killed/--open | 11 |
 | `src/utils/findings.test.js` | `verificationStatus (F-003)` | 5 |
 | `src/utils/findings.test.js` | `parseNseErrors (F-004)` | 5 |
+| `src/utils/report.test.js` | `NSE errors in report output (F-004 export)` | 5 |
+| `src/components/components.test.jsx` | `FindingsPanel` + `DiffPanel` (F-006) | 15 |
+| **Total** | | **41 new tests** |
 
 ---
 
@@ -299,23 +334,26 @@ npm run lint
 
 | File | Change summary |
 |------|----------------|
-| `src/utils/report.js` | +`RE_PORT_ALL`, +`parseAllTestedPorts()`, +`changeSections` entries for filtered/notTested |
-| `src/utils/scanDiff.js` | +`allPortStates` in snapshot, +`filteredPorts[]`, +`notTestedPorts[]` in diff, `portRangeDiffers` moved to top |
+| `src/utils/report.js` | +`RE_PORT_ALL`, +`parseAllTestedPorts()`, +`changeSections` entries, +NSE errors in `toMarkdown()`/`toHtml()`, +`nseErrorsTitle`/`nseErrorsIntro`/`nseError*` i18n labels |
+| `src/utils/scanDiff.js` | +`allPortStates` in snapshot, +`filteredPorts[]`, +`notTestedPorts[]`, +`scanIncomplete` (killed/--open guard), +`hasOpenOnly` import |
+| `src/utils/scanMeta.js` | +`hasOpenOnly(command)` export |
 | `src/utils/findings.js` | +`verificationStatus` on all findings, +`parseNseErrors()`, removed unused `RE_VULNERABLE`, NSE error check before script head check |
 | `src/components/FindingsPanel.jsx` | +`nseErrors` prop, +NSE errors section, +LIKELY/VER badges |
 | `src/components/DiffPanel.jsx` | +FILTERED PORTS section, +NOT TESTED PORTS section |
-| `src/App.css` | +`.ver-badge` styles, +`.nse-errors` styles |
+| `src/components/components.test.jsx` | **new** — 15 component tests (F-006) |
+| `src/App.css` | +`.ver-badge` styles, +`.nse-errors` styles, +`.nse-err-msg` |
 | `src/App.js` | +`parseNseErrors` import, +`nseErrors` memo, +`nseErrors` prop on FindingsPanel |
-| `src/i18n/report.js` | +EN/SK entries for `Filtered ports`, `Not tested ports` |
+| `src/i18n/report.js` | +EN/SK entries for `Filtered ports`, `Not tested ports`, NSE section labels |
 | `src/i18n/uiSk.js` | +6 new SK translations (FILTERED PORTS, NOT TESTED PORTS, CHYBY NSE, ver-badge tooltips) |
 | `src/i18n/uiI18n.test.js` | +`FILTERED PORTS`, `NOT TESTED PORTS` to hardcoded used-strings list |
-| `src/utils/scanDiff.test.js` | +7 F-001 tests |
+| `src/utils/scanDiff.test.js` | +11 F-001 tests (incl. killed/--open) |
 | `src/utils/findings.test.js` | +5 F-003 tests, +5 F-004 tests |
+| `src/utils/report.test.js` | +5 NSE export tests |
 | `.github/workflows/release.yml` | +nmap data dir bundling for macOS, Linux, Windows |
-| `package.json` | +extraResources `share/`, version 1.11.1 → 1.12.0 |
+| `package.json` | +extraResources `share/`, +`@testing-library/*` devDeps, version 1.12.0 |
 | `electron/main.js` | +`resolveNmapDataDir()`, +NMAPDIR in spawn env, +`bundledDataDir` in nmap:check |
-| `CHANGELOG.md` | +v1.12.0 entry |
-| `README.md` | test count 331 → 348 |
+| `CHANGELOG.md` | +v1.12.0 entry (expanded) |
+| `README.md` | test count 348 → 372 |
 
 ---
 
